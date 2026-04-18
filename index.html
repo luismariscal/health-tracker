@@ -1156,6 +1156,9 @@
 
 <div class="main">
 
+  <!-- MORNING WEIGH-IN NUDGE (v2.11.0) -->
+  <div id="morningNudge" style="display:none;"></div>
+
   <!-- ALERT BANNER -->
   <div id="alertBanner"></div>
 
@@ -2012,7 +2015,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.10.0';
+const VERSION = '2.11.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -2300,6 +2303,7 @@ function render() {
   renderBackupStatus();
 
   renderAlert(plateau, avg, cw, nextCp);
+  if (typeof renderMorningNudge === 'function') renderMorningNudge();
   renderTodaysPlan(entries, cw, avg, plateau);
   renderCommandCenter(entries, cw, avg, plateau, nextCp);
   renderKPIs(cw, lost, pct, phase, nextCp, avg);
@@ -10043,6 +10047,83 @@ function closeCsvExport() {
   const o = document.getElementById('csvExportOverlay');
   if (o) o.style.display = 'none';
 }
+
+// =========================================================
+// MORNING WEIGH-IN NUDGE (v2.11.0)
+// Subtle banner at top of dashboard when it's still morning
+// and no weight has been logged today. Dismissable per-day.
+// Daily weigh-ins are the single biggest predictor of sustained
+// weight loss — nudge exists to make it low-friction.
+// =========================================================
+const MORNING_NUDGE_CUTOFF_HOUR = 10;  // hide after 10am local
+const MORNING_NUDGE_DEFAULTS = { enabled: true, dismissedDate: '' };
+
+function loadMorningNudge() {
+  try { return { ...MORNING_NUDGE_DEFAULTS, ...JSON.parse(localStorage.getItem('tp_morning_nudge') || '{}') }; }
+  catch { return { ...MORNING_NUDGE_DEFAULTS }; }
+}
+function saveMorningNudge(cfg) { localStorage.setItem('tp_morning_nudge', JSON.stringify(cfg)); }
+
+function morningNudgeHasLoggedToday() {
+  const today = new Date().toISOString().slice(0, 10);
+  const entries = loadEntries() || [];
+  return entries.some(e => e.date === today);
+}
+
+function renderMorningNudge() {
+  const el = document.getElementById('morningNudge');
+  if (!el) return;
+  const cfg = loadMorningNudge();
+  if (!cfg.enabled) { el.style.display = 'none'; return; }
+  const today = new Date().toISOString().slice(0, 10);
+  if (cfg.dismissedDate === today) { el.style.display = 'none'; return; }
+  const hour = new Date().getHours();
+  if (hour >= MORNING_NUDGE_CUTOFF_HOUR) { el.style.display = 'none'; return; }
+  if (morningNudgeHasLoggedToday()) { el.style.display = 'none'; return; }
+
+  // Grab most recent weight to show "last weighed 2 days ago" context
+  const entries = (loadEntries() || []).sort((a,b) => b.date.localeCompare(a.date));
+  let sub = 'Daily weigh-ins are the single best predictor of sustained loss.';
+  if (entries.length) {
+    const last = entries[0];
+    const daysAgo = Math.floor((new Date(today + 'T00:00:00').getTime() - new Date(last.date + 'T00:00:00').getTime()) / 86400000);
+    if (daysAgo >= 1) {
+      sub = `Last weigh-in: ${last.weight} lb · ${daysAgo} day${daysAgo===1?'':'s'} ago. Keep the streak going.`;
+    }
+  }
+
+  el.innerHTML = `
+    <div style="background:linear-gradient(135deg, rgba(0,212,255,0.10), rgba(139,92,246,0.10));border:1px solid rgba(0,212,255,0.30);border-radius:12px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <div style="font-size:32px;flex:none;">👋</div>
+      <div style="flex:1;min-width:180px;">
+        <div style="font-size:14px;font-weight:800;color:var(--text);">Morning weigh-in?</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;">${sub}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn btn-primary" style="font-size:12px;padding:8px 14px;" onclick="openQuickLog()">⚡ Log now</button>
+        <button class="btn btn-ghost" style="font-size:12px;padding:8px 12px;color:var(--muted);" onclick="dismissMorningNudge()" title="Dismiss for today">✕</button>
+      </div>
+    </div>`;
+  el.style.display = 'block';
+}
+
+function dismissMorningNudge() {
+  const cfg = loadMorningNudge();
+  cfg.dismissedDate = new Date().toISOString().slice(0, 10);
+  saveMorningNudge(cfg);
+  renderMorningNudge();
+}
+
+// Re-check the nudge on page load + whenever the quick-log modal closes
+(function _morningNudgeInit() {
+  if (typeof window.addEventListener === 'function') {
+    window.addEventListener('DOMContentLoaded', () => setTimeout(renderMorningNudge, 100));
+    // Also recheck on visibility change (user comes back from another app)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) renderMorningNudge();
+    });
+  }
+})();
 
 // =========================================================
 // v2.0.0 ADD-ONS
