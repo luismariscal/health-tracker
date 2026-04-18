@@ -250,6 +250,67 @@
   .peak-macro-pill { background: var(--surface); border-radius: 8px; padding: 8px 12px; font-size: 12px; border: 1px solid var(--border); }
   .peak-macro-pill b { color: var(--accent); display: block; font-size: 15px; }
 
+  /* WATER INTAKE */
+  .water-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .water-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .water-progress-outer {
+    width: 100%; height: 16px; border-radius: 20px;
+    background: var(--surface2); border: 1px solid var(--border);
+    overflow: hidden; position: relative;
+  }
+  .water-progress-fill {
+    height: 100%; border-radius: 20px;
+    background: linear-gradient(90deg, #38bdf8, #0ea5e9 50%, #0284c7);
+    box-shadow: 0 0 8px rgba(56,189,248,0.45) inset;
+    transition: width 0.3s ease;
+  }
+  .water-progress-txt {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800; color: #e6f6ff; text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+    letter-spacing: 0.3px;
+  }
+  .water-stat-row {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;
+    font-size: 11px; color: var(--muted);
+  }
+  .water-stat-pill {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 5px 10px;
+  }
+  .water-stat-pill b { color: var(--text); font-weight: 800; }
+  .water-quick-row {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));
+    gap: 8px; margin-top: 14px;
+  }
+  .water-quick-btn {
+    background: var(--surface2); border: 1px solid rgba(56,189,248,0.35);
+    border-radius: 10px; padding: 10px 6px; cursor: pointer; color: var(--text);
+    font-size: 12px; font-weight: 700; transition: all 0.15s; text-align: center;
+    min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  }
+  .water-quick-btn:hover { border-color: #38bdf8; background: rgba(56,189,248,0.08); }
+  .water-quick-btn:active { transform: scale(0.96); }
+  .water-quick-btn .wq-emoji { font-size: 16px; line-height: 1; }
+  .water-quick-btn .wq-label { font-size: 11px; color: var(--muted); font-weight: 600; }
+  .water-timeline {
+    display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px;
+    padding: 6px 0; border-top: 1px dashed var(--border);
+  }
+  .water-entry {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 3px 8px; font-size: 11px;
+  }
+  .water-entry .we-del {
+    color: var(--muted); cursor: pointer; padding: 0 3px;
+    font-size: 12px; opacity: 0.6;
+  }
+  .water-entry .we-del:hover { color: var(--red); opacity: 1; }
+  .water-timeline-empty { font-size: 11px; color: var(--muted); padding: 6px 0; font-style: italic; }
+  @media (max-width: 560px) {
+    .water-quick-row { grid-template-columns: repeat(3, 1fr); }
+  }
+
   /* PEAK WEEK AI — real-time conditioning controller */
   .peak-ai-box { background: linear-gradient(135deg, rgba(167,139,250,0.12), rgba(0,212,255,0.05)); border: 1px solid rgba(167,139,250,0.5); border-radius: 10px; padding: 14px; margin-top: 12px; }
   .peak-ai-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(167,139,250,0.25); }
@@ -936,6 +997,7 @@
     <span id="topbarPhase" style="font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;background:rgba(0,212,255,0.12);color:var(--accent);border:1px solid rgba(0,212,255,0.25);"></span>
     <button id="pwaInstallBtn" class="btn btn-ghost" onclick="pwaInstall()" title="Install as app" style="display:none;">📲 Install</button>
     <button class="btn btn-ghost" onclick="openQuickLog()" title="Log just weight">⚡ Quick</button>
+    <button class="btn btn-ghost" onclick="openWaterLog()" title="Log water intake">💧 Water</button>
     <button class="btn btn-primary" onclick="openCheckin()">+ Weekly Check-In</button>
     <div style="position:relative;">
       <button class="btn btn-ghost" onclick="toggleBackupMenu(event)" title="Backup / Restore" style="position:relative;">⋯<span id="backupDot" style="display:none;position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:#ef4444;border:1.5px solid var(--surface);"></span></button>
@@ -965,6 +1027,17 @@
       <button class="btn btn-primary" onclick="submitQuickLog()">Save</button>
       <button class="btn btn-ghost" onclick="closeQuickLog()">Cancel</button>
     </div>
+  </div>
+</div>
+
+<!-- WATER LOG MODAL -->
+<div id="waterLogOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:310;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:460px;max-height:92vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="font-size:16px;font-weight:800;">💧 Log Water</div>
+      <button onclick="closeWaterLog()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div id="waterModalBody"></div>
   </div>
 </div>
 
@@ -1014,6 +1087,26 @@
       </div>
     </div>
     <div id="weeklyReportBody" style="font-size:13px;line-height:1.6;color:var(--text);"></div>
+  </div>
+
+  <!-- WATER INTAKE -->
+  <div class="card card-collapsible" id="waterCard">
+    <div class="water-head">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:18px;">💧</span>
+        <div>
+          <div class="card-title" style="margin-bottom:0">Water Intake</div>
+          <div class="water-sub" id="waterSub">—</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <button id="waterNotifyBtn" class="btn btn-ghost" onclick="toggleWaterReminders()" style="font-size:11px;padding:4px 10px;"></button>
+        <button class="btn btn-ghost" onclick="openWaterSettings()" style="font-size:11px;padding:4px 10px;" title="Water goal &amp; reminder settings">⚙</button>
+      </div>
+    </div>
+    <div id="waterProgressWrap" style="margin-top:14px;"></div>
+    <div class="water-quick-row" id="waterQuickRow"></div>
+    <div id="waterTimeline" style="margin-top:10px;"></div>
   </div>
 
   <!-- PEAK WEEK -->
@@ -1806,7 +1899,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.2.0';
+const VERSION = '2.3.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -2115,6 +2208,7 @@ function render() {
   renderSymptomCorrelation();
   renderJournal();
   renderPowerTools();
+  renderWaterCard();
   checkMilestoneUnlocks(entries, cw);
   maybeShowBriefing();
 }
@@ -4320,6 +4414,396 @@ function checkInjectionReminder(force = false) {
   } catch (e) {
     console.warn('Notify failed:', e);
   }
+}
+
+// =========================================================
+// WATER INTAKE (v2.3.0)
+// =========================================================
+const WATER_SETTINGS_DEFAULTS = {
+  goalOz: 100,           // daily goal in oz (~3L)
+  remindersEnabled: false,
+  intervalMin: 90,       // ping every N minutes during waking hours
+  wakeStart: '06:00',
+  wakeEnd:   '21:00',
+  unit: 'oz',            // 'oz' or 'ml'
+};
+const WATER_QUICK_OZ = [8, 12, 16, 20, 24, 32]; // preset tap amounts (oz)
+
+function loadWater() {
+  try { return JSON.parse(localStorage.getItem('tp_water') || '{}'); } catch { return {}; }
+}
+function saveWater(obj) { localStorage.setItem('tp_water', JSON.stringify(obj)); bumpChangeCount(); }
+
+function loadWaterSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem('tp_water_settings') || '{}');
+    return { ...WATER_SETTINGS_DEFAULTS, ...s };
+  } catch { return { ...WATER_SETTINGS_DEFAULTS }; }
+}
+function saveWaterSettings(s) { localStorage.setItem('tp_water_settings', JSON.stringify(s)); }
+
+function todayWaterEntries() {
+  const water = loadWater();
+  return water[todayKey()] || [];
+}
+function todayWaterTotal() {
+  return todayWaterEntries().reduce((s, e) => s + (+e.oz || 0), 0);
+}
+function ozToMl(oz) { return Math.round(oz * 29.5735); }
+function fmtWater(oz, unit) {
+  unit = unit || loadWaterSettings().unit;
+  if (unit === 'ml') return ozToMl(oz) + ' ml';
+  return (oz % 1 === 0 ? oz : oz.toFixed(1)) + ' oz';
+}
+
+function addWater(oz) {
+  if (!oz || oz <= 0) return;
+  const water = loadWater();
+  const k = todayKey();
+  if (!water[k]) water[k] = [];
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  water[k].push({ t: `${hh}:${mm}`, oz: +oz });
+  saveWater(water);
+  // Mark this as "last drink" so reminders don't immediately ping
+  const s = loadWaterSettings();
+  saveWaterSettings({ ...s, lastDrinkTs: Date.now() });
+  const totalAfter = todayWaterTotal();
+  const goal = s.goalOz || 100;
+  showToast(`💧 +${fmtWater(oz, s.unit)} · ${fmtWater(totalAfter, s.unit)} / ${fmtWater(goal, s.unit)}`);
+  renderWaterCard();
+  if (document.getElementById('waterLogOverlay').style.display === 'flex') renderWaterModal();
+}
+
+function removeWaterEntry(idx) {
+  const water = loadWater();
+  const k = todayKey();
+  const arr = water[k] || [];
+  if (idx < 0 || idx >= arr.length) return;
+  arr.splice(idx, 1);
+  water[k] = arr;
+  saveWater(water);
+  renderWaterCard();
+  if (document.getElementById('waterLogOverlay').style.display === 'flex') renderWaterModal();
+}
+
+function renderWaterCard() {
+  const sub = document.getElementById('waterSub');
+  const progWrap = document.getElementById('waterProgressWrap');
+  const quickRow = document.getElementById('waterQuickRow');
+  const timeline = document.getElementById('waterTimeline');
+  if (!sub || !progWrap || !quickRow || !timeline) return;
+
+  const s = loadWaterSettings();
+  const entries = todayWaterEntries();
+  const total = entries.reduce((sum, e) => sum + (+e.oz || 0), 0);
+  const goal = s.goalOz || 100;
+  const pct = Math.min(100, (total / goal) * 100);
+
+  const lastEntry = entries[entries.length - 1];
+  const lastTxt = lastEntry ? `Last: ${lastEntry.t} · +${fmtWater(lastEntry.oz, s.unit)}` : 'No water logged yet today';
+  sub.textContent = lastTxt;
+
+  progWrap.innerHTML = `
+    <div class="water-progress-outer">
+      <div class="water-progress-fill" style="width:${pct.toFixed(1)}%;"></div>
+      <div class="water-progress-txt">${fmtWater(total, s.unit)} / ${fmtWater(goal, s.unit)} · ${Math.round(pct)}%</div>
+    </div>
+    <div class="water-stat-row">
+      <span class="water-stat-pill"><b>${entries.length}</b> drinks</span>
+      <span class="water-stat-pill">Avg <b>${entries.length ? fmtWater(total / entries.length, s.unit) : '—'}</b></span>
+      <span class="water-stat-pill">Remaining <b>${fmtWater(Math.max(0, goal - total), s.unit)}</b></span>
+    </div>`;
+
+  const amounts = s.unit === 'ml'
+    ? [{oz:8,label:'glass'},{oz:12,label:'cup'},{oz:16,label:'pint'},{oz:20,label:'bottle'},{oz:24,label:'large'},{oz:32,label:'quart'}]
+    : [{oz:8,label:'glass'},{oz:12,label:'cup'},{oz:16,label:'pint'},{oz:20,label:'bottle'},{oz:24,label:'large'},{oz:32,label:'quart'}];
+  quickRow.innerHTML = amounts.map(a =>
+    `<button class="water-quick-btn" onclick="addWater(${a.oz})" title="Log ${fmtWater(a.oz, s.unit)}">
+       <span class="wq-emoji">💧</span>
+       <span>+${fmtWater(a.oz, s.unit)}</span>
+       <span class="wq-label">${a.label}</span>
+     </button>`
+  ).join('');
+
+  if (!entries.length) {
+    timeline.innerHTML = `<div class="water-timeline-empty">Tap a size above to log your first drink.</div>`;
+  } else {
+    timeline.innerHTML = `<div class="water-timeline">` + entries.map((e, i) =>
+      `<span class="water-entry">${e.t} · +${fmtWater(e.oz, s.unit)}<span class="we-del" onclick="removeWaterEntry(${i})" title="Remove">✕</span></span>`
+    ).join('') + `</div>`;
+  }
+
+  renderWaterNotifyBtn();
+}
+
+function renderWaterNotifyBtn() {
+  const btn = document.getElementById('waterNotifyBtn');
+  if (!btn) return;
+  if (!('Notification' in window)) { btn.style.display = 'none'; return; }
+  const s = loadWaterSettings();
+  const perm = Notification.permission;
+  if (perm === 'granted' && s.remindersEnabled) {
+    btn.textContent = `🔔 Every ${s.intervalMin}m`;
+    btn.style.color = 'var(--green)';
+    btn.title = `Reminders between ${s.wakeStart}–${s.wakeEnd}`;
+  } else if (perm === 'denied') {
+    btn.textContent = '🔕 Blocked';
+    btn.title = 'Unblock notifications in browser settings';
+    btn.style.color = 'var(--muted)';
+  } else {
+    btn.textContent = '🔔 Remind me';
+    btn.style.color = '';
+    btn.title = 'Turn on hydration reminders';
+  }
+}
+
+async function toggleWaterReminders() {
+  if (!('Notification' in window)) { showToast('Notifications not supported in this browser'); return; }
+  const s = loadWaterSettings();
+  if (s.remindersEnabled) {
+    saveWaterSettings({ ...s, remindersEnabled: false });
+    renderWaterNotifyBtn();
+    showToast('💤 Water reminders off');
+    return;
+  }
+  let perm = Notification.permission;
+  if (perm === 'default') perm = await Notification.requestPermission();
+  if (perm !== 'granted') {
+    showToast(perm === 'denied' ? 'Blocked — unblock in browser settings' : 'Permission not granted');
+    renderWaterNotifyBtn();
+    return;
+  }
+  saveWaterSettings({ ...s, remindersEnabled: true, lastReminderTs: 0 });
+  renderWaterNotifyBtn();
+  showToast(`✓ Water reminders on · every ${s.intervalMin}m`);
+  checkWaterReminder(true);
+}
+
+function isWithinWakingHours() {
+  const s = loadWaterSettings();
+  const now = new Date();
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  const [sh, sm] = (s.wakeStart || '06:00').split(':').map(Number);
+  const [eh, em] = (s.wakeEnd   || '21:00').split(':').map(Number);
+  const start = sh * 60 + sm;
+  const end   = eh * 60 + em;
+  if (start <= end) return minutes >= start && minutes <= end;
+  // Overnight window (e.g. 22:00–05:00) — handle wrap
+  return minutes >= start || minutes <= end;
+}
+
+function checkWaterReminder(force = false) {
+  renderWaterNotifyBtn();
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const s = loadWaterSettings();
+  if (!s.remindersEnabled) return;
+  if (!isWithinWakingHours() && !force) return;
+
+  const now = Date.now();
+  const intervalMs = (s.intervalMin || 90) * 60 * 1000;
+  const lastReminder = s.lastReminderTs || 0;
+  const entries = todayWaterEntries();
+  const lastEntry = entries[entries.length - 1];
+  // Derive "last drink" timestamp — prefer explicit lastDrinkTs, else reconstruct from today's last entry time
+  let lastDrink = s.lastDrinkTs || 0;
+  if (!lastDrink && lastEntry) {
+    const [hh, mm] = lastEntry.t.split(':').map(Number);
+    const d = new Date(); d.setHours(hh, mm, 0, 0);
+    lastDrink = d.getTime();
+  }
+  const sinceDrink = now - lastDrink;
+  const sinceReminder = now - lastReminder;
+
+  // Don't over-remind: at least `intervalMs` since last reminder
+  if (!force && sinceReminder < intervalMs) return;
+  // If they drank recently (within half the interval), skip
+  if (!force && lastDrink && sinceDrink < intervalMs * 0.5) return;
+
+  // Don't spam if already at goal
+  const total = entries.reduce((s0, e) => s0 + (+e.oz || 0), 0);
+  if (!force && total >= (s.goalOz || 100)) return;
+
+  const remaining = Math.max(0, (s.goalOz || 100) - total);
+  const hoursSince = lastDrink ? Math.round(sinceDrink / 3600000 * 10) / 10 : null;
+  const bodyBits = [];
+  bodyBits.push(`${fmtWater(total, s.unit)} / ${fmtWater(s.goalOz || 100, s.unit)} so far today.`);
+  if (remaining > 0) bodyBits.push(`${fmtWater(remaining, s.unit)} to goal.`);
+  if (hoursSince != null && hoursSince >= 1) bodyBits.push(`Last drink ${hoursSince}h ago.`);
+
+  try {
+    new Notification('💧 Time to hydrate', {
+      body: bodyBits.join(' '),
+      icon: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="%230ea5e9"/><text x="50%" y="62%" text-anchor="middle" font-size="36" fill="white" font-family="Arial">💧</text></svg>',
+      tag: 'tp-water-reminder',
+      requireInteraction: false,
+    });
+    saveWaterSettings({ ...s, lastReminderTs: now });
+  } catch (e) {
+    console.warn('Water notify failed:', e);
+  }
+}
+
+// Poll every minute while the app is open — fires at most once per interval
+let _waterPollTimer = null;
+function startWaterPoll() {
+  if (_waterPollTimer) return;
+  _waterPollTimer = setInterval(() => {
+    try { checkWaterReminder(false); } catch {}
+  }, 60 * 1000);
+}
+
+// -------- Water modal --------
+function openWaterLog() {
+  renderWaterModal();
+  document.getElementById('waterLogOverlay').style.display = 'flex';
+}
+function closeWaterLog() {
+  document.getElementById('waterLogOverlay').style.display = 'none';
+}
+function renderWaterModal() {
+  const body = document.getElementById('waterModalBody');
+  if (!body) return;
+  const s = loadWaterSettings();
+  const entries = todayWaterEntries();
+  const total = entries.reduce((sum, e) => sum + (+e.oz || 0), 0);
+  const goal = s.goalOz || 100;
+  const pct = Math.min(100, (total / goal) * 100);
+
+  body.innerHTML = `
+    <div class="water-progress-outer">
+      <div class="water-progress-fill" style="width:${pct.toFixed(1)}%;"></div>
+      <div class="water-progress-txt">${fmtWater(total, s.unit)} / ${fmtWater(goal, s.unit)} · ${Math.round(pct)}%</div>
+    </div>
+    <div class="water-stat-row" style="margin-bottom:6px;">
+      <span class="water-stat-pill"><b>${entries.length}</b> drinks today</span>
+      <span class="water-stat-pill">Remaining <b>${fmtWater(Math.max(0, goal - total), s.unit)}</b></span>
+    </div>
+    <div class="water-quick-row">
+      ${WATER_QUICK_OZ.map(oz => `
+        <button class="water-quick-btn" onclick="addWater(${oz})">
+          <span class="wq-emoji">💧</span>
+          <span>+${fmtWater(oz, s.unit)}</span>
+        </button>`).join('')}
+    </div>
+    <div style="margin-top:14px;">
+      <label style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:0.5px;">CUSTOM AMOUNT</label>
+      <div style="display:flex;gap:8px;margin-top:6px;">
+        <input type="number" id="waterCustomAmt" placeholder="e.g. 10" step="0.5" min="0.5"
+               style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:14px;">
+        <select id="waterCustomUnit" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;font-size:13px;">
+          <option value="oz" ${s.unit === 'oz' ? 'selected' : ''}>oz</option>
+          <option value="ml" ${s.unit === 'ml' ? 'selected' : ''}>ml</option>
+        </select>
+        <button class="btn btn-primary" onclick="submitCustomWater()" style="padding:8px 14px;">Add</button>
+      </div>
+    </div>
+    ${entries.length ? `
+      <div style="margin-top:14px;">
+        <div style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:0.5px;margin-bottom:6px;">TODAY'S LOG</div>
+        <div class="water-timeline" style="border-top:none;padding-top:0;">
+          ${entries.map((e, i) =>
+            `<span class="water-entry">${e.t} · +${fmtWater(e.oz, s.unit)}<span class="we-del" onclick="removeWaterEntry(${i})" title="Remove">✕</span></span>`
+          ).join('')}
+        </div>
+      </div>` : ''}
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);text-align:right;">
+      <button class="btn btn-ghost" onclick="closeWaterLog()" style="font-size:12px;">Done</button>
+    </div>`;
+}
+
+function submitCustomWater() {
+  const inp = document.getElementById('waterCustomAmt');
+  const unitSel = document.getElementById('waterCustomUnit');
+  const amt = parseFloat(inp.value);
+  if (!amt || amt <= 0) { showToast('Enter a positive amount'); inp.focus(); return; }
+  const oz = unitSel.value === 'ml' ? (amt / 29.5735) : amt;
+  addWater(Math.round(oz * 10) / 10);
+  inp.value = '';
+  inp.focus();
+}
+
+// -------- Water settings modal (goal, interval, waking hours, unit) --------
+function openWaterSettings() {
+  let ov = document.getElementById('waterSettingsOverlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'waterSettingsOverlay';
+    ov.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:320;align-items:center;justify-content:center;';
+    ov.innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+          <div style="font-size:16px;font-weight:800;">💧 Water Settings</div>
+          <button onclick="closeWaterSettings()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
+        </div>
+        <div id="waterSettingsBody"></div>
+      </div>`;
+    ov.addEventListener('click', (e) => { if (e.target === ov) closeWaterSettings(); });
+    document.body.appendChild(ov);
+  }
+  renderWaterSettings();
+  ov.style.display = 'flex';
+}
+function closeWaterSettings() {
+  const ov = document.getElementById('waterSettingsOverlay');
+  if (ov) ov.style.display = 'none';
+}
+function renderWaterSettings() {
+  const body = document.getElementById('waterSettingsBody');
+  const s = loadWaterSettings();
+  body.innerHTML = `
+    <div class="form-grid">
+      <div class="field">
+        <label>Daily goal</label>
+        <div style="display:flex;gap:6px;">
+          <input type="number" id="ws_goal" value="${s.goalOz}" step="1" min="20" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;">
+          <select id="ws_unit" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px;">
+            <option value="oz" ${s.unit === 'oz' ? 'selected' : ''}>oz</option>
+            <option value="ml" ${s.unit === 'ml' ? 'selected' : ''}>ml (display)</option>
+          </select>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">Common targets: 64oz (half-gallon), 100oz (3L), 128oz (gallon). On GLP-1s, lean higher.</div>
+      </div>
+      <div class="field">
+        <label>Reminder interval (minutes)</label>
+        <input type="number" id="ws_interval" value="${s.intervalMin}" step="15" min="30" max="240" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;">
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">How often to ping you between waking hours.</div>
+      </div>
+      <div class="field">
+        <label>Waking hours</label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="time" id="ws_wakeStart" value="${s.wakeStart}" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;">
+          <span style="color:var(--muted);">to</span>
+          <input type="time" id="ws_wakeEnd" value="${s.wakeEnd}" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;">
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">No reminders outside this window.</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="closeWaterSettings()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveWaterSettingsFromModal()">Save</button>
+    </div>`;
+}
+function saveWaterSettingsFromModal() {
+  const s = loadWaterSettings();
+  const goal = parseFloat(document.getElementById('ws_goal').value) || 100;
+  const unit = document.getElementById('ws_unit').value;
+  const interval = parseInt(document.getElementById('ws_interval').value, 10) || 90;
+  const wakeStart = document.getElementById('ws_wakeStart').value || '06:00';
+  const wakeEnd   = document.getElementById('ws_wakeEnd').value   || '21:00';
+  // If unit changed to oz but user likely entered ml, trust their number & unit.
+  saveWaterSettings({ ...s, goalOz: goal, unit, intervalMin: interval, wakeStart, wakeEnd });
+  closeWaterSettings();
+  renderWaterCard();
+  showToast('💧 Water settings saved');
+}
+
+// Wire modal click-outside / ESC
+if (document.getElementById('waterLogOverlay')) {
+  document.getElementById('waterLogOverlay').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeWaterLog();
+  });
 }
 
 function loadInjLog() {
@@ -8417,6 +8901,8 @@ renderFitbitStatus();
 fitbitHandleRedirect(); // consume ?code= if Fitbit just redirected us back
 checkScheduledReview(); // fire Sunday auto-review if due
 checkInjectionReminder(); // fire injection-day notification if due
+checkWaterReminder();     // fire hydration reminder if due
+startWaterPoll();         // poll every minute while app is open
 initCollapsibleCards();
 initBottomNavScrollSpy();
 // Show iOS "Add to Home Screen" hint if running standalone-capable but not installed
