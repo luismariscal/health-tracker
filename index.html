@@ -984,6 +984,24 @@
     .bottom-nav { display: block; }
     body { padding-bottom: calc(58px + env(safe-area-inset-bottom, 0)); }
   }
+
+  /* v2.5.2 — keep the backup menu on-screen when the topbar wraps.
+     On narrow viewports the ⋯ button isn't anchored to the right edge,
+     so right:0 extended the 260px menu off the left side of the screen.
+     Switch to a viewport-fixed centered sheet below 700px. */
+  #backupMenu { max-width: calc(100vw - 24px); }
+  @media (max-width: 700px) {
+    #backupMenu {
+      position: fixed !important;
+      top: 64px !important;
+      right: 12px !important;
+      left: 12px !important;
+      min-width: 0 !important;
+      max-width: none !important;
+      max-height: calc(100vh - 80px);
+      overflow-y: auto;
+    }
+  }
 </style>
 </head>
 <body>
@@ -1913,7 +1931,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.5.1';
+const VERSION = '2.5.2';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
