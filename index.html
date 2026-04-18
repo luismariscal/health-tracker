@@ -1028,7 +1028,8 @@
         <input type="file" id="importFile" accept=".json,application/json" style="display:none;" onchange="importData(event)">
         <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);"></div>
         <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--accent);margin-bottom:4px;" onclick="openSyncSettings()">☁ Sync to GitHub Gist…</button>
-        <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--accent);" onclick="openCalendarSettings()">📅 Calendar Reminders…</button>
+        <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--accent);margin-bottom:4px;" onclick="openCalendarSettings()">📅 Calendar Reminders…</button>
+        <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--accent);" onclick="openMedicalSummary()">🩺 Medical Summary (PDF)…</button>
       </div>
     </div>
   </div>
@@ -1082,6 +1083,17 @@
       <button onclick="closeCalendarSettings()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
     </div>
     <div id="calSettingsBody"></div>
+  </div>
+</div>
+
+<!-- MEDICAL SUMMARY MODAL (v2.8.0) -->
+<div id="medSumOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:310;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:500px;max-height:92vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="font-size:16px;font-weight:800;">🩺 Medical Summary</div>
+      <button onclick="closeMedicalSummary()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div id="medSumBody"></div>
   </div>
 </div>
 
@@ -1943,7 +1955,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.7.0';
+const VERSION = '2.8.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -9198,6 +9210,356 @@ function showFeedSubscribeHelp() {
       </div>
     </div>
   `;
+}
+
+// =========================================================
+// MEDICAL SUMMARY PDF (v2.8.0)
+// Generates a print-ready doctor-visit report: weight trend,
+// vitals, injections, symptoms, and current stack. Uses the
+// browser's native Print → Save as PDF — no JS libraries.
+// =========================================================
+function openMedicalSummary() {
+  const o = document.getElementById('medSumOverlay');
+  if (o) { o.style.display = 'flex'; renderMedicalSummaryPicker(); }
+  const bm = document.getElementById('backupMenu');
+  if (bm) bm.style.display = 'none';
+}
+function closeMedicalSummary() {
+  const o = document.getElementById('medSumOverlay');
+  if (o) o.style.display = 'none';
+}
+
+function _msLoadOpts() {
+  try { return { days: 90, includeWeight: true, includeVitals: true, includeInjections: true,
+                 includeSymptoms: true, includeStack: true, includeMeasurements: true,
+                 ...JSON.parse(localStorage.getItem('tp_medsum_opts') || '{}') }; }
+  catch { return { days: 90, includeWeight: true, includeVitals: true, includeInjections: true,
+                   includeSymptoms: true, includeStack: true, includeMeasurements: true }; }
+}
+function _msSaveOpts(o) { localStorage.setItem('tp_medsum_opts', JSON.stringify(o)); }
+
+function renderMedicalSummaryPicker() {
+  const body = document.getElementById('medSumBody');
+  if (!body) return;
+  const opts = _msLoadOpts();
+  const cb = (k, label, hint) => `
+    <label style="display:flex;align-items:flex-start;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:6px;cursor:pointer;">
+      <input type="checkbox" ${opts[k]?'checked':''} onchange="medSumToggle('${k}')" style="margin-top:3px;flex:none;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:13px;">${label}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">${hint}</div>
+      </div>
+    </label>`;
+  body.innerHTML = `
+    <div style="font-size:13px;color:var(--text);line-height:1.55;margin-bottom:14px;">
+      Build a printable summary for doctor visits — weight trend, vitals, injection log, side effects, and current stack. Uses your browser's <strong>Print → Save as PDF</strong>, so no data leaves the device.
+    </div>
+
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+      <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Date range</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        ${[30,60,90,180,365].map(d =>
+          `<button class="btn ${opts.days===d?'btn-primary':'btn-ghost'}" style="font-size:12px;padding:6px 12px;" onclick="medSumSetDays(${d})">${d<365?d+' days':'1 year'}</button>`
+        ).join('')}
+      </div>
+    </div>
+
+    <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Include</div>
+    ${cb('includeWeight',       '⚖ Weight trend',        'Daily entries, 7-day rolling average, net loss')}
+    ${cb('includeVitals',       '🫀 Vitals (BP + HR)',    'All BP and resting HR readings in range')}
+    ${cb('includeMeasurements', '📏 Body measurements',    'Waist, chest, arms, thighs — start vs. latest')}
+    ${cb('includeInjections',   '💉 Injection log',        'Dates, compound, dose, injection site')}
+    ${cb('includeSymptoms',     '⚠ Side effects / symptoms','Logged symptoms with severity and timestamps')}
+    ${cb('includeStack',        '💊 Current protocol stack','All active supplements and peptides')}
+
+    <div style="background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.2);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--muted);line-height:1.5;margin:12px 0;">
+      💡 In the print dialog: <strong>Destination → Save as PDF</strong>. On Android, tap the three-dot menu in Chrome after preview loads → <strong>Share → Save as PDF</strong>.
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+      <button class="btn btn-ghost" onclick="closeMedicalSummary()">Cancel</button>
+      <button class="btn btn-primary" onclick="buildMedicalSummary()">🖨 Generate &amp; Print</button>
+    </div>
+  `;
+}
+
+function medSumToggle(k) { const o = _msLoadOpts(); o[k] = !o[k]; _msSaveOpts(o); renderMedicalSummaryPicker(); }
+function medSumSetDays(d) { const o = _msLoadOpts(); o.days = d; _msSaveOpts(o); renderMedicalSummaryPicker(); }
+
+function _msEsc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function _msFmtDate(iso) {
+  if (!iso) return '';
+  const d = iso.length > 10 ? new Date(iso) : new Date(iso + 'T00:00:00');
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
+}
+function _msFmtDateTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleString(undefined, { year:'numeric', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+}
+function _msInRange(iso, cutoffMs) {
+  if (!iso) return false;
+  const d = iso.length > 10 ? new Date(iso) : new Date(iso + 'T00:00:00');
+  return !isNaN(d) && d.getTime() >= cutoffMs;
+}
+
+function buildMedicalSummary() {
+  const opts = _msLoadOpts();
+  const cutoffMs = Date.now() - opts.days * 86400000;
+  const parts = [];
+
+  // ---- Header ----
+  const profile = { /* optional */ };
+  const now = new Date();
+  parts.push(`
+    <header>
+      <h1>Health Tracker — Medical Summary</h1>
+      <div class="meta">
+        <div><strong>Generated:</strong> ${_msFmtDateTime(now.toISOString())}</div>
+        <div><strong>Period:</strong> Last ${opts.days} days</div>
+      </div>
+    </header>`);
+
+  // ---- Weight ----
+  if (opts.includeWeight) {
+    const entries = (loadEntries() || [])
+      .filter(e => _msInRange(e.date, cutoffMs))
+      .sort((a,b) => a.date.localeCompare(b.date));
+    if (entries.length) {
+      const first = entries[0], last = entries[entries.length-1];
+      const weights = entries.map(e => parseFloat(e.weight)).filter(w => !isNaN(w));
+      const minW = Math.min(...weights), maxW = Math.max(...weights);
+      const firstW = parseFloat(first.weight), lastW = parseFloat(last.weight);
+      const delta = (lastW - firstW).toFixed(1);
+      const deltaSign = delta > 0 ? '+' : '';
+      parts.push(`
+        <section>
+          <h2>⚖ Weight Trend</h2>
+          <div class="stat-row">
+            <div class="stat"><div class="stat-label">Entries</div><div class="stat-val">${entries.length}</div></div>
+            <div class="stat"><div class="stat-label">Start (${_msFmtDate(first.date)})</div><div class="stat-val">${firstW.toFixed(1)} lb</div></div>
+            <div class="stat"><div class="stat-label">Latest (${_msFmtDate(last.date)})</div><div class="stat-val">${lastW.toFixed(1)} lb</div></div>
+            <div class="stat"><div class="stat-label">Net change</div><div class="stat-val" style="color:${delta<=0?'#047857':'#b91c1c'}">${deltaSign}${delta} lb</div></div>
+            <div class="stat"><div class="stat-label">Range</div><div class="stat-val">${minW.toFixed(1)}–${maxW.toFixed(1)} lb</div></div>
+          </div>
+          <table>
+            <thead><tr><th>Date</th><th>Weight (lb)</th><th>Notes</th></tr></thead>
+            <tbody>
+              ${entries.map(e => `<tr><td>${_msFmtDate(e.date)}</td><td>${_msEsc(e.weight)}</td><td>${_msEsc(e.note||'')}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </section>`);
+    } else {
+      parts.push(`<section><h2>⚖ Weight Trend</h2><p class="empty">No weight entries in the selected range.</p></section>`);
+    }
+  }
+
+  // ---- Vitals ----
+  if (opts.includeVitals) {
+    const vitals = (loadVitals() || [])
+      .filter(v => _msInRange(v.date, cutoffMs))
+      .sort((a,b) => a.date.localeCompare(b.date));
+    if (vitals.length) {
+      const sbps = vitals.map(v => v.sbp).filter(Boolean);
+      const dbps = vitals.map(v => v.dbp).filter(Boolean);
+      const hrs  = vitals.map(v => v.hr).filter(Boolean);
+      const avg = (a) => a.length ? (a.reduce((s,x)=>s+x,0)/a.length).toFixed(0) : '—';
+      parts.push(`
+        <section>
+          <h2>🫀 Vitals</h2>
+          <div class="stat-row">
+            <div class="stat"><div class="stat-label">Avg BP</div><div class="stat-val">${avg(sbps)}/${avg(dbps)}</div></div>
+            <div class="stat"><div class="stat-label">Avg HR</div><div class="stat-val">${avg(hrs)}</div></div>
+            <div class="stat"><div class="stat-label">Readings</div><div class="stat-val">${vitals.length}</div></div>
+          </div>
+          <table>
+            <thead><tr><th>Date</th><th>SBP</th><th>DBP</th><th>HR</th></tr></thead>
+            <tbody>
+              ${vitals.map(v => `<tr><td>${_msFmtDate(v.date)}</td><td>${v.sbp||'—'}</td><td>${v.dbp||'—'}</td><td>${v.hr||'—'}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </section>`);
+    } else {
+      parts.push(`<section><h2>🫀 Vitals</h2><p class="empty">No vitals logged in the selected range.</p></section>`);
+    }
+  }
+
+  // ---- Measurements ----
+  if (opts.includeMeasurements) {
+    const meas = (loadMeasurements() || [])
+      .filter(m => _msInRange(m.date, cutoffMs))
+      .sort((a,b) => a.date.localeCompare(b.date));
+    if (meas.length) {
+      const fields = ['waist','chest','hips','neck','leftArm','rightArm','leftThigh','rightThigh','bodyFat'];
+      const labels = { waist:'Waist', chest:'Chest', hips:'Hips', neck:'Neck', leftArm:'L. Arm', rightArm:'R. Arm', leftThigh:'L. Thigh', rightThigh:'R. Thigh', bodyFat:'BF %' };
+      parts.push(`
+        <section>
+          <h2>📏 Body Measurements</h2>
+          <table>
+            <thead><tr><th>Date</th>${fields.map(f=>`<th>${labels[f]}</th>`).join('')}</tr></thead>
+            <tbody>
+              ${meas.map(m => `<tr><td>${_msFmtDate(m.date)}</td>${fields.map(f=>`<td>${m[f]==null||m[f]===''?'—':_msEsc(m[f])}</td>`).join('')}</tr>`).join('')}
+            </tbody>
+          </table>
+        </section>`);
+    }
+  }
+
+  // ---- Injections ----
+  if (opts.includeInjections) {
+    const log = loadInjLog() || {};
+    const rows = [];
+    Object.keys(log).forEach(k => {
+      // keys look like "2026-01-02:retatrutide" — parse
+      const [date, compound] = k.split(':');
+      if (!date) return;
+      if (!_msInRange(date, cutoffMs)) return;
+      const e = log[k];
+      if (!isInjLogged(e)) return;
+      const site = getInjSite(e) || (e && typeof e === 'object' ? e.site : null);
+      rows.push({ date, compound: compound || '—', site: site || '—' });
+    });
+    rows.sort((a,b) => a.date.localeCompare(b.date) || a.compound.localeCompare(b.compound));
+    if (rows.length) {
+      // site distribution
+      const siteCounts = {};
+      rows.forEach(r => { siteCounts[r.site] = (siteCounts[r.site]||0) + 1; });
+      parts.push(`
+        <section>
+          <h2>💉 Injection Log</h2>
+          <div class="stat-row">
+            <div class="stat"><div class="stat-label">Injections</div><div class="stat-val">${rows.length}</div></div>
+            <div class="stat"><div class="stat-label">Unique sites</div><div class="stat-val">${Object.keys(siteCounts).length}</div></div>
+          </div>
+          <table>
+            <thead><tr><th>Date</th><th>Compound</th><th>Site</th></tr></thead>
+            <tbody>
+              ${rows.map(r => `<tr><td>${_msFmtDate(r.date)}</td><td>${_msEsc(r.compound)}</td><td>${_msEsc(r.site)}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </section>`);
+    } else {
+      parts.push(`<section><h2>💉 Injection Log</h2><p class="empty">No injections logged in the selected range.</p></section>`);
+    }
+  }
+
+  // ---- Symptoms ----
+  if (opts.includeSymptoms) {
+    const sym = (loadSymptoms() || [])
+      .filter(s => s.ts && new Date(s.ts).getTime() >= cutoffMs)
+      .sort((a,b) => (a.ts||'').localeCompare(b.ts||''));
+    if (sym.length) {
+      const byTag = {};
+      sym.forEach(s => {
+        const t = s.tag || 'other';
+        if (!byTag[t]) byTag[t] = { count: 0, sev: 0 };
+        byTag[t].count++;
+        byTag[t].sev += (s.severity || 0);
+      });
+      const tagSummary = Object.entries(byTag)
+        .map(([t,v]) => `${_msEsc(t)}: ${v.count}× (avg sev ${(v.sev/v.count).toFixed(1)})`)
+        .join(' · ');
+      parts.push(`
+        <section>
+          <h2>⚠ Side Effects / Symptoms</h2>
+          <div class="stat-row">
+            <div class="stat"><div class="stat-label">Logged</div><div class="stat-val">${sym.length}</div></div>
+            <div class="stat"><div class="stat-label">By tag</div><div class="stat-val" style="font-size:12px;font-weight:500;">${tagSummary}</div></div>
+          </div>
+          <table>
+            <thead><tr><th>When</th><th>Tag</th><th>Severity</th><th>Note</th></tr></thead>
+            <tbody>
+              ${sym.map(s => `<tr><td>${_msFmtDateTime(s.ts)}</td><td>${_msEsc(s.tag||'')}</td><td>${s.severity ? s.severity + '/5' : '—'}</td><td>${_msEsc(s.note||'')}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </section>`);
+    } else {
+      parts.push(`<section><h2>⚠ Side Effects / Symptoms</h2><p class="empty">No symptoms logged in the selected range.</p></section>`);
+    }
+  }
+
+  // ---- Stack ----
+  if (opts.includeStack) {
+    const stack = (loadStack() || []).filter(s => s.status !== 'stopped');
+    if (stack.length) {
+      parts.push(`
+        <section>
+          <h2>💊 Current Protocol Stack</h2>
+          <table>
+            <thead><tr><th>Compound</th><th>Dose</th><th>Timing</th><th>Status</th><th>Notes</th></tr></thead>
+            <tbody>
+              ${stack.map(s => `<tr><td><strong>${_msEsc(s.name)}</strong></td><td>${_msEsc(s.dose||'')}</td><td>${_msEsc(s.timing||'')}</td><td>${_msEsc(s.status||'')}</td><td>${_msEsc(s.note||'')}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </section>`);
+    }
+  }
+
+  // ---- Footer ----
+  parts.push(`
+    <footer>
+      <div>Generated by Transformation Protocol Health Tracker v${VERSION} · All data self-reported</div>
+      <div>This summary is for physician review. Not a medical document.</div>
+    </footer>`);
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>Medical Summary — ${_msFmtDate(new Date().toISOString())}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: #111; background: #fff; margin: 0; padding: 24px; line-height: 1.45; font-size: 13px; }
+  header { border-bottom: 3px solid #111; padding-bottom: 12px; margin-bottom: 20px; }
+  header h1 { margin: 0 0 6px; font-size: 22px; letter-spacing: -0.5px; }
+  header .meta { font-size: 11px; color: #555; display: flex; gap: 20px; flex-wrap: wrap; }
+  section { margin-bottom: 24px; page-break-inside: avoid; }
+  h2 { font-size: 15px; margin: 0 0 10px; padding-bottom: 4px; border-bottom: 1.5px solid #ccc; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 6px; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid #e5e7eb; }
+  th { background: #f3f4f6; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #374151; }
+  tr:nth-child(even) td { background: #fafafa; }
+  .stat-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+  .stat { border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px 12px; min-width: 100px; }
+  .stat-label { font-size: 10px; text-transform: uppercase; color: #6b7280; letter-spacing: 0.5px; }
+  .stat-val { font-size: 15px; font-weight: 700; margin-top: 2px; }
+  .empty { color: #6b7280; font-style: italic; font-size: 12px; }
+  footer { margin-top: 30px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 10px; color: #6b7280; }
+  footer div { margin-bottom: 2px; }
+  .print-bar { position: fixed; top: 12px; right: 12px; background: #111; color: #fff; border-radius: 8px; padding: 8px 12px; display: flex; gap: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+  .print-bar button { background: #00d4ff; color: #111; border: none; font-weight: 700; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+  .print-bar button.ghost { background: transparent; color: #fff; border: 1px solid #555; }
+  @media print {
+    body { padding: 0; font-size: 11.5px; }
+    .print-bar { display: none; }
+    section { page-break-inside: auto; }
+    tr { page-break-inside: avoid; }
+    h2 { page-break-after: avoid; }
+  }
+  @page { margin: 0.6in; }
+</style>
+</head><body>
+<div class="print-bar">
+  <button onclick="window.print()">🖨 Print / Save as PDF</button>
+  <button class="ghost" onclick="window.close()">Close</button>
+</div>
+${parts.join('\n')}
+<script>window.addEventListener('load', () => setTimeout(() => window.print(), 400));<\/script>
+</body></html>`;
+
+  const w = window.open('', '_blank', 'width=900,height=1100');
+  if (!w) {
+    showToast('Pop-up blocked — allow pop-ups and try again', 4000);
+    return;
+  }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  closeMedicalSummary();
 }
 
 // =========================================================
