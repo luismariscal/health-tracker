@@ -1553,7 +1553,7 @@
     </div>
     <div class="tab-content" id="tab2-stack">
       <div class="stack-add-bar">
-        <button class="btn btn-ghost" onclick="openStackEdit(-1)" style="font-size:12px;padding:7px 14px;">+ Add Compound</button>
+        <button class="btn btn-primary" onclick="openStackEdit(-1)" style="font-size:13px;padding:8px 16px;">+ Add Supplement or Compound</button>
       </div>
       <div class="scroll-x"><table class="stack-table" id="stackTable"></table></div>
     </div>
@@ -1663,7 +1663,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.0.0';
+const VERSION = '2.1.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -1703,8 +1703,8 @@ const MACROS = [
 ];
 const DAILY_PROTOCOL = [
   { time: '05:00', items: ['Methylene Blue (5 drops)','NAD+ Patch','MOTS-c 2 mg','KLOW80 AM dose (2 mg)','Water'], special: false },
-  { time: '06:00', items: ['First meal','1 scoop whey','Creatine 5 g','Multivitamin (Centrum Men 50+)'], special: false },
-  { time: 'Midday', items: ['Protein meal or shake'], special: false },
+  { time: '06:00', items: ['First meal','1 scoop whey','Creatine 5 g','Multivitamin (Centrum Men 50+)','Spirulina 100 mg'], special: false },
+  { time: 'Midday', items: ['Protein meal or shake','Copper Glycinate 3 mg (with lunch)'], special: false },
   { time: 'Evening', items: ['Final meal — support tesamorelin fasting window'], special: false },
   { time: '22:00', items: ['Tesamorelin 2 mg (fasted)','KLOW80 PM dose (2 mg)'], special: false },
   { time: 'Thu/Sun', items: ['Retatrutide 4 mg','Cabergoline 0.25 mg','HCG 500 IU (if active)'], special: true },
@@ -1719,6 +1719,8 @@ const STACK = [
   { name: 'Cabergoline', dose: '0.25 mg', timing: 'Thursday & Sunday', status: 'weekly', start: '—' },
   { name: 'HCG', dose: '500 IU', timing: 'Thursday & Sunday', status: 'planned', start: '—' },
   { name: 'Centrum Men 50+', dose: '1 tablet', timing: 'With first meal', status: 'active', start: '—' },
+  { name: 'Spirulina', dose: '100 mg', timing: 'With first meal (paired w/ multi)', status: 'active', start: '—', note: 'Algae — protein, iron, B-vitamins, antioxidant support.' },
+  { name: 'Copper Glycinate', dose: '3 mg', timing: 'With lunch', status: 'active', start: '—', note: 'Chelated copper — balances zinc, supports GHK-Cu pathway and ceruloplasmin.' },
   { name: 'Creatine (ON)', dose: '5 g daily', timing: '06:00 with first meal', status: 'active', start: '—' },
   { name: 'Whey Protein (ON Gold)', dose: 'Target 230 g/day total protein', timing: 'Multiple times daily', status: 'active', start: '—' },
 ];
@@ -1762,8 +1764,30 @@ function loadStack() {
     const parsed = JSON.parse(saved);
     // Fallback: if user cleared all items, re-seed from default
     if (!Array.isArray(parsed) || parsed.length === 0) return JSON.parse(JSON.stringify(STACK));
-    return parsed;
+    return migrateStack(parsed);
   } catch { return JSON.parse(JSON.stringify(STACK)); }
+}
+// One-time migration: add new default supplements if they've never been seen.
+// Respects user deletions via a tombstone flag per migration key so re-adds don't nag.
+function migrateStack(arr) {
+  const MIGRATIONS = [
+    { key: 'v210_spirulina',  match: /spirulina/i,         entry: { name: 'Spirulina',        dose: '100 mg', timing: 'With first meal (paired w/ multi)', status: 'active', start: '—', note: 'Algae — protein, iron, B-vitamins, antioxidant support.' } },
+    { key: 'v210_copper_gly', match: /copper\s*glycinate/i, entry: { name: 'Copper Glycinate', dose: '3 mg',   timing: 'With lunch',                         status: 'active', start: '—', note: 'Chelated copper — balances zinc, supports GHK-Cu pathway and ceruloplasmin.' } },
+  ];
+  let seen = {};
+  try { seen = JSON.parse(localStorage.getItem('tp_stack_migrations') || '{}'); } catch {}
+  let changed = false;
+  MIGRATIONS.forEach(m => {
+    if (seen[m.key]) return; // already applied — don't re-add if user deleted it
+    const present = arr.some(it => m.match.test(it.name || ''));
+    if (!present) { arr.push({ ...m.entry }); changed = true; }
+    seen[m.key] = true;
+  });
+  if (changed || Object.keys(seen).length) {
+    localStorage.setItem('tp_stack_migrations', JSON.stringify(seen));
+    if (changed) localStorage.setItem('tp_stack', JSON.stringify(arr));
+  }
+  return arr;
 }
 function saveStack(arr) {
   localStorage.setItem('tp_stack', JSON.stringify(arr));
@@ -3082,18 +3106,51 @@ function renderStack() {
     </tbody>`;
 }
 
+// Quick-add presets for common supplements — one tap fills the form
+const SUPPLEMENT_PRESETS = [
+  { name:'Spirulina',         dose:'100 mg',       timing:'With first meal',            note:'Algae — protein, iron, B-vitamins, antioxidant support.' },
+  { name:'Copper Glycinate',  dose:'3 mg',         timing:'With lunch',                 note:'Chelated copper — balances zinc, supports GHK-Cu & ceruloplasmin.' },
+  { name:'Vitamin D3 + K2',   dose:'5,000 IU D3 + 100 mcg K2', timing:'With fatty meal', note:'Bone, immune, hormone support. K2 directs calcium to bone.' },
+  { name:'Omega-3 (EPA/DHA)', dose:'2–3 g EPA+DHA', timing:'With meal',                 note:'Anti-inflammatory, cardio, joint, brain support.' },
+  { name:'Magnesium Glycinate', dose:'400 mg',     timing:'Evening (pre-bed)',          note:'Sleep, muscle, nervous system. Glycinate form = no GI issues.' },
+  { name:'Zinc Picolinate',   dose:'15–30 mg',     timing:'With meal (not with copper)', note:'Immune, T-production. Pair 15:1 with copper if long-term.' },
+  { name:'Vitamin C',         dose:'500–1,000 mg', timing:'Any time',                   note:'Antioxidant, collagen, adrenal support.' },
+  { name:'Ashwagandha (KSM-66)', dose:'600 mg',    timing:'Evening',                    note:'Adaptogen — cortisol, sleep, T-support.' },
+  { name:'B-Complex',         dose:'1 capsule',    timing:'With first meal',            note:'Energy metabolism, methylation. Skip if already in multi.' },
+  { name:'Electrolytes (LMNT)', dose:'1 stick',    timing:'Mid-morning or pre-training', note:'Na/K/Mg — critical on GLP-1 and fasting windows.' },
+  { name:'Taurine',           dose:'1–3 g',        timing:'Evening or pre-bed',         note:'Heart, insulin sensitivity, calming.' },
+  { name:'L-Theanine',        dose:'200 mg',       timing:'With caffeine or evening',    note:'Smooths caffeine, focus without jitters.' },
+  { name:'Glycine',           dose:'3 g',          timing:'Pre-bed',                    note:'Sleep depth, collagen support, offsets methionine.' },
+  { name:'Berberine',         dose:'500 mg × 2',   timing:'With carb meals',            note:'Glucose disposal, AMPK activation. Caution w/ GLP-1.' },
+];
+
 function openStackEdit(idx) {
   const stack = loadStack();
   const s = idx === -1 ? { name:'', dose:'', timing:'', status:'active', start:'', note:'' } : stack[idx];
-  document.getElementById('stackModalTitle').textContent = idx === -1 ? 'Add Compound' : `Edit — ${s.name}`;
+  const isNew = idx === -1;
+  document.getElementById('stackModalTitle').textContent = isNew ? 'Add Compound / Supplement' : `Edit — ${s.name}`;
+  const presetChips = isNew ? `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:800;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">⚡ Quick Add — common supplements</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;">
+        ${SUPPLEMENT_PRESETS.map((p, i) => `
+          <button type="button" onclick="applyStackPreset(${i})"
+            style="background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:16px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;"
+            onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)';"
+            onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)';"
+          >${p.name}</button>`).join('')}
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:6px;font-style:italic;">Tap a chip to pre-fill. Adjust dose/timing before saving.</div>
+    </div>` : '';
   document.getElementById('stackModalForm').innerHTML = `
+    ${presetChips}
     <div class="form-grid">
       <div class="field" style="grid-column:1/-1"><label>Compound Name</label>
-        <input id="se_name" value="${s.name}" placeholder="e.g. BPC-157"></div>
+        <input id="se_name" value="${s.name}" placeholder="e.g. BPC-157 or Vitamin D3"></div>
       <div class="field" style="grid-column:1/-1"><label>Dose</label>
-        <input id="se_dose" value="${s.dose}" placeholder="e.g. 250 mcg daily"></div>
+        <input id="se_dose" value="${s.dose}" placeholder="e.g. 250 mcg daily / 100 mg / 1 tablet"></div>
       <div class="field" style="grid-column:1/-1"><label>Timing</label>
-        <input id="se_timing" value="${s.timing}" placeholder="e.g. Morning fasted"></div>
+        <input id="se_timing" value="${s.timing}" placeholder="e.g. With first meal / 22:00 / Thu & Sun"></div>
       <div class="field"><label>Status</label>
         <select id="se_status">
           ${['active','weekly','planned','paused','held'].map(o =>
@@ -3102,7 +3159,7 @@ function openStackEdit(idx) {
         </select>
       </div>
       <div class="field"><label>Start Date</label>
-        <input id="se_start" value="${s.start === '—' ? '' : s.start}" placeholder="YYYY-MM-DD"></div>
+        <input id="se_start" value="${s.start === '—' ? '' : s.start}" placeholder="YYYY-MM-DD" type="date"></div>
       <div class="field" style="grid-column:1/-1"><label>Notes / Composition</label>
         <textarea id="se_note" placeholder="e.g. GHK-Cu 50mg / BPC-157 10mg">${s.note||''}</textarea>
       </div>
@@ -3114,6 +3171,20 @@ function openStackEdit(idx) {
     </div>`;
   const overlay = document.getElementById('stackModalOverlay');
   overlay.style.display = 'flex';
+}
+
+// Pre-fill the add-compound form from a preset
+function applyStackPreset(i) {
+  const p = SUPPLEMENT_PRESETS[i];
+  if (!p) return;
+  document.getElementById('se_name').value   = p.name;
+  document.getElementById('se_dose').value   = p.dose;
+  document.getElementById('se_timing').value = p.timing;
+  const noteEl = document.getElementById('se_note');
+  if (noteEl && !noteEl.value.trim()) noteEl.value = p.note || '';
+  const startEl = document.getElementById('se_start');
+  if (startEl && !startEl.value) startEl.value = new Date().toISOString().slice(0,10);
+  document.getElementById('se_name').focus();
 }
 
 function closeStackEdit() {
@@ -5890,9 +5961,13 @@ const SUPP_SCHEDULE = [
     { key:'klow_am', name:'KLOW80 AM',      dose:'2 mg' },
   ]},
   { block:'With First Meal — 06:00', tag:'day', items:[
-    { key:'creatine', name:'Creatine',     dose:'5 g' },
-    { key:'multi',    name:'Multivitamin', dose:'1 tablet (Centrum Men 50+)' },
-    { key:'protein1', name:'Whey Protein', dose:'1st shake — hit 230g target' },
+    { key:'creatine',  name:'Creatine',     dose:'5 g' },
+    { key:'multi',     name:'Multivitamin', dose:'1 tablet (Centrum Men 50+)' },
+    { key:'spirulina', name:'Spirulina',    dose:'100 mg (with multi)' },
+    { key:'protein1',  name:'Whey Protein', dose:'1st shake — hit 230g target' },
+  ]},
+  { block:'Midday — Lunch', tag:'day', items:[
+    { key:'copper_gly', name:'Copper Glycinate', dose:'3 mg (with lunch)' },
   ]},
   { block:'PM — 22:00', tag:'pm', items:[
     { key:'tesam',   name:'Tesamorelin', dose:'2 mg fasted' },
