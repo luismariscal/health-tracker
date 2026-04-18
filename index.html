@@ -995,6 +995,7 @@
   </div>
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
     <span id="topbarPhase" style="font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;background:rgba(0,212,255,0.12);color:var(--accent);border:1px solid rgba(0,212,255,0.25);"></span>
+    <span id="syncChip" onclick="openSyncSettings()" style="display:none;cursor:pointer;font-size:11px;font-weight:700;padding:3px 9px;border-radius:12px;background:#22c55e;color:#0b0f19;align-items:center;gap:4px;" title="Sync status"></span>
     <button id="pwaInstallBtn" class="btn btn-ghost" onclick="pwaInstall()" title="Install as app" style="display:none;">📲 Install</button>
     <button class="btn btn-ghost" onclick="openQuickLog()" title="Log just weight">⚡ Quick</button>
     <button class="btn btn-ghost" onclick="openWaterLog()" title="Log water intake">💧 Water</button>
@@ -1005,8 +1006,10 @@
         <div id="backupStatus" style="padding:4px 6px 10px;border-bottom:1px solid var(--border);margin-bottom:6px;font-size:12px;"></div>
         <div id="autoBackupRow" style="margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border);"></div>
         <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;margin-bottom:4px;font-size:12px;" onclick="exportData()">⬇ Export Data (JSON)</button>
-        <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;" onclick="document.getElementById('importFile').click()">⬆ Import Data</button>
+        <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;margin-bottom:4px;" onclick="document.getElementById('importFile').click()">⬆ Import Data</button>
         <input type="file" id="importFile" accept=".json,application/json" style="display:none;" onchange="importData(event)">
+        <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);"></div>
+        <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--accent);" onclick="openSyncSettings()">☁ Sync to GitHub Gist…</button>
       </div>
     </div>
   </div>
@@ -1038,6 +1041,17 @@
       <button onclick="closeWaterLog()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
     </div>
     <div id="waterModalBody"></div>
+  </div>
+</div>
+
+<!-- SYNC SETTINGS MODAL (v2.5.0) -->
+<div id="syncOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:310;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="font-size:16px;font-weight:800;">☁ Cross-Device Sync</div>
+      <button onclick="closeSyncSettings()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div id="syncSettingsBody"></div>
   </div>
 </div>
 
@@ -1899,7 +1913,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.4.0';
+const VERSION = '2.5.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -1977,6 +1991,8 @@ function bumpChangeCount() {
   saveMeta(meta);
   renderBackupStatus();
   scheduleAutoBackup();
+  // v2.5.0: also push to GitHub Gist if sync is enabled (debounced 5s)
+  if (typeof scheduleSyncPush === 'function') scheduleSyncPush();
 }
 function markExported(ts) {
   const meta = loadMeta();
@@ -8001,6 +8017,475 @@ async function tryRegisterPeriodicSync(tag, minIntervalMs) {
 }
 
 // =========================================================
+// GITHUB GIST SYNC (v2.5.0)
+// Cross-device sync using a single private GitHub Gist as
+// the source of truth. Every local mutation triggers a
+// debounced push (~5s); every 2 minutes we pull and merge
+// last-write-wins (skipping our own writes via deviceId).
+//
+// Security: the Personal Access Token is stored in
+// localStorage. Use a fine-grained token with ONLY the
+// 'gist' scope — revoke immediately if the device is lost.
+// Photos (tp_photos) are excluded — too large for gists.
+// =========================================================
+const SYNC_GIST_FILENAME = 'health-tracker-data.json';
+const SYNC_EXCLUDE_KEYS = ['tp_photos'];          // too large for gists
+const SYNC_DEBOUNCE_MS = 5000;
+const SYNC_POLL_MS = 120000;                       // 2 min pull poll
+const SYNC_MAX_VALUE_BYTES = 500 * 1024;           // skip oversized keys per-entry
+const SYNC_DEFAULTS = {
+  enabled: false,
+  token: '',
+  gistId: '',
+  deviceId: '',
+  deviceName: '',
+  lastPushedAt: '',
+  lastPulledAt: '',
+  lastError: '',
+  lastRemoteDevice: '',
+};
+
+function loadSyncConfig() {
+  try {
+    const raw = localStorage.getItem('tp_sync');
+    if (!raw) return { ...SYNC_DEFAULTS };
+    return { ...SYNC_DEFAULTS, ...JSON.parse(raw) };
+  } catch { return { ...SYNC_DEFAULTS }; }
+}
+function saveSyncConfig(cfg) {
+  localStorage.setItem('tp_sync', JSON.stringify(cfg));
+}
+function getOrMakeDeviceId() {
+  const cfg = loadSyncConfig();
+  if (cfg.deviceId) return cfg.deviceId;
+  const id = 'd_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  cfg.deviceId = id;
+  if (!cfg.deviceName) {
+    // Guess a sensible default name
+    const ua = navigator.userAgent || '';
+    if (/iPhone|iPad|iPod/.test(ua)) cfg.deviceName = 'iPhone';
+    else if (/Android/.test(ua)) cfg.deviceName = 'Android';
+    else if (/Mac/.test(ua)) cfg.deviceName = 'Mac';
+    else if (/Windows/.test(ua)) cfg.deviceName = 'Windows';
+    else cfg.deviceName = 'Device';
+  }
+  saveSyncConfig(cfg);
+  return id;
+}
+
+function buildSyncPayload() {
+  const dump = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k || !k.startsWith('tp_')) continue;
+    if (SYNC_EXCLUDE_KEYS.includes(k)) continue;
+    if (k === 'tp_sync') continue; // never sync sync config itself
+    const v = localStorage.getItem(k);
+    if (v == null) continue;
+    // Skip individual oversized entries (keeps us under gist 1MB limit)
+    if (v.length > SYNC_MAX_VALUE_BYTES) continue;
+    dump[k] = v;
+  }
+  return dump;
+}
+
+// -------- GitHub API helpers --------
+async function ghRequest(path, opts = {}) {
+  const cfg = loadSyncConfig();
+  if (!cfg.token) throw new Error('No sync token');
+  const res = await fetch('https://api.github.com' + path, {
+    ...opts,
+    headers: {
+      'Accept': 'application/vnd.github+json',
+      'Authorization': 'Bearer ' + cfg.token,
+      'X-GitHub-Api-Version': '2022-11-28',
+      ...(opts.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(opts.headers || {}),
+    },
+  });
+  if (!res.ok) {
+    let msg = `GitHub ${res.status}`;
+    try { const j = await res.json(); if (j.message) msg += ': ' + j.message; } catch {}
+    const err = new Error(msg); err.status = res.status; throw err;
+  }
+  return res.json();
+}
+
+// Find an existing gist whose first file is named SYNC_GIST_FILENAME.
+// Returns the gist id, or null if not found.
+async function findExistingGist() {
+  const list = await ghRequest('/gists?per_page=100');
+  for (const g of list) {
+    if (g.files && g.files[SYNC_GIST_FILENAME]) return g.id;
+  }
+  return null;
+}
+
+async function createSyncGist(contentObj) {
+  const body = JSON.stringify({
+    description: 'Health Tracker — cross-device sync (do not edit manually)',
+    public: false,
+    files: {
+      [SYNC_GIST_FILENAME]: { content: JSON.stringify(contentObj, null, 2) },
+    },
+  });
+  return ghRequest('/gists', { method: 'POST', body });
+}
+
+async function readSyncGist(id) {
+  const g = await ghRequest('/gists/' + id);
+  const f = g.files && g.files[SYNC_GIST_FILENAME];
+  if (!f) throw new Error('Gist is missing ' + SYNC_GIST_FILENAME);
+  // Gists can return truncated content for large files; fall back to raw_url
+  let content = f.content;
+  if (f.truncated && f.raw_url) {
+    const r = await fetch(f.raw_url);
+    content = await r.text();
+  }
+  try { return JSON.parse(content); } catch { throw new Error('Corrupt sync payload'); }
+}
+
+async function writeSyncGist(id, contentObj) {
+  const body = JSON.stringify({
+    files: {
+      [SYNC_GIST_FILENAME]: { content: JSON.stringify(contentObj, null, 2) },
+    },
+  });
+  return ghRequest('/gists/' + id, { method: 'PATCH', body });
+}
+
+// -------- Push / Pull / Merge --------
+let _syncPushTimer = null;
+let _syncInFlight = false;
+let _syncLastPushedHash = '';
+
+function _hashString(s) {
+  // Fast non-crypto hash — we only need equality checks to skip no-op pushes
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h) ^ s.charCodeAt(i);
+  return (h >>> 0).toString(36);
+}
+
+function scheduleSyncPush() {
+  const cfg = loadSyncConfig();
+  if (!cfg.enabled || !cfg.token || !cfg.gistId) return;
+  if (_syncPushTimer) clearTimeout(_syncPushTimer);
+  _syncPushTimer = setTimeout(() => { _syncPushTimer = null; syncPush().catch(()=>{}); }, SYNC_DEBOUNCE_MS);
+}
+
+async function syncPush(opts = {}) {
+  const cfg = loadSyncConfig();
+  if (!cfg.enabled || !cfg.token || !cfg.gistId) return { ok: false, reason: 'disabled' };
+  if (_syncInFlight) return { ok: false, reason: 'busy' };
+  _syncInFlight = true;
+  try {
+    const data = buildSyncPayload();
+    const payload = {
+      schemaVersion: 1,
+      appVersion: VERSION,
+      deviceId: cfg.deviceId || getOrMakeDeviceId(),
+      deviceName: cfg.deviceName || '',
+      pushedAt: new Date().toISOString(),
+      data,
+    };
+    const json = JSON.stringify(payload);
+    const hash = _hashString(json);
+    if (!opts.force && hash === _syncLastPushedHash) {
+      return { ok: true, skipped: true };
+    }
+    await writeSyncGist(cfg.gistId, payload);
+    _syncLastPushedHash = hash;
+    const fresh = loadSyncConfig();
+    fresh.lastPushedAt = payload.pushedAt;
+    fresh.lastError = '';
+    saveSyncConfig(fresh);
+    renderSyncStatusChip();
+    renderSyncSettings();
+    return { ok: true };
+  } catch (e) {
+    const fresh = loadSyncConfig();
+    fresh.lastError = (e && e.message) || 'Push failed';
+    saveSyncConfig(fresh);
+    renderSyncStatusChip();
+    renderSyncSettings();
+    return { ok: false, error: fresh.lastError };
+  } finally {
+    _syncInFlight = false;
+  }
+}
+
+async function syncPull(opts = {}) {
+  const cfg = loadSyncConfig();
+  if (!cfg.enabled || !cfg.token || !cfg.gistId) return { ok: false, reason: 'disabled' };
+  if (_syncInFlight && !opts.force) return { ok: false, reason: 'busy' };
+  _syncInFlight = true;
+  try {
+    const remote = await readSyncGist(cfg.gistId);
+    const fresh = loadSyncConfig();
+    fresh.lastPulledAt = new Date().toISOString();
+    fresh.lastError = '';
+
+    // Ignore our own pushes
+    if (remote.deviceId && remote.deviceId === fresh.deviceId) {
+      fresh.lastRemoteDevice = remote.deviceName || remote.deviceId || '';
+      saveSyncConfig(fresh);
+      renderSyncStatusChip();
+      renderSyncSettings();
+      return { ok: true, skipped: 'own-device' };
+    }
+    // Ignore if remote pushedAt <= our lastPushedAt (we've already written newer)
+    if (!opts.force && fresh.lastPushedAt && remote.pushedAt && remote.pushedAt <= fresh.lastPushedAt) {
+      saveSyncConfig(fresh);
+      renderSyncStatusChip();
+      renderSyncSettings();
+      return { ok: true, skipped: 'stale' };
+    }
+    const data = remote.data || {};
+    if (!data || typeof data !== 'object') throw new Error('Invalid remote payload');
+
+    // Apply: overwrite tp_* keys, but keep excluded (e.g. tp_photos) and tp_sync locally
+    const keepKeys = new Set([...SYNC_EXCLUDE_KEYS, 'tp_sync']);
+    for (const k of Object.keys(localStorage)) {
+      if (k.startsWith('tp_') && !keepKeys.has(k)) localStorage.removeItem(k);
+    }
+    let applied = 0;
+    for (const [k, v] of Object.entries(data)) {
+      if (!k.startsWith('tp_')) continue;
+      if (keepKeys.has(k)) continue;
+      localStorage.setItem(k, v);
+      applied++;
+    }
+    fresh.lastRemoteDevice = remote.deviceName || remote.deviceId || '';
+    saveSyncConfig(fresh);
+    // Prevent our own post-pull no-op push from feeding back
+    _syncLastPushedHash = '';
+    // Re-render everything
+    try { if (typeof render === 'function') render(); } catch {}
+    try { if (typeof renderBackupStatus === 'function') renderBackupStatus(); } catch {}
+    try { if (typeof renderWaterCard === 'function') renderWaterCard(); } catch {}
+    renderSyncStatusChip();
+    renderSyncSettings();
+    showToast(`☁ Synced from ${fresh.lastRemoteDevice || 'other device'} (${applied} keys)`, 3000);
+    return { ok: true, applied };
+  } catch (e) {
+    const fresh = loadSyncConfig();
+    fresh.lastError = (e && e.message) || 'Pull failed';
+    // If 401 — token is bad; disable sync until user re-enters
+    if (e && e.status === 401) {
+      fresh.enabled = false;
+      fresh.lastError = 'Token rejected (401) — re-connect required';
+    }
+    saveSyncConfig(fresh);
+    renderSyncStatusChip();
+    renderSyncSettings();
+    return { ok: false, error: fresh.lastError };
+  } finally {
+    _syncInFlight = false;
+  }
+}
+
+let _syncPollTimer = null;
+function startSyncPoll() {
+  if (_syncPollTimer) return;
+  _syncPollTimer = setInterval(() => {
+    const cfg = loadSyncConfig();
+    if (!cfg.enabled) return;
+    if (document.hidden) return; // don't churn on backgrounded tabs
+    syncPull().catch(()=>{});
+  }, SYNC_POLL_MS);
+  // Also pull when the tab regains focus
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      const cfg = loadSyncConfig();
+      if (cfg.enabled) syncPull().catch(()=>{});
+    }
+  });
+}
+
+// -------- Setup flow (called by UI) --------
+async function syncConnect(token, deviceName) {
+  if (!token || token.length < 20) throw new Error('Token looks invalid');
+  const cfg = loadSyncConfig();
+  cfg.token = token.trim();
+  if (deviceName) cfg.deviceName = deviceName.trim();
+  if (!cfg.deviceId) cfg.deviceId = getOrMakeDeviceId();
+  saveSyncConfig(cfg);
+
+  // 1) Find existing gist
+  let gistId = null;
+  try { gistId = await findExistingGist(); }
+  catch (e) {
+    // Revert token on failure so bad tokens don't stick around silently
+    const c2 = loadSyncConfig(); c2.token = ''; saveSyncConfig(c2);
+    throw e;
+  }
+
+  if (gistId) {
+    // Pull first — existing gist wins
+    const c2 = loadSyncConfig();
+    c2.gistId = gistId;
+    c2.enabled = true;
+    saveSyncConfig(c2);
+    const r = await syncPull({ force: true });
+    if (!r.ok) throw new Error(r.error || 'Initial pull failed');
+    return { created: false, gistId };
+  } else {
+    // Create with our current data
+    const payload = {
+      schemaVersion: 1,
+      appVersion: VERSION,
+      deviceId: cfg.deviceId,
+      deviceName: cfg.deviceName || '',
+      pushedAt: new Date().toISOString(),
+      data: buildSyncPayload(),
+    };
+    const created = await createSyncGist(payload);
+    const c2 = loadSyncConfig();
+    c2.gistId = created.id;
+    c2.enabled = true;
+    c2.lastPushedAt = payload.pushedAt;
+    saveSyncConfig(c2);
+    _syncLastPushedHash = _hashString(JSON.stringify(payload));
+    renderSyncStatusChip();
+    return { created: true, gistId: created.id };
+  }
+}
+
+function syncDisconnect() {
+  const cfg = loadSyncConfig();
+  cfg.enabled = false;
+  cfg.token = '';
+  // Keep gistId and deviceId — easier to reconnect later
+  cfg.lastError = '';
+  saveSyncConfig(cfg);
+  if (_syncPollTimer) { clearInterval(_syncPollTimer); _syncPollTimer = null; }
+  renderSyncStatusChip();
+  renderSyncSettings();
+}
+
+// -------- UI --------
+function renderSyncStatusChip() {
+  const el = document.getElementById('syncChip');
+  if (!el) return;
+  const cfg = loadSyncConfig();
+  if (!cfg.enabled) { el.style.display = 'none'; return; }
+  el.style.display = 'inline-flex';
+  let color, text, title;
+  if (cfg.lastError) {
+    color = '#ef4444'; text = '☁ !'; title = 'Sync error: ' + cfg.lastError;
+  } else if (cfg.lastPushedAt || cfg.lastPulledAt) {
+    color = '#22c55e'; text = '☁'; title = 'Synced';
+    const latest = [cfg.lastPushedAt, cfg.lastPulledAt].filter(Boolean).sort().pop();
+    if (latest) title += ' · ' + relativeTime(new Date(latest));
+  } else {
+    color = '#eab308'; text = '☁ …'; title = 'Sync pending';
+  }
+  el.style.background = color;
+  el.title = title;
+  el.textContent = text;
+}
+
+function openSyncSettings() {
+  const o = document.getElementById('syncOverlay');
+  if (o) { o.style.display = 'flex'; renderSyncSettings(); }
+  const bm = document.getElementById('backupMenu');
+  if (bm) bm.style.display = 'none';
+}
+function closeSyncSettings() {
+  const o = document.getElementById('syncOverlay');
+  if (o) o.style.display = 'none';
+}
+
+function renderSyncSettings() {
+  const body = document.getElementById('syncSettingsBody');
+  if (!body) return;
+  const cfg = loadSyncConfig();
+  const tokenHref = 'https://github.com/settings/tokens/new?scopes=gist&description=Health%20Tracker%20Sync';
+  if (!cfg.enabled) {
+    body.innerHTML = `
+      <div style="font-size:13px;line-height:1.55;color:var(--text);margin-bottom:14px;">
+        Sync your data to a <strong>private GitHub Gist</strong> so every device stays in
+        step. Works on desktop, phone, and tablet. Photos stay device-local.
+      </div>
+      <div style="background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);border-radius:8px;padding:10px 12px;font-size:12px;color:#eab308;margin-bottom:14px;">
+        ⚠ Your token is stored in this browser's localStorage. Use a
+        <strong>fine-grained token</strong> with <strong>only the <code>gist</code> scope</strong>,
+        and revoke it immediately if the device is lost.
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">Device name</label>
+        <input id="syncDeviceName" type="text" value="${(cfg.deviceName||'').replace(/"/g,'&quot;')}" placeholder="e.g. Desktop, iPhone" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;">
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">GitHub Personal Access Token</label>
+        <input id="syncToken" type="password" placeholder="ghp_… or github_pat_…" autocomplete="off" spellcheck="false" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:Consolas,Menlo,monospace;">
+        <a href="${tokenHref}" target="_blank" rel="noopener" style="font-size:12px;color:var(--accent);text-decoration:none;">→ Create a token with gist scope</a>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="btn btn-ghost" onclick="closeSyncSettings()">Cancel</button>
+        <button id="syncConnectBtn" class="btn btn-primary" onclick="handleSyncConnect()">☁ Connect</button>
+      </div>
+      ${cfg.lastError ? `<div style="margin-top:10px;color:#ef4444;font-size:12px;">${cfg.lastError}</div>` : ''}
+    `;
+    return;
+  }
+  const lastPush = cfg.lastPushedAt ? relativeTime(new Date(cfg.lastPushedAt)) : '—';
+  const lastPull = cfg.lastPulledAt ? relativeTime(new Date(cfg.lastPulledAt)) : '—';
+  const gistUrl = cfg.gistId ? ('https://gist.github.com/' + cfg.gistId) : '';
+  body.innerHTML = `
+    <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:10px 12px;font-size:13px;color:#22c55e;margin-bottom:14px;">
+      ✓ Sync is active — this device is <strong>${(cfg.deviceName||'Device').replace(/</g,'&lt;')}</strong>
+    </div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:12px;margin-bottom:14px;">
+      <div style="color:var(--muted);">Last push</div><div>${lastPush}</div>
+      <div style="color:var(--muted);">Last pull</div><div>${lastPull}</div>
+      <div style="color:var(--muted);">Last remote</div><div>${(cfg.lastRemoteDevice||'—').replace(/</g,'&lt;')}</div>
+      <div style="color:var(--muted);">Gist</div><div>${gistUrl ? `<a href="${gistUrl}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;">open ↗</a>` : '—'}</div>
+    </div>
+    ${cfg.lastError ? `<div style="margin-bottom:12px;color:#ef4444;font-size:12px;">⚠ ${cfg.lastError}</div>` : ''}
+    <div style="font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.5;">
+      Every change is pushed automatically after ~5s. Every 2 minutes (and on tab focus) this device pulls the latest. Photos are not synced.
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="syncPull({force:true}).then(r=>r.ok&&showToast('Pulled',1500))">⬇ Pull now</button>
+      <button class="btn btn-ghost" onclick="syncPush({force:true}).then(r=>r.ok&&showToast('Pushed',1500))">⬆ Push now</button>
+      <button class="btn btn-ghost" style="color:#ef4444;" onclick="handleSyncDisconnect()">Disconnect</button>
+      <button class="btn btn-primary" onclick="closeSyncSettings()">Done</button>
+    </div>
+  `;
+}
+
+async function handleSyncConnect() {
+  const token = (document.getElementById('syncToken') || {}).value || '';
+  const devName = (document.getElementById('syncDeviceName') || {}).value || '';
+  const btn = document.getElementById('syncConnectBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Connecting…'; }
+  try {
+    const r = await syncConnect(token, devName);
+    startSyncPoll();
+    showToast(r.created ? '☁ Gist created — sync active' : '☁ Connected — pulled from gist', 3000);
+    renderSyncSettings();
+    renderSyncStatusChip();
+  } catch (e) {
+    const msg = (e && e.message) || 'Connect failed';
+    const body = document.getElementById('syncSettingsBody');
+    if (body) {
+      const err = document.createElement('div');
+      err.style.cssText = 'margin-top:10px;color:#ef4444;font-size:12px;';
+      err.textContent = '⚠ ' + msg;
+      body.appendChild(err);
+    }
+  } finally {
+    const b2 = document.getElementById('syncConnectBtn');
+    if (b2) { b2.disabled = false; b2.textContent = '☁ Connect'; }
+  }
+}
+
+function handleSyncDisconnect() {
+  if (!confirm('Disconnect sync? Your local data is untouched, but this device will stop receiving updates. The gist will not be deleted — reconnect anytime.')) return;
+  syncDisconnect();
+  showToast('Sync disconnected', 2000);
+}
+
+// =========================================================
 // v2.0.0 ADD-ONS
 // =========================================================
 
@@ -8963,6 +9448,18 @@ checkWaterReminder();     // fire hydration reminder if due
 startWaterPoll();         // poll every minute while app is open
 initCollapsibleCards();
 initBottomNavScrollSpy();
+// v2.5.0: kick off cross-device sync if the user has already connected a gist
+renderSyncStatusChip();
+(function initSync(){
+  try {
+    const cfg = loadSyncConfig();
+    if (cfg.enabled && cfg.token && cfg.gistId) {
+      // Pull on startup, then start 2-min poll
+      syncPull().catch(()=>{});
+      startSyncPoll();
+    }
+  } catch {}
+})();
 // Show iOS "Add to Home Screen" hint if running standalone-capable but not installed
 if (/iPhone|iPad|iPod/.test(navigator.userAgent) && !navigator.standalone) {
   const btn = document.getElementById('pwaInstallBtn');
