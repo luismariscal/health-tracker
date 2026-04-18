@@ -1159,6 +1159,9 @@
   <!-- MORNING WEIGH-IN NUDGE (v2.11.0) -->
   <div id="morningNudge" style="display:none;"></div>
 
+  <!-- PLATEAU INSIGHT CARD (v2.12.0) -->
+  <div id="plateauInsight" style="display:none;"></div>
+
   <!-- ALERT BANNER -->
   <div id="alertBanner"></div>
 
@@ -2015,7 +2018,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.11.0';
+const VERSION = '2.12.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -2304,6 +2307,7 @@ function render() {
 
   renderAlert(plateau, avg, cw, nextCp);
   if (typeof renderMorningNudge === 'function') renderMorningNudge();
+  if (typeof renderPlateauInsight === 'function') renderPlateauInsight(plateau);
   renderTodaysPlan(entries, cw, avg, plateau);
   renderCommandCenter(entries, cw, avg, plateau, nextCp);
   renderKPIs(cw, lost, pct, phase, nextCp, avg);
@@ -10046,6 +10050,197 @@ function openCsvExport() {
 function closeCsvExport() {
   const o = document.getElementById('csvExportOverlay');
   if (o) o.style.display = 'none';
+}
+
+// =========================================================
+// PLATEAU INSIGHT CARD (v2.12.0)
+// When the existing plateau detector flags a stall, build a
+// richer diagnostic card with specific culprits to check:
+// water adherence, protein, injection compliance, sleep, steps.
+// Dismissable for 3 days so it doesn't nag after the user acts.
+// =========================================================
+const PLATEAU_INSIGHT_SNOOZE_DAYS = 3;
+
+function _plateauLoadSnooze() {
+  try { return JSON.parse(localStorage.getItem('tp_plateau_snooze') || '{}'); }
+  catch { return {}; }
+}
+function _plateauSaveSnooze(obj) { localStorage.setItem('tp_plateau_snooze', JSON.stringify(obj)); }
+
+function _plateauWindowDays() {
+  // Return the window of entries for analysis — last 14 days
+  return 14;
+}
+
+// Return {count, total, pct} for water adherence over last N days
+function _plateauWaterAdherence(days) {
+  let waterMap = {};
+  try { waterMap = JSON.parse(localStorage.getItem('tp_water') || '{}'); } catch {}
+  const ws = (typeof loadWaterSettings === 'function') ? loadWaterSettings() : { goalOz: 100 };
+  const goal = ws.goalOz || 100;
+  const today = new Date();
+  let hit = 0, total = 0, totalOz = 0;
+  for (let i = 0; i < days; i++) {
+    const d = new Date(today); d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const entries = waterMap[key] || [];
+    const oz = entries.reduce((s, e) => s + (parseFloat(e.oz) || 0), 0);
+    total++;
+    totalOz += oz;
+    if (oz >= goal * 0.9) hit++;
+  }
+  return { hit, total, pct: Math.round((hit / Math.max(1, total)) * 100), avgOz: Math.round(totalOz / Math.max(1, total)) };
+}
+
+// Protein adherence: average protein over recent logged check-ins
+function _plateauProteinAdherence() {
+  const entries = (loadEntries() || []).slice(-7).filter(e => typeof e.protein === 'number' && e.protein > 0);
+  if (!entries.length) return null;
+  const target = 230;
+  const avg = entries.reduce((s,e)=>s+e.protein, 0) / entries.length;
+  return { avg: Math.round(avg), target, days: entries.length, pct: Math.round(avg/target*100) };
+}
+
+// Injection compliance: of the last 2 injection days (Thu/Sun), how many logged?
+function _plateauInjectionAdherence() {
+  const log = loadInjLog() || {};
+  const today = new Date();
+  let expected = 0, logged = 0;
+  // Walk back up to 21 days, count Thursdays and Sundays
+  for (let i = 0; i < 21 && expected < 4; i++) {
+    const d = new Date(today); d.setDate(d.getDate() - i);
+    if (d.getDay() === 4 || d.getDay() === 0) {
+      expected++;
+      const dateKey = d.toISOString().slice(0, 10);
+      // Check for any logged injection on this date
+      const hasLog = Object.keys(log).some(k => {
+        if (!k.startsWith(dateKey + ':')) return false;
+        return isInjLogged(log[k]);
+      });
+      if (hasLog) logged++;
+    }
+  }
+  return { expected, logged, pct: expected ? Math.round(logged/expected*100) : 100 };
+}
+
+function buildPlateauDiagnosis(plateauState) {
+  const days = _plateauWindowDays();
+  const water = _plateauWaterAdherence(days);
+  const protein = _plateauProteinAdherence();
+  const inj = _plateauInjectionAdherence();
+  const culprits = [];
+
+  // Culprit detection — specific, actionable, ranked by likelihood
+  if (water.pct < 70) {
+    culprits.push({
+      severity: 'high', emoji: '💧',
+      title: `Water under target ${water.pct}% of days`,
+      detail: `Avg ${water.avgOz} oz/day. Dehydration blunts GLP-1 receptor response AND holds water weight — classic "scale stuck, fat moving" trap.`,
+      action: 'Aim for 100 oz daily for 5 days, then re-weigh.',
+    });
+  }
+  if (protein && protein.pct < 85) {
+    culprits.push({
+      severity: 'high', emoji: '🥩',
+      title: `Protein ${protein.avg}g vs ${protein.target}g target`,
+      detail: `Under-protein on GLP-1 therapy → muscle loss, slower metabolism, hunger rebound. High-protein is the #1 lever on plateaus.`,
+      action: `Add ~${protein.target - protein.avg}g/day. Whey shake + egg whites bridge the gap.`,
+    });
+  }
+  if (inj.pct < 100 && inj.expected > 0) {
+    culprits.push({
+      severity: 'high', emoji: '💉',
+      title: `Injection adherence ${inj.logged}/${inj.expected} recent sessions`,
+      detail: 'Missing or late injections creates dose-level valleys where appetite returns and water retention increases.',
+      action: 'Check your injection log — re-establish the Thu + Sun cadence.',
+    });
+  }
+
+  // Predictive note about expected stall timing
+  const entries = loadEntries() || [];
+  if (entries.length >= 5) {
+    const sortedDesc = entries.slice().sort((a,b)=>b.date.localeCompare(a.date));
+    const firstW = parseFloat(sortedDesc[sortedDesc.length-1].weight);
+    const currW = parseFloat(sortedDesc[0].weight);
+    const lostPct = ((firstW - currW) / firstW) * 100;
+    if (lostPct >= 5 && lostPct <= 15) {
+      culprits.push({
+        severity: 'info', emoji: '📉',
+        title: `Adaptive thermogenesis likely (~${lostPct.toFixed(1)}% lost)`,
+        detail: 'Metabolism down-regulates after 5-10% loss. Your maintenance calories have dropped — yesterday\u2019s deficit may now be maintenance.',
+        action: 'Recalculate your TDEE on the current weight. A 200 kcal trim OR a refeed day to reset leptin both help.',
+      });
+    }
+  }
+
+  // Fallback — if no specific culprit found, still give generic priority list
+  if (!culprits.length) {
+    culprits.push({
+      severity: 'info', emoji: '🔍',
+      title: 'No clear culprit in your logged data',
+      detail: 'Your water, protein, and injection logs look compliant. Likely causes left: sleep quality, step count, hidden calories (oils, dressings, liquids), sodium spike, or normal water fluctuation.',
+      action: 'Hold protocol for 3 more days. If still flat → add 2000 daily steps OR cut 150 kcal.',
+    });
+  }
+
+  return culprits;
+}
+
+function renderPlateauInsight(plateauState) {
+  const el = document.getElementById('plateauInsight');
+  if (!el) return;
+  if (plateauState !== 'confirmed' && plateauState !== 'potential') {
+    el.style.display = 'none';
+    return;
+  }
+
+  // Check snooze
+  const snooze = _plateauLoadSnooze();
+  if (snooze.until && new Date(snooze.until).getTime() > Date.now()) {
+    el.style.display = 'none';
+    return;
+  }
+
+  const culprits = buildPlateauDiagnosis(plateauState);
+  const isConfirmed = plateauState === 'confirmed';
+  const bgColor = isConfirmed ? 'rgba(239,68,68,0.08)' : 'rgba(234,179,8,0.08)';
+  const borderColor = isConfirmed ? 'rgba(239,68,68,0.3)' : 'rgba(234,179,8,0.3)';
+  const accentColor = isConfirmed ? '#ef4444' : '#eab308';
+  const headerIcon = isConfirmed ? '🚨' : '⚠️';
+  const headerText = isConfirmed ? 'Confirmed plateau — diagnostic' : 'Possible plateau forming — early signals';
+
+  el.innerHTML = `
+    <div style="background:${bgColor};border:1px solid ${borderColor};border-radius:12px;padding:16px;margin-bottom:14px;">
+      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px;">
+        <div style="font-size:26px;line-height:1;flex:none;">${headerIcon}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:15px;font-weight:800;color:${accentColor};">${headerText}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;">Your weight hasn't moved meaningfully. Based on your logs, here's what's most likely driving it:</div>
+        </div>
+        <button onclick="snoozePlateauInsight()" title="Snooze 3 days" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;flex:none;padding:2px 6px;">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${culprits.map(c => `
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid ${c.severity==='high'?'#ef4444':c.severity==='info'?'#60a5fa':'#eab308'};">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+              <span style="font-size:16px;">${c.emoji}</span>
+              <div style="font-size:13px;font-weight:700;color:var(--text);">${c.title}</div>
+            </div>
+            <div style="font-size:11px;color:var(--muted);line-height:1.55;margin-bottom:4px;">${c.detail}</div>
+            <div style="font-size:11px;color:var(--accent);font-weight:600;line-height:1.5;">→ ${c.action}</div>
+          </div>`).join('')}
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:10px;text-align:center;">Snooze hides this for 3 days · auto-returns if stall persists</div>
+    </div>`;
+  el.style.display = 'block';
+}
+
+function snoozePlateauInsight() {
+  const until = new Date();
+  until.setDate(until.getDate() + PLATEAU_INSIGHT_SNOOZE_DAYS);
+  _plateauSaveSnooze({ until: until.toISOString() });
+  renderPlateauInsight('none');  // force hide
+  showToast('Snoozed for 3 days', 2000);
 }
 
 // =========================================================
