@@ -1,0 +1,17 @@
+# Claude Code local session data (keep private, don't sync)
+.claude/
+
+# OS noise
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Editor junk
+.vscode/
+.idea/
+*.swp
+*~
+
+# Backups created by the app's auto-backup feature
+*.backup.html
+*.bak
