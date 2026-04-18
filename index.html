@@ -2038,7 +2038,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.13.0';
+const VERSION = '2.14.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -10521,6 +10521,46 @@ function dismissMorningNudge() {
     });
   }
 })();
+
+// =========================================================
+// PWA SHORTCUT HANDLER (v2.14.0)
+// Reads ?action=water|weight|injection from the launch URL and
+// fires the corresponding action. Wired to manifest.shortcuts so
+// long-pressing / right-clicking the installed app icon lets you
+// jump straight to water/weight/injection without extra taps.
+// =========================================================
+function _handlePwaShortcut() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get('action');
+    if (!action) return;
+
+    // Clean the URL so a refresh doesn't re-trigger
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    // Defer so the main app has finished rendering
+    setTimeout(() => {
+      if (action === 'water' && typeof openWaterLog === 'function') {
+        openWaterLog();
+      } else if (action === 'weight' && typeof openQuickLog === 'function') {
+        openQuickLog();
+      } else if (action === 'injection') {
+        const card = document.getElementById('injectionTrackerCard');
+        if (card) {
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Flash the card border so it's obvious where you landed
+          const orig = card.style.boxShadow;
+          card.style.transition = 'box-shadow 400ms';
+          card.style.boxShadow = '0 0 0 3px var(--accent, #00d4ff)';
+          setTimeout(() => { card.style.boxShadow = orig; }, 1400);
+        }
+      }
+    }, 250);
+  } catch {}
+}
+window.addEventListener('DOMContentLoaded', _handlePwaShortcut);
 
 // =========================================================
 // v2.0.0 ADD-ONS
