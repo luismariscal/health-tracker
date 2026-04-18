@@ -1,0 +1,26 @@
+{
+  "name": "Transformation Protocol",
+  "short_name": "Transform",
+  "description": "Daily health + peptide protocol dashboard with water-intake tracking and hydration reminders.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0b0f19",
+  "background_color": "#0b0f19",
+  "categories": ["health", "fitness", "medical"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 192 192%22><rect width=%22192%22 height=%22192%22 rx=%2236%22 fill=%22%2300d4ff%22/><text x=%2250%25%22 y=%2262%25%22 text-anchor=%22middle%22 font-size=%22120%22 fill=%22white%22 font-family=%22Arial%22 font-weight=%22bold%22>T</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 512%22><rect width=%22512%22 height=%22512%22 rx=%2296%22 fill=%22%2300d4ff%22/><text x=%2250%25%22 y=%2262%25%22 text-anchor=%22middle%22 font-size=%22320%22 fill=%22white%22 font-family=%22Arial%22 font-weight=%22bold%22>T</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

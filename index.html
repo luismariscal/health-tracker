@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Transformation">
-<link id="pwaManifest" rel="manifest" href='data:application/manifest+json;charset=utf-8,{"name":"Transformation Protocol","short_name":"Transform","start_url":".","scope":".","display":"standalone","orientation":"portrait","theme_color":"%230b0f19","background_color":"%230b0f19","icons":[{"src":"data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 512%22><rect width=%22512%22 height=%22512%22 rx=%2296%22 fill=%22%2300d4ff%22/><text x=%2250%25%22 y=%2262%25%22 text-anchor=%22middle%22 font-size=%22320%22 fill=%22white%22 font-family=%22Arial%22 font-weight=%22bold%22>T</text></svg>","sizes":"512x512","type":"image/svg+xml","purpose":"any"}]}'>
+<link id="pwaManifest" rel="manifest" href="manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
   :root {
@@ -1899,7 +1899,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.3.0';
+const VERSION = '2.4.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -4386,7 +4386,7 @@ async function toggleInjectionNotifications() {
   checkInjectionReminder(true);
 }
 
-function checkInjectionReminder(force = false) {
+async function checkInjectionReminder(force = false) {
   renderInjectionNotifyBtn();
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   const state = loadInjNotify();
@@ -4403,17 +4403,13 @@ function checkInjectionReminder(force = false) {
 
   const now = new Date();
   const dayName = now.toLocaleDateString('en-US', { weekday: 'long' });
-  try {
-    new Notification(`${dayName} — Injection Day`, {
-      body: 'Retatrutide 4 mg + Cabergoline 0.25 mg + HCG 500 IU (if active) due today. Log in the Injection Tracker.',
-      icon: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="%2300d4ff"/><text x="50%" y="58%" text-anchor="middle" font-size="34" fill="white" font-family="Arial">💉</text></svg>',
-      tag: 'tp-injection-' + tk,
-      requireInteraction: false,
-    });
-    saveInjNotify({ ...state, lastNotified: tk });
-  } catch (e) {
-    console.warn('Notify failed:', e);
-  }
+  const ok = await showTpNotification(`${dayName} — Injection Day`, {
+    body: 'Retatrutide 4 mg + Cabergoline 0.25 mg + HCG 500 IU (if active) due today. Log in the Injection Tracker.',
+    icon: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="%2300d4ff"/><text x="50%" y="58%" text-anchor="middle" font-size="54" fill="white" font-family="Arial">💉</text></svg>',
+    tag: 'tp-injection-' + tk,
+    requireInteraction: false,
+  });
+  if (ok) saveInjNotify({ ...state, lastNotified: tk });
 }
 
 // =========================================================
@@ -4577,7 +4573,12 @@ async function toggleWaterReminders() {
   }
   saveWaterSettings({ ...s, remindersEnabled: true, lastReminderTs: 0 });
   renderWaterNotifyBtn();
-  showToast(`✓ Water reminders on · every ${s.intervalMin}m`);
+  // Try to register periodic background sync so reminders fire even
+  // when the tab is closed. Only Chrome-installed PWAs honor this.
+  const bg = await tryRegisterPeriodicSync('water-reminder', (s.intervalMin || 90) * 60 * 1000);
+  showToast(bg
+    ? `✓ Water reminders on · background sync active`
+    : `✓ Water reminders on · every ${s.intervalMin}m (while app is open)`);
   checkWaterReminder(true);
 }
 
@@ -4594,7 +4595,7 @@ function isWithinWakingHours() {
   return minutes >= start || minutes <= end;
 }
 
-function checkWaterReminder(force = false) {
+async function checkWaterReminder(force = false) {
   renderWaterNotifyBtn();
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   const s = loadWaterSettings();
@@ -4632,17 +4633,15 @@ function checkWaterReminder(force = false) {
   if (remaining > 0) bodyBits.push(`${fmtWater(remaining, s.unit)} to goal.`);
   if (hoursSince != null && hoursSince >= 1) bodyBits.push(`Last drink ${hoursSince}h ago.`);
 
-  try {
-    new Notification('💧 Time to hydrate', {
-      body: bodyBits.join(' '),
-      icon: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="%230ea5e9"/><text x="50%" y="62%" text-anchor="middle" font-size="36" fill="white" font-family="Arial">💧</text></svg>',
-      tag: 'tp-water-reminder',
-      requireInteraction: false,
-    });
-    saveWaterSettings({ ...s, lastReminderTs: now });
-  } catch (e) {
-    console.warn('Water notify failed:', e);
-  }
+  const ok = await showTpNotification('💧 Time to hydrate', {
+    body: bodyBits.join(' '),
+    icon: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="%230ea5e9"/><text x="50%" y="62%" text-anchor="middle" font-size="54" fill="white" font-family="Arial">💧</text></svg>',
+    badge: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><text x="50%" y="65%" text-anchor="middle" font-size="36" fill="black">💧</text></svg>',
+    tag: 'tp-water-reminder',
+    renotify: true,
+    requireInteraction: false,
+  });
+  if (ok) saveWaterSettings({ ...s, lastReminderTs: now });
 }
 
 // Poll every minute while the app is open — fires at most once per interval
@@ -4780,7 +4779,10 @@ function renderWaterSettings() {
         <div style="font-size:10px;color:var(--muted);margin-top:4px;">No reminders outside this window.</div>
       </div>
     </div>
-    <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end;">
+    <div style="margin-top:14px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;font-size:11px;color:var(--muted);line-height:1.5;">
+      <b style="color:var(--text);">For reminders when the app is closed:</b> install to home screen (📲 Install in the top bar, or iOS: Share → Add to Home Screen). Chrome-installed PWAs additionally support periodic background sync for tab-closed pings; on other platforms, reminders fire whenever the app is open.
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end;">
       <button class="btn btn-ghost" onclick="closeWaterSettings()">Cancel</button>
       <button class="btn btn-primary" onclick="saveWaterSettingsFromModal()">Save</button>
     </div>`;
@@ -7944,6 +7946,61 @@ async function pwaInstall() {
 }
 
 // =========================================================
+// SERVICE WORKER (v2.4.0)
+// Registers ./sw.js so notifications can fire through the SW
+// (required for lock-screen delivery on installed PWAs) and
+// so notification-clicks can focus/open the app.
+//
+// Service workers only work over https:// or http://localhost —
+// silently no-ops on file:// during local dev.
+// =========================================================
+let swReady = null; // Promise<ServiceWorkerRegistration | null>
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  if (location.protocol === 'file:') return; // SW unsupported on file://
+  swReady = navigator.serviceWorker.register('sw.js', { scope: './' })
+    .then(reg => reg)
+    .catch(err => { console.warn('SW register failed:', err); return null; });
+}
+
+// Unified notification helper — routes through the SW when available
+// so notifications survive the tab being backgrounded and can be
+// clicked to refocus the app. Falls back to direct Notification API.
+async function showTpNotification(title, options) {
+  try {
+    if (swReady) {
+      const reg = await swReady;
+      if (reg && reg.showNotification) {
+        await reg.showNotification(title, options || {});
+        return true;
+      }
+    }
+  } catch (e) { /* fall through to direct API */ }
+  try { new Notification(title, options || {}); return true; } catch { return false; }
+}
+
+// Best-effort periodic background sync — only Chrome on installed PWAs
+// honors this, and browser-enforced minInterval is typically ≥12h.
+// Returns true if sync was registered, false otherwise.
+async function tryRegisterPeriodicSync(tag, minIntervalMs) {
+  if (!swReady) return false;
+  try {
+    const reg = await swReady;
+    if (!reg || !('periodicSync' in reg)) return false;
+    if (navigator.permissions && navigator.permissions.query) {
+      try {
+        const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
+        if (status.state !== 'granted') return false;
+      } catch { /* permission name unknown in some engines — try anyway */ }
+    }
+    await reg.periodicSync.register(tag, { minInterval: Math.max(60 * 60 * 1000, minIntervalMs) });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// =========================================================
 // v2.0.0 ADD-ONS
 // =========================================================
 
@@ -8895,6 +8952,7 @@ function initBottomNavScrollSpy() {
 // =========================================================
 // INIT
 // =========================================================
+registerServiceWorker(); // register ./sw.js (https:// or localhost only)
 render(); // calls renderShoppingList, renderPeakWeek, renderInjectionTracker, renderSuppChecklist, renderMeasurements internally
 restoreBackupHandle(); // restore connected auto-backup file from IndexedDB if present
 renderFitbitStatus();
