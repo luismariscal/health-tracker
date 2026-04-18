@@ -1106,6 +1106,17 @@
   </div>
 </div>
 
+<!-- INVENTORY MANAGER MODAL (v2.13.0) -->
+<div id="inventoryOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:310;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="font-size:16px;font-weight:800;">💊 Inventory Manager</div>
+      <button onclick="closeInventoryManager()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div id="inventoryManagerBody"></div>
+  </div>
+</div>
+
 <!-- CSV EXPORT MODAL (v2.10.0) -->
 <div id="csvExportOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:310;align-items:center;justify-content:center;">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:460px;max-height:92vh;overflow-y:auto;">
@@ -1285,6 +1296,15 @@
       </div>
     </div>
     <div id="cycleGrid" class="cycle-grid"></div>
+  </div>
+
+  <!-- INVENTORY TRACKER (v2.13.0) -->
+  <div class="card card-collapsible" id="inventoryCard">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div class="card-title" style="margin-bottom:0">💊 Inventory</div>
+      <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="openInventoryManager()">Manage</button>
+    </div>
+    <div id="inventoryBody"></div>
   </div>
 
   <!-- INJECTION TRACKER -->
@@ -2018,7 +2038,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.12.0';
+const VERSION = '2.13.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -2308,6 +2328,7 @@ function render() {
   renderAlert(plateau, avg, cw, nextCp);
   if (typeof renderMorningNudge === 'function') renderMorningNudge();
   if (typeof renderPlateauInsight === 'function') renderPlateauInsight(plateau);
+  if (typeof renderInventory === 'function') renderInventory();
   renderTodaysPlan(entries, cw, avg, plateau);
   renderCommandCenter(entries, cw, avg, plateau, nextCp);
   renderKPIs(cw, lost, pct, phase, nextCp, avg);
@@ -5044,9 +5065,16 @@ function confirmSitePick(siteKey) {
   if (!log[dk]) log[dk] = {};
   log[dk][pendingInjKey] = { done: true, site: siteKey, ts: Date.now() };
   saveInjLog(log);
+  // Decrement inventory for this compound (v2.13.0)
+  try {
+    if (typeof inventoryDecrementOnInjection === 'function') {
+      inventoryDecrementOnInjection(pendingInjKey);
+    }
+  } catch {}
   closeSitePicker();
   renderInjectionTracker();
   renderSiteRotation();
+  if (typeof renderInventory === 'function') renderInventory();
 }
 document.getElementById('sitePickerOverlay').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeSitePicker();
@@ -10241,6 +10269,180 @@ function snoozePlateauInsight() {
   _plateauSaveSnooze({ until: until.toISOString() });
   renderPlateauInsight('none');  // force hide
   showToast('Snoozed for 3 days', 2000);
+}
+
+// =========================================================
+// VIAL / SUPPLY INVENTORY (v2.13.0)
+// Track remaining mg/IU per compound. Auto-decrements when an
+// injection is logged (see hookInventoryToInjectionLog). Warns
+// when a compound is within 14 days of depletion based on the
+// Thu/Sun cadence.
+// =========================================================
+const INVENTORY_WARN_DAYS = 14;
+const DOSES_PER_WEEK = 2;  // Thu + Sun
+const DEFAULT_DOSE_MG = {
+  retatrutide: 4,
+  cabergoline: 0.25,
+  hcg: 500,  // IU — kept on same numeric scale, units handled per-compound
+};
+const INVENTORY_UNITS = {
+  retatrutide: 'mg', cabergoline: 'mg', hcg: 'IU',
+};
+
+function loadInventory() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('tp_inventory') || '{}');
+    // Ensure every compound has an entry (seed if missing)
+    const out = {};
+    (INJ_COMPOUNDS || []).forEach(c => {
+      out[c.key] = raw[c.key] || { remaining: 0, lastReorderedAt: '' };
+    });
+    return out;
+  } catch { return {}; }
+}
+function saveInventory(obj) {
+  localStorage.setItem('tp_inventory', JSON.stringify(obj));
+  bumpChangeCount();
+}
+
+function _inventoryDoseFor(compoundKey) {
+  // Parse dose from INJ_COMPOUNDS — falls back to DEFAULT_DOSE_MG
+  const c = (INJ_COMPOUNDS || []).find(x => x.key === compoundKey);
+  if (c && c.dose) {
+    const m = c.dose.match(/([\d.]+)/);
+    if (m) return parseFloat(m[1]);
+  }
+  return DEFAULT_DOSE_MG[compoundKey] || 1;
+}
+
+function inventoryDaysRemaining(compoundKey) {
+  const inv = loadInventory();
+  const remaining = (inv[compoundKey] && inv[compoundKey].remaining) || 0;
+  const dose = _inventoryDoseFor(compoundKey);
+  if (!dose) return null;
+  const dosesLeft = Math.floor(remaining / dose);
+  // 2 doses/week = 3.5 days per dose
+  return Math.round(dosesLeft * (7 / DOSES_PER_WEEK));
+}
+
+function renderInventory() {
+  const body = document.getElementById('inventoryBody');
+  if (!body) return;
+  const inv = loadInventory();
+  const rows = (INJ_COMPOUNDS || []).map(c => {
+    const entry = inv[c.key] || { remaining: 0 };
+    const dose = _inventoryDoseFor(c.key);
+    const unit = INVENTORY_UNITS[c.key] || 'mg';
+    const dosesLeft = dose ? Math.floor(entry.remaining / dose) : 0;
+    const daysLeft = inventoryDaysRemaining(c.key);
+    const low = daysLeft !== null && daysLeft <= INVENTORY_WARN_DAYS;
+    const empty = entry.remaining <= 0;
+    const statusColor = empty ? '#ef4444' : low ? '#eab308' : 'var(--green, #22c55e)';
+    const statusLabel = empty ? '⚠ OUT' : low ? `⚠ ${daysLeft}d left` : `${daysLeft}d left`;
+    return `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-left:3px solid ${statusColor};border-radius:8px;margin-bottom:6px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:${c.color};flex:none;"></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);">${c.name}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:1px;">${entry.remaining} ${unit} on hand · ${dosesLeft} doses</div>
+        </div>
+        <div style="text-align:right;flex:none;">
+          <div style="font-size:12px;font-weight:700;color:${statusColor};">${statusLabel}</div>
+          <button class="btn btn-ghost" style="font-size:10px;padding:3px 8px;margin-top:3px;" onclick="inventoryQuickAdd('${c.key}')">+ Stock</button>
+        </div>
+      </div>`;
+  }).join('');
+  body.innerHTML = rows || '<div style="font-size:12px;color:var(--muted);padding:10px;">No injection compounds configured.</div>';
+}
+
+function inventoryQuickAdd(compoundKey) {
+  const unit = INVENTORY_UNITS[compoundKey] || 'mg';
+  const amt = prompt(`Add how many ${unit} to ${compoundKey} inventory?`);
+  if (amt == null) return;
+  const v = parseFloat(amt);
+  if (!isFinite(v) || v <= 0) { showToast('Enter a positive number', 2500); return; }
+  const inv = loadInventory();
+  inv[compoundKey] = inv[compoundKey] || { remaining: 0 };
+  inv[compoundKey].remaining = +(Number(inv[compoundKey].remaining || 0) + v).toFixed(3);
+  inv[compoundKey].lastReorderedAt = new Date().toISOString();
+  saveInventory(inv);
+  renderInventory();
+  showToast(`✅ +${v} ${unit} to ${compoundKey}`, 2500);
+}
+
+function inventoryDecrementOnInjection(compoundKey) {
+  const inv = loadInventory();
+  inv[compoundKey] = inv[compoundKey] || { remaining: 0 };
+  const dose = _inventoryDoseFor(compoundKey);
+  const was = Number(inv[compoundKey].remaining || 0);
+  const next = Math.max(0, +(was - dose).toFixed(3));
+  inv[compoundKey].remaining = next;
+  saveInventory(inv);
+  // Warn when crossing empty or the 14-day threshold
+  if (was > 0 && next === 0) showToast(`⚠ ${compoundKey} just ran out — reorder soon`, 5000);
+  renderInventory();
+}
+
+function openInventoryManager() {
+  const o = document.getElementById('inventoryOverlay');
+  if (o) { o.style.display = 'flex'; renderInventoryManager(); }
+}
+function closeInventoryManager() {
+  const o = document.getElementById('inventoryOverlay');
+  if (o) o.style.display = 'none';
+}
+function renderInventoryManager() {
+  const body = document.getElementById('inventoryManagerBody');
+  if (!body) return;
+  const inv = loadInventory();
+  const rows = (INJ_COMPOUNDS || []).map(c => {
+    const entry = inv[c.key] || { remaining: 0, lastReorderedAt: '' };
+    const unit = INVENTORY_UNITS[c.key] || 'mg';
+    const dose = _inventoryDoseFor(c.key);
+    const doses = dose ? Math.floor(entry.remaining / dose) : 0;
+    const days = inventoryDaysRemaining(c.key);
+    return `
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <div style="width:12px;height:12px;border-radius:50%;background:${c.color};"></div>
+          <div style="font-size:14px;font-weight:700;flex:1;">${c.name}</div>
+          <div style="font-size:11px;color:var(--muted);">Dose: ${c.dose}</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+          <input type="number" step="0.01" min="0" id="inv_${c.key}_val" value="${entry.remaining}" style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-family:inherit;">
+          <span style="font-size:12px;color:var(--muted);min-width:28px;">${unit}</span>
+          <button class="btn btn-primary" style="font-size:12px;padding:6px 12px;" onclick="inventorySetValue('${c.key}')">Save</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.5;">
+          ${doses} doses left · ~${days === null ? '—' : days} days at 2×/week${entry.lastReorderedAt ? ` · last updated ${new Date(entry.lastReorderedAt).toLocaleDateString()}` : ''}
+        </div>
+      </div>`;
+  }).join('');
+  body.innerHTML = `
+    <div style="font-size:13px;color:var(--text);line-height:1.55;margin-bottom:14px;">
+      Track how much of each compound you have on hand. Inventory auto-decrements when you log an injection. You'll see a warning when any compound drops below ${INVENTORY_WARN_DAYS} days of supply.
+    </div>
+    ${rows}
+    <div style="background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.2);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--muted);line-height:1.5;margin-top:6px;">
+      💡 Enter the total remaining (not number of vials). For a new 10 mg Retatrutide vial, enter <strong>10</strong>.
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+      <button class="btn btn-primary" onclick="closeInventoryManager()">Done</button>
+    </div>`;
+}
+function inventorySetValue(compoundKey) {
+  const input = document.getElementById('inv_' + compoundKey + '_val');
+  if (!input) return;
+  const v = parseFloat(input.value);
+  if (!isFinite(v) || v < 0) { showToast('Enter a non-negative number', 2500); return; }
+  const inv = loadInventory();
+  inv[compoundKey] = inv[compoundKey] || { remaining: 0 };
+  inv[compoundKey].remaining = +v.toFixed(3);
+  inv[compoundKey].lastReorderedAt = new Date().toISOString();
+  saveInventory(inv);
+  renderInventory();
+  renderInventoryManager();
+  showToast(`✅ ${compoundKey}: ${v} ${INVENTORY_UNITS[compoundKey] || 'mg'}`, 2500);
 }
 
 // =========================================================
