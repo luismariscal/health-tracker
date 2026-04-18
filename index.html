@@ -1943,7 +1943,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.6.1';
+const VERSION = '2.7.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -2023,6 +2023,8 @@ function bumpChangeCount() {
   scheduleAutoBackup();
   // v2.5.0: also push to GitHub Gist if sync is enabled (debounced 5s)
   if (typeof scheduleSyncPush === 'function') scheduleSyncPush();
+  // v2.7.0: republish reminders.ics so subscribed calendars pick up changes
+  if (typeof schedulePublishReminders === 'function') schedulePublishReminders();
 }
 function markExported(ts) {
   const meta = loadMeta();
@@ -4482,7 +4484,7 @@ function loadWaterSettings() {
     return { ...WATER_SETTINGS_DEFAULTS, ...s };
   } catch { return { ...WATER_SETTINGS_DEFAULTS }; }
 }
-function saveWaterSettings(s) { localStorage.setItem('tp_water_settings', JSON.stringify(s)); }
+function saveWaterSettings(s) { localStorage.setItem('tp_water_settings', JSON.stringify(s)); bumpChangeCount(); }
 
 function todayWaterEntries() {
   const water = loadWater();
@@ -8184,6 +8186,83 @@ async function writeSyncGist(id, contentObj) {
   return ghRequest('/gists/' + id, { method: 'PATCH', body });
 }
 
+// -------- Live reminder feed (v2.7.0) --------
+// Publishes the current generateIcs() output as a second file
+// (reminders.ics) inside the same sync gist. Google Calendar
+// subscribes to the gist's raw URL once — settings changes
+// thereafter auto-propagate within ~12-24h (Google's poll window).
+const REMINDERS_FILENAME = 'reminders.ics';
+let _publishTimer = null;
+let _publishInFlight = false;
+let _lastPublishedHash = '';
+const PUBLISH_DEBOUNCE_MS = 8000;  // slightly longer than sync push to batch with it
+
+function getReminderFeedUrl() {
+  const cfg = loadSyncConfig();
+  if (!cfg.gistId) return '';
+  // raw.githubusercontent.com serves the latest content without a commit sha.
+  // We don't know the gist owner login without an extra API call, but the
+  // `/raw/` path with no sha works for any gist we own.
+  if (cfg.gistOwner) {
+    return `https://gist.githubusercontent.com/${cfg.gistOwner}/${cfg.gistId}/raw/${REMINDERS_FILENAME}`;
+  }
+  // Fallback — without owner we can still link to the gist web view
+  return '';
+}
+
+async function publishReminders({ force = false } = {}) {
+  const cfg = loadSyncConfig();
+  if (!cfg.enabled || !cfg.token || !cfg.gistId) {
+    throw new Error('Sync not configured');
+  }
+  if (typeof generateIcs !== 'function') throw new Error('ICS generator not ready');
+  if (countExpectedReminders() === 0) {
+    throw new Error('No reminder categories enabled');
+  }
+  const ics = generateIcs();
+  const hash = _hashString(ics);
+  if (!force && hash === _lastPublishedHash) return { skipped: true };
+  if (_publishInFlight) return { skipped: true, busy: true };
+  _publishInFlight = true;
+  try {
+    // PATCH only the reminders.ics file — leaves health-tracker-data.json untouched
+    const body = JSON.stringify({
+      files: { [REMINDERS_FILENAME]: { content: ics } },
+    });
+    const res = await ghRequest('/gists/' + cfg.gistId, { method: 'PATCH', body });
+    _lastPublishedHash = hash;
+    // Cache the gist owner login so we can build the raw URL without re-fetching
+    const fresh = loadSyncConfig();
+    if (res && res.owner && res.owner.login) fresh.gistOwner = res.owner.login;
+    fresh.lastPublishedAt = new Date().toISOString();
+    fresh.reminderFeedUrl = fresh.gistOwner
+      ? `https://gist.githubusercontent.com/${fresh.gistOwner}/${cfg.gistId}/raw/${REMINDERS_FILENAME}`
+      : '';
+    fresh.lastPublishError = '';
+    saveSyncConfig(fresh);
+    return { ok: true };
+  } catch (e) {
+    const fresh = loadSyncConfig();
+    fresh.lastPublishError = e.message || String(e);
+    saveSyncConfig(fresh);
+    throw e;
+  } finally {
+    _publishInFlight = false;
+  }
+}
+
+function schedulePublishReminders() {
+  const cfg = loadSyncConfig();
+  if (!cfg.enabled || !cfg.token || !cfg.gistId) return;
+  // Only publish if the user has opted into reminders at least once
+  if (!cfg.reminderFeedUrl && !cfg.lastPublishedAt) return;
+  if (_publishTimer) clearTimeout(_publishTimer);
+  _publishTimer = setTimeout(() => {
+    _publishTimer = null;
+    publishReminders().catch(()=>{});
+  }, PUBLISH_DEBOUNCE_MS);
+}
+
 // -------- Push / Pull / Merge --------
 let _syncPushTimer = null;
 let _syncInFlight = false;
@@ -8825,14 +8904,81 @@ function calSettingTime(key, value) {
   if (chip) chip.textContent = countExpectedReminders() + ' per day';
 }
 
+function _calFmtAgo(iso) {
+  if (!iso) return 'never';
+  const d = new Date(iso);
+  if (isNaN(d)) return 'never';
+  const s = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (s < 60) return s + 's ago';
+  if (s < 3600) return Math.floor(s/60) + 'm ago';
+  if (s < 86400) return Math.floor(s/3600) + 'h ago';
+  return Math.floor(s/86400) + 'd ago';
+}
+
 function renderCalendarSettings() {
   const body = document.getElementById('calSettingsBody');
   if (!body) return;
   const cal = loadCalSettings();
   const ws  = loadWaterSettings();
+  const sync = loadSyncConfig();
   const waterSlots = computeWaterSlots(ws);
   const perDay = countExpectedReminders();
   const tbtn = (key, val) => `<input type="time" value="${val}" onchange="calSettingTime('${key}', this.value)" style="background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 6px;font-size:12px;font-family:inherit;">`;
+
+  // Live Feed section — only useful when GitHub Gist sync is connected
+  const syncReady = !!(sync.enabled && sync.token && sync.gistId);
+  const feedUrl = sync.reminderFeedUrl || '';
+  const lastPub = sync.lastPublishedAt || '';
+  const pubErr  = sync.lastPublishError || '';
+  let liveFeedHtml = '';
+  if (syncReady && feedUrl) {
+    // Already published at least once — show the live URL + controls
+    liveFeedHtml = `
+      <div style="background:linear-gradient(135deg, rgba(16,185,129,0.10), rgba(0,212,255,0.10));border:1px solid rgba(16,185,129,0.35);border-radius:10px;padding:14px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="font-size:18px;">📡</span>
+          <strong style="font-size:14px;color:var(--text);">Live calendar feed — active</strong>
+          <span style="margin-left:auto;font-size:11px;color:var(--muted);">updated ${_calFmtAgo(lastPub)}</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.55;margin-bottom:10px;">
+          Google Calendar is subscribed to your gist. <strong>Change any setting in this app and it auto-publishes within a few seconds</strong> — Google polls the feed every 12–24h and picks up the change. No re-importing.
+        </div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-family:monospace;font-size:11px;word-break:break-all;color:var(--muted);margin-bottom:10px;">${feedUrl}</div>
+        ${pubErr ? `<div style="font-size:11px;color:#f87171;margin-bottom:8px;">⚠ Last publish failed: ${pubErr}</div>` : ''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn btn-ghost" style="font-size:12px;padding:6px 10px;" onclick="copyReminderFeedUrl()">📋 Copy feed URL</button>
+          <button class="btn btn-ghost" style="font-size:12px;padding:6px 10px;" onclick="publishRemindersNow()">🔄 Publish now</button>
+          <button class="btn btn-ghost" style="font-size:12px;padding:6px 10px;" onclick="showFeedSubscribeHelp()">❓ How to subscribe</button>
+        </div>
+      </div>`;
+  } else if (syncReady && !feedUrl) {
+    // Sync on, never published yet — offer one-tap enable
+    liveFeedHtml = `
+      <div style="background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.35);border-radius:10px;padding:14px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="font-size:18px;">📡</span>
+          <strong style="font-size:14px;color:var(--text);">Enable live calendar feed</strong>
+          <span style="margin-left:auto;font-size:11px;background:var(--accent);color:#0b0f19;padding:2px 8px;border-radius:10px;font-weight:700;">RECOMMENDED</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.55;margin-bottom:10px;">
+          Publish reminders to your existing sync gist so Google Calendar can <strong>subscribe once</strong>. After that, settings changes auto-propagate — no more re-importing every time you tweak a time.
+        </div>
+        <button class="btn btn-primary" style="font-size:13px;padding:8px 14px;" onclick="publishRemindersNow()" ${perDay===0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>📡 Enable live feed</button>
+      </div>`;
+  } else {
+    // Sync not configured — point user to setup first
+    liveFeedHtml = `
+      <div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.25);border-radius:10px;padding:14px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <span style="font-size:18px;">📡</span>
+          <strong style="font-size:13px;color:var(--text);">Want a self-updating calendar instead?</strong>
+        </div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.55;margin-bottom:10px;">
+          Set up <strong>GitHub Gist sync</strong> first (Backup menu → ☁ Sync…). Once it's connected, you'll get a live feed URL here that Google Calendar can subscribe to — settings changes propagate automatically, no re-importing.
+        </div>
+        <button class="btn btn-ghost" style="font-size:12px;padding:6px 10px;" onclick="closeCalendarSettings(); if(typeof openSyncSettings==='function') openSyncSettings();">☁ Open sync setup</button>
+      </div>`;
+  }
 
   body.innerHTML = `
     <div style="font-size:13px;line-height:1.55;color:var(--text);margin-bottom:14px;">
@@ -8840,6 +8986,8 @@ function renderCalendarSettings() {
       native Calendar fires alerts even when this app is closed — lock screen, deep
       sleep, everywhere. <strong>Works on Android, iPhone, and desktop.</strong>
     </div>
+
+    ${liveFeedHtml}
 
     <!-- Water -->
     <label style="display:flex;align-items:flex-start;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;">
@@ -8943,6 +9091,97 @@ async function copyIcsToClipboard() {
     catch { showToast('Copy failed — use Download instead', 3000); }
     document.body.removeChild(ta);
   }
+}
+
+// -------- Live feed actions (v2.7.0) --------
+async function publishRemindersNow() {
+  const sync = loadSyncConfig();
+  if (!sync.enabled || !sync.token || !sync.gistId) {
+    showToast('Connect sync first (Backup menu → ☁ Sync)', 4000);
+    return;
+  }
+  if (countExpectedReminders() === 0) {
+    showToast('Enable at least one reminder category first', 3500);
+    return;
+  }
+  showToast('📡 Publishing reminders…', 2000);
+  try {
+    const res = await publishReminders({ force: true });
+    if (res && res.skipped) {
+      showToast('📡 No changes to publish', 2500);
+    } else {
+      showToast('✅ Feed published — Google Calendar will pick up changes within 12–24h', 5000);
+    }
+    renderCalendarSettings();
+  } catch (e) {
+    showToast('Publish failed: ' + (e.message || 'unknown'), 5000);
+    renderCalendarSettings();
+  }
+}
+
+async function copyReminderFeedUrl() {
+  const sync = loadSyncConfig();
+  const url = sync.reminderFeedUrl || '';
+  if (!url) { showToast('No feed URL yet — tap Publish first', 3000); return; }
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast('📋 Feed URL copied', 2500);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); showToast('📋 Feed URL copied', 2500); }
+    catch { showToast('Copy failed', 2500); }
+    document.body.removeChild(ta);
+  }
+}
+
+function showFeedSubscribeHelp() {
+  const sync = loadSyncConfig();
+  const url = sync.reminderFeedUrl || '';
+  const body = document.getElementById('calSettingsBody');
+  if (!body) return;
+  // Overlay a help card (replaces body — user can hit Back via the close button)
+  body.innerHTML = `
+    <div style="font-size:13px;line-height:1.6;color:var(--text);">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <span style="font-size:22px;">📡</span>
+        <strong style="font-size:15px;">Subscribe Google Calendar to your feed</strong>
+      </div>
+
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:12px;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Your feed URL:</div>
+        <div style="font-family:monospace;font-size:11px;word-break:break-all;color:var(--text);margin-bottom:8px;">${url || '(publish first)'}</div>
+        <button class="btn btn-ghost" style="font-size:11px;padding:5px 8px;" onclick="copyReminderFeedUrl()">📋 Copy URL</button>
+      </div>
+
+      <strong style="font-size:13px;color:var(--text);">One-time subscription (desktop — easiest):</strong>
+      <ol style="margin:8px 0 12px;padding-left:20px;font-size:12px;color:var(--muted);line-height:1.7;">
+        <li>Open <a href="https://calendar.google.com/calendar/u/0/r/settings/addbyurl" target="_blank" rel="noopener" style="color:var(--accent);">calendar.google.com/r/settings/addbyurl</a> in a browser.</li>
+        <li>Paste the feed URL above into <strong>URL of calendar</strong>.</li>
+        <li>Click <strong>Add calendar</strong>.</li>
+        <li>Done — events appear within a minute and auto-sync to your Android Calendar app.</li>
+      </ol>
+
+      <strong style="font-size:13px;color:var(--text);">After that — fully automatic:</strong>
+      <ul style="margin:8px 0 12px;padding-left:20px;font-size:12px;color:var(--muted);line-height:1.7;">
+        <li>Change a water interval, injection time, or dose time in this app.</li>
+        <li>The feed republishes within ~8 seconds.</li>
+        <li>Google Calendar polls the URL every <strong>12–24 hours</strong> and picks up your changes.</li>
+        <li>Force an immediate refresh: in Calendar settings, unsubscribe then re-add the URL.</li>
+      </ul>
+
+      <div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.25);border-radius:8px;padding:10px 12px;font-size:11px;color:#eab308;line-height:1.5;margin-bottom:12px;">
+        ⚠ <strong>Subscribed calendars are read-only.</strong> You can't edit individual events in Google Calendar — this app is the source of truth. If you want editable events, use <strong>📥 Download .ics</strong> instead (but you'll lose auto-updating).
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;">
+        <button class="btn btn-primary" onclick="renderCalendarSettings()">← Back</button>
+      </div>
+    </div>
+  `;
 }
 
 // =========================================================
