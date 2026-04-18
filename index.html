@@ -1027,7 +1027,8 @@
         <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;margin-bottom:4px;" onclick="document.getElementById('importFile').click()">⬆ Import Data</button>
         <input type="file" id="importFile" accept=".json,application/json" style="display:none;" onchange="importData(event)">
         <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);"></div>
-        <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--accent);" onclick="openSyncSettings()">☁ Sync to GitHub Gist…</button>
+        <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--accent);margin-bottom:4px;" onclick="openSyncSettings()">☁ Sync to GitHub Gist…</button>
+        <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--accent);" onclick="openCalendarSettings()">📅 Calendar Reminders…</button>
       </div>
     </div>
   </div>
@@ -1070,6 +1071,17 @@
       <button onclick="closeSyncSettings()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
     </div>
     <div id="syncSettingsBody"></div>
+  </div>
+</div>
+
+<!-- CALENDAR EXPORT MODAL (v2.6.0) -->
+<div id="calOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:310;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:500px;max-height:92vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="font-size:16px;font-weight:800;">📅 Calendar Reminders</div>
+      <button onclick="closeCalendarSettings()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div id="calSettingsBody"></div>
   </div>
 </div>
 
@@ -1931,7 +1943,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.5.2';
+const VERSION = '2.6.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -8552,6 +8564,351 @@ function handleSyncDisconnect() {
   if (!confirm('Disconnect sync? Your local data is untouched, but this device will stop receiving updates. The gist will not be deleted — reconnect anytime.')) return;
   syncDisconnect();
   showToast('Sync disconnected', 2000);
+}
+
+// =========================================================
+// CALENDAR EXPORT (v2.6.0)
+// Generates an .ics (iCalendar) file with RRULE'd reminders
+// so the native Calendar app can fire alerts even when this
+// app is closed. This is the only path that works reliably
+// across iOS, Android, and desktop — PWAs can't schedule
+// background notifications, but Calendar apps can.
+// =========================================================
+const CAL_DEFAULTS = {
+  injectionTime: '19:00',    // 7 PM — Thu + Sun
+  doseMorning: '07:30',
+  doseEvening: '21:00',
+  breakfastTime: '08:00',
+  lunchTime: '13:00',
+  dinnerTime: '19:00',
+  includeWater: true,
+  includeInjections: true,
+  includeDose: true,
+  includeMeals: false,
+};
+
+function loadCalSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem('tp_cal_settings') || '{}');
+    return { ...CAL_DEFAULTS, ...s };
+  } catch { return { ...CAL_DEFAULTS }; }
+}
+function saveCalSettings(s) {
+  localStorage.setItem('tp_cal_settings', JSON.stringify(s));
+  bumpChangeCount();
+}
+
+// Even-spaced reminders within [wakeStart, wakeEnd] at intervalMin spacing
+function computeWaterSlots(ws) {
+  const toMin = (s) => { const [h,m] = s.split(':').map(Number); return h*60+m; };
+  const startMin = toMin(ws.wakeStart || '06:00');
+  const endMin   = toMin(ws.wakeEnd   || '21:00');
+  const interval = Math.max(30, ws.intervalMin || 90);
+  const slots = [];
+  for (let t = startMin; t <= endMin; t += interval) {
+    slots.push({ hh: Math.floor(t/60), mm: t%60 });
+  }
+  return slots;
+}
+
+// ICS date formatters
+function _icsPad(n) { return String(n).padStart(2, '0'); }
+function icsFmtLocal(d) {
+  // Floating local time (no TZ suffix) — interpreted in the user's local zone
+  return d.getFullYear() + _icsPad(d.getMonth()+1) + _icsPad(d.getDate()) + 'T' +
+         _icsPad(d.getHours()) + _icsPad(d.getMinutes()) + '00';
+}
+function icsFmtUtc(d) {
+  return d.getUTCFullYear() + _icsPad(d.getUTCMonth()+1) + _icsPad(d.getUTCDate()) + 'T' +
+         _icsPad(d.getUTCHours()) + _icsPad(d.getUTCMinutes()) + _icsPad(d.getUTCSeconds()) + 'Z';
+}
+
+// Fold long lines to 75 octets per RFC 5545
+function icsFold(line) {
+  if (line.length <= 75) return line;
+  const parts = [];
+  let rest = line;
+  parts.push(rest.slice(0, 75));
+  rest = rest.slice(75);
+  while (rest.length > 74) {
+    parts.push(' ' + rest.slice(0, 74));
+    rest = rest.slice(74);
+  }
+  if (rest.length) parts.push(' ' + rest);
+  return parts.join('\r\n');
+}
+function icsEscape(s) {
+  return String(s)
+    .replace(/\\/g, '\\\\')
+    .replace(/\n/g, '\\n')
+    .replace(/,/g, '\\,')
+    .replace(/;/g, '\\;');
+}
+
+function makeVEvent({ uid, startDate, summary, description, rrule, durationMin }) {
+  const dtend = new Date(startDate.getTime() + (durationMin || 5) * 60000);
+  const lines = [
+    'BEGIN:VEVENT',
+    'UID:' + uid,
+    'DTSTAMP:' + icsFmtUtc(new Date()),
+    'DTSTART:' + icsFmtLocal(startDate),
+    'DTEND:' + icsFmtLocal(dtend),
+    'SUMMARY:' + icsEscape(summary),
+  ];
+  if (description) lines.push('DESCRIPTION:' + icsEscape(description));
+  if (rrule) lines.push('RRULE:' + rrule);
+  lines.push('BEGIN:VALARM');
+  lines.push('ACTION:DISPLAY');
+  lines.push('TRIGGER:-PT0M');          // fire at event start
+  lines.push('DESCRIPTION:' + icsEscape(summary));
+  lines.push('END:VALARM');
+  lines.push('END:VEVENT');
+  return lines.map(icsFold).join('\r\n');
+}
+
+function countExpectedReminders() {
+  const cal = loadCalSettings();
+  const ws  = loadWaterSettings();
+  let n = 0;
+  if (cal.includeWater)      n += computeWaterSlots(ws).length;
+  if (cal.includeInjections) n += 1;   // one VEVENT w/ weekly RRULE
+  if (cal.includeDose)       n += 2;
+  if (cal.includeMeals)      n += 3;
+  return n;
+}
+
+function generateIcs() {
+  const cal = loadCalSettings();
+  const ws  = loadWaterSettings();
+  // Start "tomorrow" so reminders don't fire in the past on first import
+  const base = new Date();
+  base.setDate(base.getDate() + 1);
+  base.setHours(0, 0, 0, 0);
+
+  const events = [];
+
+  // --- Water ---
+  if (cal.includeWater) {
+    const slots = computeWaterSlots(ws);
+    const perDrink = Math.max(1, Math.ceil((ws.goalOz || 100) / Math.max(1, slots.length)));
+    slots.forEach(slot => {
+      const d = new Date(base);
+      d.setHours(slot.hh, slot.mm, 0, 0);
+      events.push(makeVEvent({
+        uid: `water-${_icsPad(slot.hh)}${_icsPad(slot.mm)}@transform.local`,
+        startDate: d,
+        summary: `💧 Drink ~${perDrink} oz water`,
+        description: `Hydration reminder from Transformation Protocol.\nDaily goal: ${ws.goalOz} oz across ${slots.length} check-ins.\nLog it in the Health Tracker app.`,
+        rrule: 'FREQ=DAILY',
+        durationMin: 5,
+      }));
+    });
+  }
+
+  // --- Injections (Thu + Sun) ---
+  if (cal.includeInjections) {
+    const [h, m] = (cal.injectionTime || '19:00').split(':').map(Number);
+    const nextInj = new Date(base);
+    while (nextInj.getDay() !== 4 /* Thu */ && nextInj.getDay() !== 0 /* Sun */) {
+      nextInj.setDate(nextInj.getDate() + 1);
+    }
+    nextInj.setHours(h, m, 0, 0);
+    const compounds = INJ_COMPOUNDS.map(c => `${c.name} ${c.dose}`).join(' + ');
+    events.push(makeVEvent({
+      uid: 'injection-day@transform.local',
+      startDate: nextInj,
+      summary: '💉 Injection Day',
+      description: `Due tonight: ${compounds}.\nRotate injection site and log in the Injection Tracker.`,
+      rrule: 'FREQ=WEEKLY;BYDAY=TH,SU',
+      durationMin: 15,
+    }));
+  }
+
+  // --- Dose / supplement stack (morning + evening) ---
+  if (cal.includeDose) {
+    const [mh, mm] = (cal.doseMorning || '07:30').split(':').map(Number);
+    const [eh, em] = (cal.doseEvening || '21:00').split(':').map(Number);
+    const dm = new Date(base); dm.setHours(mh, mm, 0, 0);
+    const de = new Date(base); de.setHours(eh, em, 0, 0);
+    events.push(makeVEvent({
+      uid: 'dose-morning@transform.local',
+      startDate: dm,
+      summary: '💊 Morning supplement stack',
+      description: 'Take morning dose — see Protocol Stack in the Health Tracker.',
+      rrule: 'FREQ=DAILY',
+      durationMin: 10,
+    }));
+    events.push(makeVEvent({
+      uid: 'dose-evening@transform.local',
+      startDate: de,
+      summary: '💊 Evening supplement stack',
+      description: 'Take evening dose — see Protocol Stack in the Health Tracker.',
+      rrule: 'FREQ=DAILY',
+      durationMin: 10,
+    }));
+  }
+
+  // --- Meals ---
+  if (cal.includeMeals) {
+    const meals = [
+      { key:'breakfast', time: cal.breakfastTime || '08:00', emoji:'🍳', name:'Breakfast' },
+      { key:'lunch',     time: cal.lunchTime     || '13:00', emoji:'🥗', name:'Lunch' },
+      { key:'dinner',    time: cal.dinnerTime    || '19:00', emoji:'🍽',  name:'Dinner' },
+    ];
+    meals.forEach(meal => {
+      const [h, m] = meal.time.split(':').map(Number);
+      const d = new Date(base); d.setHours(h, m, 0, 0);
+      events.push(makeVEvent({
+        uid: `meal-${meal.key}@transform.local`,
+        startDate: d,
+        summary: `${meal.emoji} ${meal.name}`,
+        description: `Log macros + meal in the Health Tracker.`,
+        rrule: 'FREQ=DAILY',
+        durationMin: 30,
+      }));
+    });
+  }
+
+  const header = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Transformation Protocol//Health Tracker ' + VERSION + '//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'X-WR-CALNAME:Transform Reminders',
+    'X-WR-CALDESC:Water\\, injection\\, and dose reminders from the Health Tracker.',
+  ].join('\r\n');
+  const footer = 'END:VCALENDAR';
+  return [header, ...events, footer].join('\r\n');
+}
+
+function downloadCalendarFile() {
+  const ics = generateIcs();
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'transform-reminders.ics';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('📅 Calendar file downloaded', 3000);
+}
+
+// -------- UI --------
+function openCalendarSettings() {
+  const o = document.getElementById('calOverlay');
+  if (o) { o.style.display = 'flex'; renderCalendarSettings(); }
+  const bm = document.getElementById('backupMenu');
+  if (bm) bm.style.display = 'none';
+}
+function closeCalendarSettings() {
+  const o = document.getElementById('calOverlay');
+  if (o) o.style.display = 'none';
+}
+
+function calSettingToggle(key) {
+  const cal = loadCalSettings();
+  cal[key] = !cal[key];
+  saveCalSettings(cal);
+  renderCalendarSettings();
+}
+function calSettingTime(key, value) {
+  if (!value) return;
+  const cal = loadCalSettings();
+  cal[key] = value;
+  saveCalSettings(cal);
+  // Don't re-render here — keeps the time picker focused as user edits
+  const chip = document.getElementById('calCountChip');
+  if (chip) chip.textContent = countExpectedReminders() + ' per day';
+}
+
+function renderCalendarSettings() {
+  const body = document.getElementById('calSettingsBody');
+  if (!body) return;
+  const cal = loadCalSettings();
+  const ws  = loadWaterSettings();
+  const waterSlots = computeWaterSlots(ws);
+  const perDay = countExpectedReminders();
+  const tbtn = (key, val) => `<input type="time" value="${val}" onchange="calSettingTime('${key}', this.value)" style="background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 6px;font-size:12px;font-family:inherit;">`;
+
+  body.innerHTML = `
+    <div style="font-size:13px;line-height:1.55;color:var(--text);margin-bottom:14px;">
+      Export recurring reminders as a calendar file (<code>.ics</code>). Your phone's
+      native Calendar fires alerts even when this app is closed — lock screen, deep
+      sleep, everywhere. <strong>Works on Android, iPhone, and desktop.</strong>
+    </div>
+
+    <!-- Water -->
+    <label style="display:flex;align-items:flex-start;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;">
+      <input type="checkbox" ${cal.includeWater?'checked':''} onchange="calSettingToggle('includeWater')" style="margin-top:3px;flex:none;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:14px;">💧 Water reminders</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;">
+          <strong>${waterSlots.length}</strong> reminders per day · every ${ws.intervalMin} min · ${ws.wakeStart}–${ws.wakeEnd}
+          <div style="margin-top:4px;font-size:11px;">Times are driven by the Water Intake card's settings.</div>
+        </div>
+      </div>
+    </label>
+
+    <!-- Injections -->
+    <label style="display:flex;align-items:flex-start;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;">
+      <input type="checkbox" ${cal.includeInjections?'checked':''} onchange="calSettingToggle('includeInjections')" style="margin-top:3px;flex:none;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:14px;">💉 Injection days</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;">
+          Every <strong>Thursday</strong> and <strong>Sunday</strong> at ${tbtn('injectionTime', cal.injectionTime)}
+        </div>
+      </div>
+    </label>
+
+    <!-- Dose -->
+    <label style="display:flex;align-items:flex-start;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;">
+      <input type="checkbox" ${cal.includeDose?'checked':''} onchange="calSettingToggle('includeDose')" style="margin-top:3px;flex:none;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:14px;">💊 Supplement stack</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;">
+          Morning ${tbtn('doseMorning', cal.doseMorning)} · Evening ${tbtn('doseEvening', cal.doseEvening)}
+        </div>
+      </div>
+    </label>
+
+    <!-- Meals -->
+    <label style="display:flex;align-items:flex-start;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px;cursor:pointer;">
+      <input type="checkbox" ${cal.includeMeals?'checked':''} onchange="calSettingToggle('includeMeals')" style="margin-top:3px;flex:none;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:14px;">🍽 Meal checkpoints</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;">
+          ${cal.includeMeals
+            ? `Breakfast ${tbtn('breakfastTime', cal.breakfastTime)} · Lunch ${tbtn('lunchTime', cal.lunchTime)} · Dinner ${tbtn('dinnerTime', cal.dinnerTime)}`
+            : '<span style="opacity:0.7;">Breakfast · Lunch · Dinner (enable to set times)</span>'}
+        </div>
+      </div>
+    </label>
+
+    <div style="background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.25);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--accent);margin-bottom:12px;">
+      📊 <strong><span id="calCountChip">${perDay} per day</span></strong> daily reminders will be exported${cal.includeInjections ? ', plus 1 weekly injection event' : ''}.
+    </div>
+
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--muted);line-height:1.55;margin-bottom:14px;">
+      <strong style="color:var(--text);">How to import on Android:</strong>
+      <ol style="margin:6px 0 0;padding-left:18px;">
+        <li>Tap <strong>Download .ics</strong> below</li>
+        <li>Open the downloaded file → choose <strong>Google Calendar</strong></li>
+        <li>Accept "Add all events" (creates them in your default calendar)</li>
+        <li>Reminders fire natively — app closed, phone locked, works forever</li>
+      </ol>
+      <div style="margin-top:8px;color:#eab308;font-size:11px;line-height:1.5;">
+        ⚠ If you change schedule later and re-import, Google Calendar updates events with the same ID rather than duplicating. If you need a clean slate, search "💧" or "💉" in Calendar and delete.
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+      <button class="btn btn-ghost" onclick="closeCalendarSettings()">Cancel</button>
+      <button class="btn btn-primary" onclick="downloadCalendarFile()" ${perDay===0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>📥 Download .ics</button>
+    </div>
+  `;
 }
 
 // =========================================================
