@@ -1006,6 +1006,24 @@
 </head>
 <body>
 
+<!-- APP LOCK OVERLAY (v2.9.0) - rendered above everything when locked -->
+<div id="lockOverlay" style="display:none;position:fixed;inset:0;background:#0b0f19;z-index:9999;flex-direction:column;align-items:center;justify-content:center;padding:20px;">
+  <div style="text-align:center;max-width:360px;width:100%;">
+    <div style="font-size:56px;margin-bottom:16px;">🔒</div>
+    <div style="font-size:22px;font-weight:800;margin-bottom:6px;color:#f3f4f6;">Transformation Protocol</div>
+    <div style="font-size:13px;color:#9ca3af;margin-bottom:28px;" id="lockPrompt">Enter your PIN to unlock</div>
+    <input type="password" id="lockPinInput" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off"
+      style="width:100%;max-width:260px;text-align:center;font-size:24px;letter-spacing:8px;padding:14px;background:#1f2937;border:1.5px solid #374151;border-radius:10px;color:#f3f4f6;font-family:inherit;margin-bottom:12px;" placeholder="••••" />
+    <div id="lockError" style="font-size:12px;color:#f87171;min-height:18px;margin-bottom:12px;"></div>
+    <button id="lockSubmitBtn" onclick="lockSubmitPin()"
+      style="width:100%;max-width:260px;background:#00d4ff;color:#0b0f19;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px;">Unlock</button>
+    <button id="lockBiometricBtn" onclick="lockUnlockBiometric()" style="display:none;width:100%;max-width:260px;background:transparent;color:#00d4ff;border:1px solid #00d4ff;border-radius:10px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:10px;">👆 Unlock with fingerprint</button>
+    <div style="font-size:10px;color:#6b7280;margin-top:14px;line-height:1.5;">
+      Lock protects against casual glances only. Anyone with devtools access can still read your data.
+    </div>
+  </div>
+</div>
+
 <div class="topbar">
   <div class="topbar-left">
     <div class="logo">Transformation<span> Protocol</span> <span id="versionTag" style="font-size:10px;font-weight:600;color:var(--muted);letter-spacing:0;padding:2px 6px;border-radius:6px;background:var(--surface2);margin-left:4px;"></span></div>
@@ -1029,7 +1047,8 @@
         <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);"></div>
         <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--accent);margin-bottom:4px;" onclick="openSyncSettings()">☁ Sync to GitHub Gist…</button>
         <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--accent);margin-bottom:4px;" onclick="openCalendarSettings()">📅 Calendar Reminders…</button>
-        <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--accent);" onclick="openMedicalSummary()">🩺 Medical Summary (PDF)…</button>
+        <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--accent);margin-bottom:4px;" onclick="openMedicalSummary()">🩺 Medical Summary (PDF)…</button>
+        <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--accent);" onclick="openAppLockSettings()">🔒 App Lock…</button>
       </div>
     </div>
   </div>
@@ -1083,6 +1102,17 @@
       <button onclick="closeCalendarSettings()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
     </div>
     <div id="calSettingsBody"></div>
+  </div>
+</div>
+
+<!-- APP LOCK SETTINGS MODAL (v2.9.0) -->
+<div id="lockSettingsOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:310;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="font-size:16px;font-weight:800;">🔒 App Lock</div>
+      <button onclick="closeAppLockSettings()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div id="lockSettingsBody"></div>
   </div>
 </div>
 
@@ -1955,7 +1985,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.8.0';
+const VERSION = '2.9.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -9561,6 +9591,329 @@ ${parts.join('\n')}
   w.document.close();
   closeMedicalSummary();
 }
+
+// =========================================================
+// APP LOCK (v2.9.0)
+// PIN-gated access with PBKDF2 hashing, auto-lock on
+// inactivity, and optional WebAuthn biometric unlock.
+// Threat model: protects against casual glances when the
+// device is unlocked but unattended. NOT a secure enclave —
+// anyone with devtools can still read localStorage. Be honest
+// about that in the UI so users don't over-trust it.
+// =========================================================
+const LOCK_DEFAULTS = {
+  enabled: false,
+  pinHash: '',        // base64 PBKDF2(pin, salt)
+  pinSalt: '',        // base64 salt
+  iterations: 100000,
+  autoLockMinutes: 5,  // 0 = never, only on explicit close / reload
+  lockOnClose: true,
+  biometric: false,
+  credentialId: '',    // base64 WebAuthn credential
+};
+function loadLockCfg() {
+  try { return { ...LOCK_DEFAULTS, ...JSON.parse(localStorage.getItem('tp_lock') || '{}') }; }
+  catch { return { ...LOCK_DEFAULTS }; }
+}
+function saveLockCfg(cfg) { localStorage.setItem('tp_lock', JSON.stringify(cfg)); }
+
+// ---- PIN hashing (PBKDF2 via WebCrypto) ----
+function _lockB64(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+function _lockFromB64(s) {
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i=0;i<bin.length;i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+async function _lockHashPin(pin, saltB64, iterations) {
+  const salt = saltB64 ? _lockFromB64(saltB64) : crypto.getRandomValues(new Uint8Array(16));
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), { name: 'PBKDF2' }, false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name:'PBKDF2', salt, iterations, hash:'SHA-256' }, key, 256);
+  return { hash: _lockB64(bits), salt: _lockB64(salt) };
+}
+async function _lockVerifyPin(pin) {
+  const cfg = loadLockCfg();
+  if (!cfg.enabled || !cfg.pinHash) return true;
+  const { hash } = await _lockHashPin(pin, cfg.pinSalt, cfg.iterations || 100000);
+  return hash === cfg.pinHash;
+}
+
+// ---- Lock state ----
+let _lockIdleTimer = null;
+let _lockLastActivity = Date.now();
+let _lockIsLocked = false;
+
+function _lockOnActivity() {
+  _lockLastActivity = Date.now();
+}
+function _lockStartIdleMonitor() {
+  if (_lockIdleTimer) clearInterval(_lockIdleTimer);
+  const cfg = loadLockCfg();
+  if (!cfg.enabled || !cfg.autoLockMinutes) return;
+  _lockIdleTimer = setInterval(() => {
+    if (_lockIsLocked) return;
+    const idleMs = Date.now() - _lockLastActivity;
+    if (idleMs > cfg.autoLockMinutes * 60000) lockApp();
+  }, 15000);
+}
+function _lockAttachActivityListeners() {
+  ['pointerdown','keydown','wheel','touchstart','visibilitychange'].forEach(ev => {
+    window.addEventListener(ev, _lockOnActivity, { passive: true });
+  });
+}
+
+function lockApp() {
+  const cfg = loadLockCfg();
+  if (!cfg.enabled) return;
+  _lockIsLocked = true;
+  const ov = document.getElementById('lockOverlay');
+  if (ov) {
+    ov.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    const input = document.getElementById('lockPinInput');
+    const bioBtn = document.getElementById('lockBiometricBtn');
+    const err = document.getElementById('lockError');
+    if (err) err.textContent = '';
+    if (input) { input.value = ''; setTimeout(() => input.focus(), 100); }
+    if (bioBtn) bioBtn.style.display = cfg.biometric && cfg.credentialId ? 'block' : 'none';
+  }
+}
+
+function unlockApp() {
+  _lockIsLocked = false;
+  _lockLastActivity = Date.now();
+  const ov = document.getElementById('lockOverlay');
+  if (ov) ov.style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+async function lockSubmitPin() {
+  const input = document.getElementById('lockPinInput');
+  const err = document.getElementById('lockError');
+  if (!input) return;
+  const pin = input.value || '';
+  if (pin.length < 4) { if (err) err.textContent = 'PIN must be at least 4 digits'; return; }
+  try {
+    const ok = await _lockVerifyPin(pin);
+    if (ok) { unlockApp(); }
+    else { if (err) err.textContent = '✕ Incorrect PIN'; input.value = ''; setTimeout(() => input.focus(), 50); }
+  } catch (e) { if (err) err.textContent = 'Error: ' + (e.message || e); }
+}
+
+// ---- WebAuthn biometric (optional) ----
+async function _lockEnrollBiometric() {
+  if (!window.PublicKeyCredential) throw new Error('WebAuthn not supported on this device');
+  const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  if (!available) throw new Error('No device biometric (fingerprint / face) available');
+  const userId = new TextEncoder().encode('health-tracker-user');
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  const cred = await navigator.credentials.create({
+    publicKey: {
+      challenge,
+      rp: { name: 'Transformation Protocol' },
+      user: { id: userId, name: 'user@health-tracker', displayName: 'Health Tracker User' },
+      pubKeyCredParams: [{ alg: -7, type: 'public-key' }, { alg: -257, type: 'public-key' }],
+      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' },
+      timeout: 60000,
+      attestation: 'none',
+    },
+  });
+  if (!cred) throw new Error('Enrollment cancelled');
+  return _lockB64(cred.rawId);
+}
+
+async function lockUnlockBiometric() {
+  const cfg = loadLockCfg();
+  if (!cfg.biometric || !cfg.credentialId) return;
+  try {
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const res = await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        allowCredentials: [{ id: _lockFromB64(cfg.credentialId), type: 'public-key' }],
+        userVerification: 'required',
+        timeout: 60000,
+      },
+    });
+    if (res) unlockApp();
+  } catch (e) {
+    const err = document.getElementById('lockError');
+    if (err) err.textContent = 'Biometric failed — use PIN';
+  }
+}
+
+// ---- Settings modal ----
+function openAppLockSettings() {
+  const o = document.getElementById('lockSettingsOverlay');
+  if (o) { o.style.display = 'flex'; renderAppLockSettings(); }
+  const bm = document.getElementById('backupMenu');
+  if (bm) bm.style.display = 'none';
+}
+function closeAppLockSettings() {
+  const o = document.getElementById('lockSettingsOverlay');
+  if (o) o.style.display = 'none';
+}
+
+function renderAppLockSettings() {
+  const body = document.getElementById('lockSettingsBody');
+  if (!body) return;
+  const cfg = loadLockCfg();
+  const webauthnOk = !!window.PublicKeyCredential;
+
+  if (!cfg.enabled) {
+    body.innerHTML = `
+      <div style="font-size:13px;color:var(--text);line-height:1.55;margin-bottom:14px;">
+        Add a 4-8 digit PIN before the app will open. Protects casual glances — not a replacement for device encryption.
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px;">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Set a PIN</div>
+        <input type="password" id="lockSetPin1" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="New PIN (4-8 digits)" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px;color:var(--text);font-family:inherit;font-size:14px;letter-spacing:3px;margin-bottom:8px;">
+        <input type="password" id="lockSetPin2" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="Confirm PIN" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px;color:var(--text);font-family:inherit;font-size:14px;letter-spacing:3px;">
+        <div id="lockSetError" style="font-size:11px;color:#f87171;min-height:16px;margin-top:6px;"></div>
+      </div>
+      <div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.25);border-radius:8px;padding:10px 12px;font-size:11px;color:#eab308;line-height:1.5;margin-bottom:12px;">
+        ⚠ If you forget your PIN, there's no recovery. You'd have to clear the site data (which wipes the app). Your synced gist stays safe on GitHub either way.
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="btn btn-ghost" onclick="closeAppLockSettings()">Cancel</button>
+        <button class="btn btn-primary" onclick="lockSetupEnable()">Enable Lock</button>
+      </div>`;
+  } else {
+    body.innerHTML = `
+      <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:18px;">🔒</span>
+        <div style="flex:1;"><strong style="font-size:13px;">Lock active</strong><div style="font-size:11px;color:var(--muted);margin-top:2px;">PIN required to open the app</div></div>
+      </div>
+
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;">
+        <div style="font-size:12px;font-weight:700;margin-bottom:8px;">Auto-lock after inactivity</div>
+        <select id="lockAutoLockSelect" onchange="lockSetAutoLock(this.value)" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-family:inherit;font-size:13px;">
+          ${[['0','Never (only on close / reload)'],['1','1 minute'],['5','5 minutes'],['10','10 minutes'],['30','30 minutes'],['60','1 hour']].map(([v,l]) => `<option value="${v}" ${String(cfg.autoLockMinutes)===v?'selected':''}>${l}</option>`).join('')}
+        </select>
+      </div>
+
+      <label style="display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;cursor:pointer;">
+        <input type="checkbox" ${cfg.lockOnClose?'checked':''} onchange="lockSetOnClose(this.checked)">
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:700;">Lock on close / reload</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">Always require PIN on next open</div>
+        </div>
+      </label>
+
+      ${webauthnOk ? `
+      <label style="display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;cursor:pointer;">
+        <input type="checkbox" ${cfg.biometric?'checked':''} onchange="lockToggleBiometric(this.checked)">
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:700;">👆 Fingerprint unlock</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">${cfg.biometric && cfg.credentialId ? 'Enrolled on this device' : 'Uses your phone\u2019s fingerprint / face — PIN still works as fallback'}</div>
+        </div>
+      </label>` : `
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;font-size:12px;color:var(--muted);">
+        👆 Biometric unlock not supported in this browser.
+      </div>`}
+
+      <div style="display:flex;gap:8px;justify-content:space-between;margin-top:14px;flex-wrap:wrap;">
+        <button class="btn btn-ghost" onclick="lockChangePin()" style="font-size:12px;">🔄 Change PIN</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" onclick="closeAppLockSettings()">Close</button>
+          <button class="btn btn-ghost" style="color:#f87171;border-color:rgba(248,113,113,0.4);" onclick="lockDisable()">Disable Lock</button>
+        </div>
+      </div>`;
+  }
+}
+
+async function lockSetupEnable() {
+  const p1 = document.getElementById('lockSetPin1').value || '';
+  const p2 = document.getElementById('lockSetPin2').value || '';
+  const err = document.getElementById('lockSetError');
+  if (p1.length < 4 || p1.length > 8) { err.textContent = 'PIN must be 4-8 digits'; return; }
+  if (!/^\d+$/.test(p1)) { err.textContent = 'Digits only'; return; }
+  if (p1 !== p2) { err.textContent = 'PINs don\u2019t match'; return; }
+  const { hash, salt } = await _lockHashPin(p1, '', 100000);
+  const cfg = loadLockCfg();
+  cfg.enabled = true; cfg.pinHash = hash; cfg.pinSalt = salt; cfg.iterations = 100000;
+  saveLockCfg(cfg);
+  _lockStartIdleMonitor();
+  showToast('🔒 Lock enabled', 2500);
+  renderAppLockSettings();
+}
+
+async function lockChangePin() {
+  const current = prompt('Current PIN:');
+  if (current == null) return;
+  const ok = await _lockVerifyPin(current);
+  if (!ok) { showToast('Incorrect PIN', 2500); return; }
+  const p1 = prompt('New PIN (4-8 digits):');
+  if (p1 == null) return;
+  if (!/^\d{4,8}$/.test(p1)) { showToast('PIN must be 4-8 digits', 2500); return; }
+  const p2 = prompt('Confirm new PIN:');
+  if (p1 !== p2) { showToast('PINs don\u2019t match', 2500); return; }
+  const { hash, salt } = await _lockHashPin(p1, '', 100000);
+  const cfg = loadLockCfg();
+  cfg.pinHash = hash; cfg.pinSalt = salt;
+  saveLockCfg(cfg);
+  showToast('🔒 PIN updated', 2500);
+}
+
+function lockSetAutoLock(v) {
+  const cfg = loadLockCfg();
+  cfg.autoLockMinutes = parseInt(v) || 0;
+  saveLockCfg(cfg);
+  _lockStartIdleMonitor();
+}
+function lockSetOnClose(v) {
+  const cfg = loadLockCfg();
+  cfg.lockOnClose = !!v;
+  saveLockCfg(cfg);
+}
+async function lockToggleBiometric(v) {
+  const cfg = loadLockCfg();
+  if (v) {
+    try {
+      const credId = await _lockEnrollBiometric();
+      cfg.biometric = true; cfg.credentialId = credId;
+      saveLockCfg(cfg);
+      showToast('👆 Fingerprint enrolled', 3000);
+    } catch (e) {
+      showToast('Enroll failed: ' + (e.message||'error'), 4000);
+      cfg.biometric = false; cfg.credentialId = '';
+      saveLockCfg(cfg);
+    }
+  } else {
+    cfg.biometric = false; cfg.credentialId = '';
+    saveLockCfg(cfg);
+  }
+  renderAppLockSettings();
+}
+async function lockDisable() {
+  const pin = prompt('Enter current PIN to disable lock:');
+  if (pin == null) return;
+  const ok = await _lockVerifyPin(pin);
+  if (!ok) { showToast('Incorrect PIN', 2500); return; }
+  saveLockCfg({ ...LOCK_DEFAULTS });
+  if (_lockIdleTimer) clearInterval(_lockIdleTimer);
+  showToast('Lock disabled', 2500);
+  renderAppLockSettings();
+}
+
+// ---- Startup hooks ----
+(function _lockInit() {
+  const cfg = loadLockCfg();
+  if (!cfg.enabled) return;
+  if (cfg.lockOnClose) {
+    // Lock immediately on every load
+    setTimeout(() => lockApp(), 0);
+  }
+  _lockAttachActivityListeners();
+  _lockStartIdleMonitor();
+  // Wire up Enter key + auto-submit on full-length input
+  document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('lockPinInput');
+    if (input) {
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') lockSubmitPin(); });
+    }
+  });
+})();
 
 // =========================================================
 // v2.0.0 ADD-ONS
