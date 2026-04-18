@@ -1913,7 +1913,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.5.0';
+const VERSION = '2.5.1';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -8404,26 +8404,67 @@ function renderSyncSettings() {
   if (!cfg.enabled) {
     body.innerHTML = `
       <div style="font-size:13px;line-height:1.55;color:var(--text);margin-bottom:14px;">
-        Sync your data to a <strong>private GitHub Gist</strong> so every device stays in
-        step. Works on desktop, phone, and tablet. Photos stay device-local.
+        Sync your data to a <strong>private GitHub Gist</strong> so desktop, phone, and
+        tablet stay in step. Every change pushes in ~5s; other devices pull every 2 min
+        (and on tab focus). Photos stay device-local.
       </div>
-      <div style="background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);border-radius:8px;padding:10px 12px;font-size:12px;color:#eab308;margin-bottom:14px;">
-        ⚠ Your token is stored in this browser's localStorage. Use a
-        <strong>fine-grained token</strong> with <strong>only the <code>gist</code> scope</strong>,
-        and revoke it immediately if the device is lost.
+
+      <!-- STEP 1 -->
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#0b0f19;font-weight:800;font-size:12px;">1</span>
+          <strong style="font-size:13px;">Get a GitHub token (one time, any device)</strong>
+        </div>
+        <a href="${tokenHref}" target="_blank" rel="noopener" style="display:inline-block;background:var(--accent);color:#0b0f19;font-weight:700;font-size:12px;padding:7px 12px;border-radius:6px;text-decoration:none;margin-bottom:10px;">→ Open GitHub token page</a>
+        <ol style="margin:0;padding-left:18px;font-size:12px;line-height:1.6;color:var(--muted);">
+          <li>Sign in if prompted — lands on <em>"New personal access token (classic)"</em></li>
+          <li><strong>Expiration</strong>: "No expiration" or 1 year</li>
+          <li><strong>Scopes</strong>: only <code style="background:var(--surface);padding:1px 5px;border-radius:3px;">gist</code> (pre-checked)</li>
+          <li>Click <strong>Generate token</strong></li>
+          <li><strong>Copy</strong> the <code style="background:var(--surface);padding:1px 5px;border-radius:3px;">ghp_…</code> value — GitHub shows it only once</li>
+        </ol>
       </div>
-      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
-        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">Device name</label>
-        <input id="syncDeviceName" type="text" value="${(cfg.deviceName||'').replace(/"/g,'&quot;')}" placeholder="e.g. Desktop, iPhone" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;">
-        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">GitHub Personal Access Token</label>
-        <input id="syncToken" type="password" placeholder="ghp_… or github_pat_…" autocomplete="off" spellcheck="false" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:Consolas,Menlo,monospace;">
-        <a href="${tokenHref}" target="_blank" rel="noopener" style="font-size:12px;color:var(--accent);text-decoration:none;">→ Create a token with gist scope</a>
+
+      <!-- STEP 2 -->
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#0b0f19;font-weight:800;font-size:12px;">2</span>
+          <strong style="font-size:13px;">Connect this device</strong>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">Device name</label>
+          <input id="syncDeviceName" type="text" value="${(cfg.deviceName||'').replace(/"/g,'&quot;')}" placeholder="Desktop, iPhone, etc." style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:9px 11px;color:var(--text);font-size:13px;">
+          <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-top:4px;">Paste GitHub token</label>
+          <input id="syncToken" type="password" placeholder="ghp_…" autocomplete="off" spellcheck="false" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:9px 11px;color:var(--text);font-size:13px;font-family:Consolas,Menlo,monospace;">
+          <button id="syncConnectBtn" class="btn btn-primary" style="margin-top:6px;" onclick="handleSyncConnect()">☁ Connect</button>
+        </div>
       </div>
+
+      <!-- STEP 3 -->
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#0b0f19;font-weight:800;font-size:12px;">3</span>
+          <strong style="font-size:13px;">On your other devices</strong>
+        </div>
+        <div style="font-size:12px;line-height:1.6;color:var(--muted);">
+          Install the app (iOS: <em>Share → Add to Home Screen</em>; Android: <em>menu → Install</em>),
+          open this same menu, and paste the <strong>same token</strong>. The first device you
+          connect creates the gist; the rest pull from it automatically.
+        </div>
+      </div>
+
+      <div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.25);border-radius:8px;padding:10px 12px;font-size:11px;color:#eab308;margin-bottom:12px;line-height:1.55;">
+        ⚠ <strong>Use a Classic token with only the <code>gist</code> scope.</strong>
+        Fine-grained tokens don't support gists yet. Your token is stored in this
+        browser's localStorage — revoke it at
+        <a href="https://github.com/settings/tokens" target="_blank" rel="noopener" style="color:#eab308;text-decoration:underline;">github.com/settings/tokens</a>
+        if this device is lost.
+      </div>
+
       <div style="display:flex;gap:8px;justify-content:flex-end;">
         <button class="btn btn-ghost" onclick="closeSyncSettings()">Cancel</button>
-        <button id="syncConnectBtn" class="btn btn-primary" onclick="handleSyncConnect()">☁ Connect</button>
       </div>
-      ${cfg.lastError ? `<div style="margin-top:10px;color:#ef4444;font-size:12px;">${cfg.lastError}</div>` : ''}
+      ${cfg.lastError ? `<div style="margin-top:10px;color:#ef4444;font-size:12px;">⚠ ${cfg.lastError}</div>` : ''}
     `;
     return;
   }
@@ -8441,8 +8482,18 @@ function renderSyncSettings() {
       <div style="color:var(--muted);">Gist</div><div>${gistUrl ? `<a href="${gistUrl}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;">open ↗</a>` : '—'}</div>
     </div>
     ${cfg.lastError ? `<div style="margin-bottom:12px;color:#ef4444;font-size:12px;">⚠ ${cfg.lastError}</div>` : ''}
+    <details style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;">
+      <summary style="cursor:pointer;font-weight:700;color:var(--accent);">+ Add another device</summary>
+      <ol style="margin:10px 0 0;padding-left:18px;line-height:1.6;color:var(--muted);">
+        <li>Open the Health Tracker URL on the other device</li>
+        <li>Install it (iOS: Share → Add to Home Screen; Android: menu → Install)</li>
+        <li>⋯ menu → ☁ Sync to GitHub Gist…</li>
+        <li>Paste the <strong>same GitHub token</strong> you used here</li>
+        <li>It'll pull from the existing gist automatically</li>
+      </ol>
+    </details>
     <div style="font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.5;">
-      Every change is pushed automatically after ~5s. Every 2 minutes (and on tab focus) this device pulls the latest. Photos are not synced.
+      Every change pushes in ~5s. Every 2 min (and on tab focus) this device pulls the latest. Photos are not synced.
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
       <button class="btn btn-ghost" onclick="syncPull({force:true}).then(r=>r.ok&&showToast('Pulled',1500))">⬇ Pull now</button>
