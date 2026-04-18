@@ -1044,6 +1044,7 @@
         <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;margin-bottom:4px;font-size:12px;" onclick="exportData()">⬇ Export Data (JSON)</button>
         <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;margin-bottom:4px;" onclick="document.getElementById('importFile').click()">⬆ Import Data</button>
         <input type="file" id="importFile" accept=".json,application/json" style="display:none;" onchange="importData(event)">
+        <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;margin-bottom:4px;" onclick="openCsvExport()">📊 Export CSV…</button>
         <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);"></div>
         <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--accent);margin-bottom:4px;" onclick="openSyncSettings()">☁ Sync to GitHub Gist…</button>
         <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--accent);margin-bottom:4px;" onclick="openCalendarSettings()">📅 Calendar Reminders…</button>
@@ -1102,6 +1103,32 @@
       <button onclick="closeCalendarSettings()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
     </div>
     <div id="calSettingsBody"></div>
+  </div>
+</div>
+
+<!-- CSV EXPORT MODAL (v2.10.0) -->
+<div id="csvExportOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:310;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:460px;max-height:92vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="font-size:16px;font-weight:800;">📊 Export CSV</div>
+      <button onclick="closeCsvExport()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div style="font-size:13px;color:var(--text);line-height:1.55;margin-bottom:14px;">
+      Download any dataset as a CSV — drop into Google Sheets, Excel, or share with a coach or doctor. UTF-8 with BOM so Excel opens it cleanly.
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <button class="btn btn-ghost" style="justify-content:flex-start;font-size:12px;padding:10px;" onclick="exportCsvWeight()">⚖ weight.csv</button>
+      <button class="btn btn-ghost" style="justify-content:flex-start;font-size:12px;padding:10px;" onclick="exportCsvVitals()">🫀 vitals.csv</button>
+      <button class="btn btn-ghost" style="justify-content:flex-start;font-size:12px;padding:10px;" onclick="exportCsvInjections()">💉 injections.csv</button>
+      <button class="btn btn-ghost" style="justify-content:flex-start;font-size:12px;padding:10px;" onclick="exportCsvMeasurements()">📏 measurements.csv</button>
+      <button class="btn btn-ghost" style="justify-content:flex-start;font-size:12px;padding:10px;" onclick="exportCsvSymptoms()">⚠ symptoms.csv</button>
+      <button class="btn btn-ghost" style="justify-content:flex-start;font-size:12px;padding:10px;" onclick="exportCsvWater()">💧 water.csv</button>
+      <button class="btn btn-ghost" style="justify-content:flex-start;font-size:12px;padding:10px;" onclick="exportCsvJournal()">📓 journal.csv</button>
+      <button class="btn btn-ghost" style="justify-content:flex-start;font-size:12px;padding:10px;" onclick="exportCsvStack()">💊 stack.csv</button>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+      <button class="btn btn-primary" onclick="closeCsvExport()">Done</button>
+    </div>
   </div>
 </div>
 
@@ -1985,7 +2012,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.9.0';
+const VERSION = '2.10.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -9914,6 +9941,108 @@ async function lockDisable() {
     }
   });
 })();
+
+// =========================================================
+// CSV EXPORT (v2.10.0)
+// Per-dataset CSV files for spreadsheet import. RFC 4180
+// quoting (double-quote values containing commas, quotes, or
+// newlines; escape " as ""). Empty values become blank cells.
+// =========================================================
+function _csvEsc(v) {
+  if (v == null) return '';
+  const s = String(v);
+  if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+function _csvRow(arr) { return arr.map(_csvEsc).join(','); }
+function _csvDownload(filename, rows) {
+  const csv = rows.map(r => _csvRow(r)).join('\r\n') + '\r\n';
+  // Prepend BOM so Excel opens UTF-8 correctly
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportCsvWeight() {
+  const rows = [['date','weight_lb','note']];
+  (loadEntries()||[]).sort((a,b)=>a.date.localeCompare(b.date))
+    .forEach(e => rows.push([e.date, e.weight, e.note || '']));
+  _csvDownload('weight.csv', rows);
+  showToast('📊 weight.csv downloaded', 2500);
+}
+function exportCsvVitals() {
+  const rows = [['date','sbp','dbp','hr']];
+  (loadVitals()||[]).sort((a,b)=>a.date.localeCompare(b.date))
+    .forEach(v => rows.push([v.date, v.sbp||'', v.dbp||'', v.hr||'']));
+  _csvDownload('vitals.csv', rows);
+  showToast('📊 vitals.csv downloaded', 2500);
+}
+function exportCsvInjections() {
+  const log = loadInjLog() || {};
+  const rows = [['date','compound','site','logged']];
+  Object.keys(log).sort().forEach(k => {
+    const [date, compound] = k.split(':');
+    if (!date) return;
+    const e = log[k];
+    if (!isInjLogged(e)) return;
+    const site = getInjSite(e) || '';
+    rows.push([date, compound || '', site, 'yes']);
+  });
+  _csvDownload('injections.csv', rows);
+  showToast('📊 injections.csv downloaded', 2500);
+}
+function exportCsvMeasurements() {
+  const fields = ['waist','chest','hips','neck','leftArm','rightArm','leftThigh','rightThigh','bodyFat'];
+  const rows = [['date', ...fields]];
+  (loadMeasurements()||[]).sort((a,b)=>a.date.localeCompare(b.date))
+    .forEach(m => rows.push([m.date, ...fields.map(f => m[f] == null ? '' : m[f])]));
+  _csvDownload('measurements.csv', rows);
+  showToast('📊 measurements.csv downloaded', 2500);
+}
+function exportCsvSymptoms() {
+  const rows = [['timestamp','tag','severity','note']];
+  (loadSymptoms()||[]).sort((a,b)=>(a.ts||'').localeCompare(b.ts||''))
+    .forEach(s => rows.push([s.ts, s.tag || '', s.severity || '', s.note || '']));
+  _csvDownload('symptoms.csv', rows);
+  showToast('📊 symptoms.csv downloaded', 2500);
+}
+function exportCsvWater() {
+  const rows = [['date','time','oz','unit']];
+  const waterAll = (() => { try { return JSON.parse(localStorage.getItem('tp_water') || '{}'); } catch { return {}; } })();
+  Object.keys(waterAll).sort().forEach(date => {
+    const entries = waterAll[date] || [];
+    entries.forEach(e => rows.push([date, e.time || '', e.oz || '', e.unit || 'oz']));
+  });
+  _csvDownload('water.csv', rows);
+  showToast('📊 water.csv downloaded', 2500);
+}
+function exportCsvJournal() {
+  const rows = [['date','entry']];
+  (loadJournal()||[]).sort((a,b)=>(a.date||'').localeCompare(b.date||''))
+    .forEach(j => rows.push([j.date, j.text || j.entry || '']));
+  _csvDownload('journal.csv', rows);
+  showToast('📊 journal.csv downloaded', 2500);
+}
+function exportCsvStack() {
+  const rows = [['name','dose','timing','status','start','note']];
+  (loadStack()||[]).forEach(s => rows.push([s.name, s.dose||'', s.timing||'', s.status||'', s.start||'', s.note||'']));
+  _csvDownload('stack.csv', rows);
+  showToast('📊 stack.csv downloaded', 2500);
+}
+
+function openCsvExport() {
+  const o = document.getElementById('csvExportOverlay');
+  if (o) { o.style.display = 'flex'; }
+  const bm = document.getElementById('backupMenu');
+  if (bm) bm.style.display = 'none';
+}
+function closeCsvExport() {
+  const o = document.getElementById('csvExportOverlay');
+  if (o) o.style.display = 'none';
+}
 
 // =========================================================
 // v2.0.0 ADD-ONS
