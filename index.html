@@ -647,6 +647,160 @@
     .v2-print-hide { display: none !important; }
   }
   .v2-print-only { display: none; }
+
+  /* =========================================================
+     MOBILE / RESPONSIVE — comprehensive tuning
+     ========================================================= */
+  html { -webkit-text-size-adjust: 100%; }
+  * { -webkit-tap-highlight-color: transparent; }
+  body { overflow-x: hidden; }
+  .scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+
+  /* Touch devices: keep row-action buttons visible (no hover) */
+  @media (hover: none), (pointer: coarse) {
+    .stack-edit-btn, .stack-del-btn { opacity: 1; }
+    .stack-edit-btn, .stack-del-btn, .del-row { min-width: 32px; min-height: 32px; font-size: 16px; }
+  }
+
+  /* TABLET ≤ 820px */
+  @media (max-width: 820px) {
+    .main { padding: 16px; gap: 16px; }
+    .topbar { padding: 12px 16px; }
+    .charts-grid { grid-template-columns: 1fr; }
+    .chart-wrap { height: 220px; }
+  }
+
+  /* PHONE ≤ 560px */
+  @media (max-width: 560px) {
+    .topbar { padding: 10px 12px; gap: 8px; flex-wrap: wrap; }
+    .topbar-left { gap: 8px; flex: 1 1 100%; }
+    .topbar-date { font-size: 11px; }
+    .logo { font-size: 15px; }
+    .logo span:first-of-type { display: none; } /* hide "Protocol" word */
+    .topbar > div:last-child { flex: 1 1 100%; justify-content: flex-start; }
+
+    .main { padding: 10px; gap: 12px; }
+    .card { padding: 14px; border-radius: 10px; }
+    .card-title { font-size: 10px; letter-spacing: 0.8px; }
+
+    /* KPI row — 2 per row on phones */
+    .kpi-grid { gap: 8px; grid-template-columns: 1fr 1fr; }
+    .kpi { padding: 12px 14px; }
+    .kpi-value { font-size: 20px; }
+    .kpi-label { font-size: 10px; }
+    .kpi-sub { font-size: 11px; }
+
+    /* Buttons — larger tap targets */
+    .btn { padding: 10px 14px; font-size: 13px; min-height: 38px; }
+    .form-actions { flex-direction: column; gap: 8px; }
+    .form-actions .btn { width: 100%; text-align: center; }
+
+    /* Inputs — 16px prevents iOS zoom on focus */
+    input[type="text"], input[type="number"], input[type="date"],
+    input[type="search"], input[type="time"], textarea, select,
+    .field input, .field select, .field textarea { font-size: 16px; }
+
+    /* Tabs — horizontal scroll instead of wrap */
+    .tabs { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; margin-bottom: 12px; -webkit-overflow-scrolling: touch; }
+    .tab { flex: 0 0 auto; padding: 9px 14px; min-height: 36px; }
+
+    /* Tables — horizontal scroll wrapper */
+    .scroll-x { border: 1px solid var(--border); border-radius: 8px; }
+    .stack-table, .history-table { min-width: 540px; }
+
+    /* Coach & compliance — tighter */
+    .coach-grid, .compliance-grid { gap: 8px; }
+    .coach-item { padding: 12px 14px; }
+    .comp-ring { width: 60px; height: 60px; }
+
+    /* Checkpoints — wrap distance inline */
+    .cp-tags { gap: 4px; }
+    .cp-weight { font-size: 14px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+    .cp-action { font-size: 11px; }
+
+    /* Injection sites — 3 per row */
+    .site-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .site-cell-days { font-size: 16px; }
+
+    /* Modals — full-screen-ish, tighter padding */
+    #quickLogOverlay > div, #checkinOverlay > div, #stackModalOverlay > div,
+    #coachOverlay > div, #fitbitOverlay > div, #measModalOverlay > div,
+    #symptomModalOverlay > div, #lightboxOverlay img {
+      padding: 20px 16px !important;
+      max-height: calc(100vh - 16px) !important;
+      border-radius: 12px !important;
+    }
+    div[id$="Overlay"] > div:not([id="lightboxImg"]) {
+      padding: 20px 16px !important;
+      max-height: calc(100vh - 16px) !important;
+      max-width: calc(100vw - 16px) !important;
+    }
+
+    /* Backup/hamburger menu — don't spill off-screen */
+    #backupMenu { right: 0 !important; min-width: 0 !important; width: min(88vw, 280px); }
+
+    /* Training lift-row — compact 2-row layout */
+    .lift-row { grid-template-columns: 1fr 1fr 1fr 1fr 30px; gap: 5px; }
+    .lift-row > input:first-child, .lift-row > select:first-child { grid-column: 1 / -1; }
+
+    /* Meas + symptom freq grids shrink */
+    .meas-stat-grid { grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); }
+    .symptom-freq-grid { grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); }
+
+    /* Smaller charts on phone */
+    .chart-wrap { height: 190px; }
+
+    /* Protocol blocks — single column */
+    .protocol-grid { grid-template-columns: 1fr; }
+
+    /* Macro phases — single column */
+    .macro-grid { grid-template-columns: 1fr; }
+
+    /* Shopping grid */
+    .shop-grid { grid-template-columns: 1fr; }
+
+    /* Projection stats */
+    .proj-row { gap: 8px; }
+    .proj-stat { padding: 12px 14px; min-width: 0; flex: 1 1 140px; }
+
+    /* Supplement checklist — 2 per row when possible */
+    .supp-items-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px; }
+
+    /* Injection compound grid */
+    .inj-compound-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    /* Today's Plan — allow 3rd column to shrink & wrap */
+    .tp-row { grid-template-columns: 22px 72px minmax(0, 1fr); gap: 6px; padding: 8px 10px; }
+    .tp-row > div { min-width: 0; }
+    .tp-value, .tp-sub, .tp-engine-note { overflow-wrap: anywhere; word-break: break-word; }
+
+    /* Command Center vitals — 2 per row on phone */
+    .cc-vitals { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+    .cc-vital { padding: 10px; min-width: 0; overflow: hidden; }
+    .cc-vital-val { font-size: 16px; white-space: normal; overflow-wrap: anywhere; }
+    .cc-vital-lbl, .cc-vital-sub { overflow-wrap: anywhere; white-space: normal; }
+
+    /* KPI grid — force shrink */
+    .kpi-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .kpi { min-width: 0; overflow: hidden; }
+    .kpi-value, .kpi-label, .kpi-sub { overflow-wrap: anywhere; }
+
+    /* General: let any grid/flex child shrink to allow wrapping */
+    .card, .card > *, .card > * > * { min-width: 0; }
+
+    /* Long strings inside cards shouldn't explode layout */
+    .card { overflow-wrap: anywhere; word-wrap: break-word; }
+    .card * { max-width: 100%; }
+  }
+
+  /* TINY ≤ 380px */
+  @media (max-width: 380px) {
+    .kpi-value { font-size: 18px; }
+    .btn { padding: 10px 12px; font-size: 12px; }
+    .site-grid { grid-template-columns: 1fr 1fr; }
+    .inj-compound-grid { grid-template-columns: 1fr; }
+    .logo { font-size: 14px; }
+  }
 </style>
 </head>
 <body>
@@ -1401,7 +1555,7 @@
       <div class="stack-add-bar">
         <button class="btn btn-ghost" onclick="openStackEdit(-1)" style="font-size:12px;padding:7px 14px;">+ Add Compound</button>
       </div>
-      <table class="stack-table" id="stackTable"></table>
+      <div class="scroll-x"><table class="stack-table" id="stackTable"></table></div>
     </div>
   </div>
 
@@ -2839,7 +2993,7 @@ function renderHistory(entries) {
       <td><button class="del-row" onclick="deleteEntry('${e.date}')" title="Delete">✕</button></td>
     </tr>`;
   }).join('');
-  el.innerHTML = `<table class="history-table"><thead><tr><th>Date</th><th>Weight</th><th>Change</th><th>Protein</th><th>Water</th><th>Notes</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  el.innerHTML = `<div class="scroll-x"><table class="history-table"><thead><tr><th>Date</th><th>Weight</th><th>Change</th><th>Protein</th><th>Water</th><th>Notes</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function deleteEntry(date) {
   if (!confirm(`Delete entry for ${date}?`)) return;
@@ -5643,7 +5797,7 @@ function renderLabs() {
       <td style="padding:6px 8px;font-size:11px;color:var(--muted);">${l.notes || ''}</td>
       <td style="padding:6px 8px;text-align:right;"><button onclick="deleteLab('${l.ts}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;">✕</button></td>
     </tr>`).join('');
-  tableEl.innerHTML = `<table style="width:100%;border-collapse:collapse;"><tbody>${rows}</tbody></table>`;
+  tableEl.innerHTML = `<div class="scroll-x"><table style="width:100%;border-collapse:collapse;min-width:420px;"><tbody>${rows}</tbody></table></div>`;
 }
 
 function setLabsTrendMarker(key) {

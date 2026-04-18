@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Health Tracker — GitHub Setup Instructions</title>
+<style>
+  @page { size: letter; margin: 0.6in; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, Segoe UI, Helvetica, Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.45;
+    color: #111;
+    max-width: 7.3in;
+    margin: 0 auto;
+    padding: 0;
+  }
+  h1 {
+    font-size: 20pt;
+    margin: 0 0 4pt 0;
+    color: #0066cc;
+    border-bottom: 2px solid #0066cc;
+    padding-bottom: 6pt;
+  }
+  h2 {
+    font-size: 14pt;
+    margin: 18pt 0 6pt 0;
+    color: #0066cc;
+    page-break-after: avoid;
+  }
+  h3 {
+    font-size: 11.5pt;
+    margin: 12pt 0 4pt 0;
+    color: #333;
+    page-break-after: avoid;
+  }
+  .subtitle {
+    color: #666;
+    font-size: 10pt;
+    margin-bottom: 14pt;
+  }
+  p { margin: 6pt 0; }
+  ol, ul { margin: 6pt 0; padding-left: 22pt; }
+  li { margin: 3pt 0; }
+  code {
+    font-family: Consolas, Menlo, monospace;
+    font-size: 10pt;
+    background: #f3f3f3;
+    padding: 1pt 4pt;
+    border-radius: 2pt;
+  }
+  pre {
+    font-family: Consolas, Menlo, monospace;
+    font-size: 9.5pt;
+    background: #1e1e1e;
+    color: #e8e8e8;
+    padding: 10pt 12pt;
+    border-radius: 4pt;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    page-break-inside: avoid;
+  }
+  .box {
+    border: 1px solid #ddd;
+    border-left: 3px solid #0066cc;
+    background: #f9fafb;
+    padding: 8pt 12pt;
+    margin: 10pt 0;
+    border-radius: 2pt;
+    page-break-inside: avoid;
+  }
+  .warn {
+    border-left-color: #d97706;
+    background: #fffbeb;
+  }
+  .step {
+    background: #0066cc;
+    color: white;
+    font-weight: 700;
+    font-size: 10pt;
+    padding: 2pt 7pt;
+    border-radius: 10pt;
+    margin-right: 5pt;
+  }
+  .footer {
+    margin-top: 20pt;
+    padding-top: 8pt;
+    border-top: 1px solid #ddd;
+    font-size: 9pt;
+    color: #666;
+  }
+</style>
+</head>
+<body>
+
+<h1>Health Tracker → GitHub Setup</h1>
+<div class="subtitle">One-time setup so you can work on <code>index.html</code> from your phone, laptop, or claude.ai when you're away from your PC.</div>
+
+<h2>What you get</h2>
+<ul>
+  <li>A private GitHub repo containing <code>index.html</code></li>
+  <li>Any device with a browser can now read/edit the file via claude.ai</li>
+  <li>Desktop and online stay in sync via <code>git push</code> / <code>git pull</code></li>
+</ul>
+
+<h2>Run the setup (one time)</h2>
+
+<p><span class="step">1</span> <strong>Open Git Bash in the project folder.</strong><br>
+In File Explorer, navigate to <code>C:\Projects\Health Tracker</code>, right-click inside the folder, choose <strong>"Git Bash Here"</strong>.</p>
+
+<p><span class="step">2</span> <strong>Run the setup script:</strong></p>
+<pre>bash setup-github.sh</pre>
+
+<p><span class="step">3</span> <strong>Follow the prompts.</strong> The script will:</p>
+<ol>
+  <li>Install <code>gh</code> (GitHub CLI) via winget if missing</li>
+  <li>Log you into GitHub via browser (choose: GitHub.com → HTTPS → Login with browser)</li>
+  <li>Initialize git on the <code>main</code> branch</li>
+  <li>Set your git identity (using GitHub's <code>noreply</code> email so your real email isn't exposed)</li>
+  <li>Commit <code>index.html</code> and <code>.gitignore</code></li>
+  <li>Create a private GitHub repo named <strong>health-tracker</strong> and push to it</li>
+</ol>
+
+<div class="box warn">
+  <strong>Note — if gh installs fresh:</strong> the script will tell you to close the terminal, open a new Git Bash, and run the script again. That's normal — Windows needs a new shell to see the new PATH.
+</div>
+
+<div class="box">
+  <strong>To change repo name or make it public</strong>, edit the top of <code>setup-github.sh</code> before running:
+  <pre>REPO_NAME="health-tracker"
+VISIBILITY="private"   # or "public"</pre>
+</div>
+
+<h2>After setup — your new workflow</h2>
+
+<h3>On your desktop (after each Claude Code session)</h3>
+<pre>git add -A
+git commit -m "what I changed"
+git push</pre>
+
+<h3>On your phone, laptop, or anywhere else</h3>
+<ol>
+  <li>Open <strong>claude.ai</strong> → <strong>Projects</strong> → <strong>New Project</strong></li>
+  <li>Connect GitHub → pick <code>health-tracker</code></li>
+  <li>Chat normally — Claude reads <code>index.html</code> directly from the repo</li>
+  <li>When Claude gives you an updated version, commit it via GitHub's web editor (pencil icon on any file) — creates a commit straight from the browser</li>
+</ol>
+
+<h3>Back at your desk</h3>
+<p>Before starting a new Claude Code session, pull the latest:</p>
+<pre>git pull</pre>
+
+<h2>Alternative: Claude Code on the web</h2>
+<p>Anthropic has Claude Code running in-browser at <strong>claude.ai/code</strong>. If your plan includes it, you'll see a <strong>Code</strong> tab at claude.ai — connect the same <code>health-tracker</code> repo there and Claude can edit and open PRs directly, no copy/paste required.</p>
+
+<h2>Files created on your desktop</h2>
+<ul>
+  <li><code>C:\Projects\Health Tracker\setup-github.sh</code> — the setup script</li>
+  <li><code>C:\Projects\Health Tracker\.gitignore</code> — excludes <code>.claude/</code> and OS junk from git</li>
+  <li><code>C:\Projects\Health Tracker\github-setup-instructions.html</code> — source for this PDF</li>
+</ul>
+
+<div class="footer">
+  Generated for the Health Tracker project &middot; v1.10.0
+</div>
+
+</body>
+</html>
