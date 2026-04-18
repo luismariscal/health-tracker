@@ -1943,7 +1943,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.6.0';
+const VERSION = '2.6.1';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -8769,17 +8769,18 @@ function generateIcs() {
     });
   }
 
+  // Header — no METHOD:PUBLISH (can confuse importers), no X-WR-CALDESC
+  // (non-standard). Keep only what every parser understands.
   const header = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'PRODID:-//Transformation Protocol//Health Tracker ' + VERSION + '//EN',
     'CALSCALE:GREGORIAN',
-    'METHOD:PUBLISH',
     'X-WR-CALNAME:Transform Reminders',
-    'X-WR-CALDESC:Water\\, injection\\, and dose reminders from the Health Tracker.',
   ].join('\r\n');
   const footer = 'END:VCALENDAR';
-  return [header, ...events, footer].join('\r\n');
+  // Trailing CRLF per RFC 5545 — some parsers reject files without it
+  return [header, ...events, footer].join('\r\n') + '\r\n';
 }
 
 function downloadCalendarFile() {
@@ -8891,24 +8892,57 @@ function renderCalendarSettings() {
       📊 <strong><span id="calCountChip">${perDay} per day</span></strong> daily reminders will be exported${cal.includeInjections ? ', plus 1 weekly injection event' : ''}.
     </div>
 
-    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--muted);line-height:1.55;margin-bottom:14px;">
-      <strong style="color:var(--text);">How to import on Android:</strong>
-      <ol style="margin:6px 0 0;padding-left:18px;">
-        <li>Tap <strong>Download .ics</strong> below</li>
-        <li>Open the downloaded file → choose <strong>Google Calendar</strong></li>
-        <li>Accept "Add all events" (creates them in your default calendar)</li>
-        <li>Reminders fire natively — app closed, phone locked, works forever</li>
+    <div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.25);border-radius:8px;padding:10px 12px;font-size:12px;color:#eab308;margin-bottom:10px;line-height:1.55;">
+      ⚠ <strong>Don't tap the file from the download notification.</strong> The Android
+      Google Calendar <em>app</em> can't import multi-event .ics files — it'll throw
+      "Unable to launch event". Use the <strong>web</strong> path below instead —
+      events sync back down to your phone's Calendar within a minute.
+    </div>
+
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:14px;">
+      <strong style="color:var(--text);">How to import on Android (the path that works):</strong>
+      <ol style="margin:8px 0 0;padding-left:20px;">
+        <li>Tap <strong>📥 Download .ics</strong> below — it saves to Downloads.</li>
+        <li>Open <strong><a href="https://calendar.google.com/calendar/u/0/r/settings/export" target="_blank" rel="noopener" style="color:var(--accent);">calendar.google.com/r/settings/export</a></strong> in Chrome (not the Calendar app).</li>
+        <li>In the left nav, tap <strong>Import &amp; export</strong> → <strong>Import</strong>.</li>
+        <li>Tap <strong>Select file from your computer</strong> → pick <code>transform-reminders.ics</code> from Downloads.</li>
+        <li>Pick which Google Calendar to add them to → <strong>Import</strong>.</li>
+        <li>Wait ~30 sec — events appear in your Android Calendar app automatically.</li>
       </ol>
-      <div style="margin-top:8px;color:#eab308;font-size:11px;line-height:1.5;">
-        ⚠ If you change schedule later and re-import, Google Calendar updates events with the same ID rather than duplicating. If you need a clean slate, search "💧" or "💉" in Calendar and delete.
+      <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">
+        <strong style="color:var(--text);">Alternative — copy/paste to import on desktop:</strong>
+        If calendar.google.com is fiddly on mobile, tap <strong>📋 Copy ICS</strong>, then paste into a text file on your laptop and import from there. Calendar syncs to your phone either way.
+      </div>
+      <div style="margin-top:10px;color:var(--muted);font-size:11px;line-height:1.5;">
+        Re-importing after changing settings: same event IDs update in place. If you ever want a clean slate, search "💧" or "💉" in your Calendar and delete.
       </div>
     </div>
 
     <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
       <button class="btn btn-ghost" onclick="closeCalendarSettings()">Cancel</button>
+      <button class="btn btn-ghost" onclick="copyIcsToClipboard()" ${perDay===0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>📋 Copy ICS</button>
       <button class="btn btn-primary" onclick="downloadCalendarFile()" ${perDay===0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>📥 Download .ics</button>
     </div>
   `;
+}
+
+async function copyIcsToClipboard() {
+  const ics = generateIcs();
+  try {
+    await navigator.clipboard.writeText(ics);
+    showToast('📋 ICS copied — paste into a text file, save as .ics', 4000);
+  } catch (e) {
+    // Fallback for older browsers / insecure contexts
+    const ta = document.createElement('textarea');
+    ta.value = ics;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); showToast('📋 ICS copied to clipboard', 3000); }
+    catch { showToast('Copy failed — use Download instead', 3000); }
+    document.body.removeChild(ta);
+  }
 }
 
 // =========================================================
