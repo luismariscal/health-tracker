@@ -171,6 +171,14 @@
   .field input, .field select, .field textarea { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 9px 12px; font-size: 14px; width: 100%; transition: border-color 0.15s; }
   .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--accent); }
   .field textarea { resize: vertical; min-height: 60px; }
+  /* Strip native number-input spinner arrows — on narrow mobile viewports
+     they consume the full width of the field and block tap access to the
+     value. Users can still type freely; step/min/max still enforce validity. */
+  .field input[type=number], input[type=number].ws-num { -moz-appearance: textfield; appearance: textfield; }
+  .field input[type=number]::-webkit-outer-spin-button,
+  .field input[type=number]::-webkit-inner-spin-button,
+  input[type=number].ws-num::-webkit-outer-spin-button,
+  input[type=number].ws-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
   .form-actions { display: flex; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
 
   /* HISTORY TABLE */
@@ -5380,7 +5388,7 @@ function renderWaterSettings() {
       <div class="field">
         <label>Daily goal</label>
         <div style="display:flex;gap:6px;width:100%;align-items:stretch;">
-          <input type="number" id="ws_goal" value="${s.goalOz || 100}" step="1" min="20" inputmode="numeric" style="flex:1 1 0;min-width:0;width:auto;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:16px;">
+          <input type="number" class="ws-num" id="ws_goal" value="${s.goalOz || 100}" step="1" min="20" inputmode="numeric" style="flex:1 1 0;min-width:0;width:auto;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:16px;">
           <select id="ws_unit" style="flex:0 0 auto;width:auto;min-width:90px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px;">
             <option value="oz" ${s.unit === 'oz' ? 'selected' : ''}>oz</option>
             <option value="ml" ${s.unit === 'ml' ? 'selected' : ''}>ml (display)</option>
