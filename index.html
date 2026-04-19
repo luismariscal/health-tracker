@@ -2183,8 +2183,18 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.30.1';
+const VERSION = '2.30.2';
 const VERSION_CHANGES = [
+  {
+    version: '2.30.2',
+    date: '2026-04-19',
+    summary: 'More reliable ChatGPT lab JSON parsing',
+    details: [
+      'Added OpenAI structured JSON output for lab report extraction.',
+      'Accepted common alternate result array names if the model returns them.',
+      'Displayed a safe model-response snippet in the extraction error modal for mobile troubleshooting.',
+    ],
+  },
   {
     version: '2.30.1',
     date: '2026-04-19',
@@ -6380,13 +6390,15 @@ async function anthropicCall({ apiKey, model, maxTokens, messages, system }) {
   return await resp.json();
 }
 
-async function openaiCall({ apiKey, model, maxTokens, input, instructions }) {
+async function openaiCall({ apiKey, model, maxTokens, input, instructions, text, reasoning }) {
   const body = {
     model,
     input,
     max_output_tokens: maxTokens,
   };
   if (instructions) body.instructions = instructions;
+  if (text) body.text = text;
+  if (reasoning) body.reasoning = reasoning;
   const resp = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: {
@@ -6416,6 +6428,16 @@ function openaiResponseText(resp) {
     });
   });
   return chunks.join('').trim();
+}
+
+function openaiResponseRefusal(resp) {
+  const chunks = [];
+  (resp?.output || []).forEach(item => {
+    (item.content || []).forEach(c => {
+      if (typeof c.refusal === 'string') chunks.push(c.refusal);
+    });
+  });
+  return chunks.join('\n').trim();
 }
 
 function normalizeOpenaiUsage(resp) {
@@ -7477,7 +7499,7 @@ function deleteLab(ts) {
 }
 
 // =========================================================
-// LAB PDF EXTRACTION + AI OVERVIEW (v2.30.1)
+// LAB PDF EXTRACTION + AI OVERVIEW (v2.30.2)
 // Upload a PDF or photo of a lab report → selected AI provider extracts
 // structured rows → user reviews and applies.
 //
@@ -7500,6 +7522,58 @@ const LAB_EXTRACT_IMAGE_EXT_MIMES = {
   png: 'image/png',
   gif: 'image/gif',
   webp: 'image/webp',
+};
+const LAB_EXTRACT_OPENAI_TEXT = {
+  format: {
+    type: 'json_schema',
+    name: 'lab_report_extraction',
+    strict: false,
+    schema: {
+      type: 'object',
+      properties: {
+        collectionDate: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+        reportDate: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+        overview: {
+          type: 'object',
+          properties: {
+            status: { type: 'string', enum: ['ok', 'attention', 'urgent', 'unknown'] },
+            headline: { type: 'string' },
+            summary: { type: 'string' },
+            keyFindings: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  severity: { type: 'string', enum: ['info', 'watch', 'high'] },
+                  label: { type: 'string' },
+                  detail: { type: 'string' },
+                },
+              },
+            },
+            questionsForClinician: { type: 'array', items: { type: 'string' } },
+            dataQualityNotes: { type: 'array', items: { type: 'string' } },
+            disclaimer: { type: 'string' },
+          },
+        },
+        results: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              marker: { type: 'string' },
+              label: { type: 'string' },
+              value: { type: 'number' },
+              unit: { type: 'string' },
+              refRange: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+              flag: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+              notes: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+            },
+          },
+        },
+      },
+      required: ['overview', 'results'],
+    },
+  },
 };
 const LAB_OVERVIEW_KEY = 'tp_labs_overview';
 let _labExtractState = null;
@@ -7671,19 +7745,30 @@ Rules:
     });
 
     const rawText = aiResp.text;
-    const parsed = _extractJson(rawText);
-    if (!parsed || !Array.isArray(parsed.results)) {
-      throw new Error(`${aiResp.providerLabel} returned unexpected output. See browser console for details.`);
+    const parsed = _normalizeLabExtractionPayload(_extractJson(rawText));
+    if (!parsed) {
+      const detail = _labExtractDebugSnippet(rawText || aiResp.refusal || aiResp.debugText || '');
+      const err = new Error(aiResp.refusal
+        ? `${aiResp.providerLabel} refused to extract this report: ${aiResp.refusal}`
+        : `${aiResp.providerLabel} returned output the app could not read.`);
+      err.detail = detail;
+      throw err;
     }
     console.log('[labExtract] provider:', aiResp.provider, 'raw:', rawText);
     console.log('[labExtract] parsed:', parsed);
 
     _renderLabExtractPreview(parsed, aiResp.usage, aiResp.providerLabel);
   } catch (e) {
+    const detailHtml = e?.detail ? `
+        <details style="margin-top:8px;color:var(--muted);font-size:11px;">
+          <summary style="cursor:pointer;color:var(--text);">Show model response snippet</summary>
+          <pre style="white-space:pre-wrap;margin-top:6px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:6px;padding:8px;max-height:160px;overflow:auto;">${escapeHtml(e.detail)}</pre>
+        </details>` : '';
     document.getElementById('labExtractStatus').innerHTML = `
       <div style="padding:14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#ef4444;line-height:1.55;">
         <div style="font-weight:700;margin-bottom:4px;">✗ Extraction failed</div>
         <div style="font-size:12px;">${escapeHtml(e && e.message || 'Unknown error')}</div>
+        ${detailHtml}
         <div style="font-size:11px;color:var(--muted);margin-top:6px;">If this keeps happening, try uploading a clearer scan, a single-page PDF, or entering the values manually with "+ Add Result".</div>
       </div>`;
     document.getElementById('labExtractBody').innerHTML = '';
@@ -7741,15 +7826,25 @@ async function _callLabExtractProvider({ settings, file, base64, isPdf, mediaTyp
     const resp = await openaiCall({
       apiKey,
       model,
-      maxTokens: 6000,
+      maxTokens: 9000,
       instructions: system,
       input: [{ role: 'user', content }],
+      // Anthropic/OpenAI review note: structured output reduces provider-specific
+      // prose/markdown drift before the response reaches our local JSON parser.
+      text: LAB_EXTRACT_OPENAI_TEXT,
     });
+    const text = openaiResponseText(resp);
+    const refusal = openaiResponseRefusal(resp);
+    const incomplete = resp.status === 'incomplete'
+      ? `OpenAI response incomplete: ${resp.incomplete_details?.reason || 'unknown reason'}`
+      : '';
     return {
       provider,
       providerLabel: getCoachProviderLabel(provider),
       raw: resp,
-      text: openaiResponseText(resp),
+      text,
+      refusal,
+      debugText: text || refusal || incomplete || JSON.stringify(resp).slice(0, 1400),
       usage: normalizeOpenaiUsage(resp),
     };
   }
@@ -7789,6 +7884,30 @@ function _extractJson(text) {
     try { return JSON.parse(candidate.slice(first, last + 1)); } catch {}
   }
   return null;
+}
+
+function _normalizeLabExtractionPayload(parsed) {
+  if (!parsed) return null;
+  if (Array.isArray(parsed)) {
+    return {
+      collectionDate: null,
+      reportDate: null,
+      overview: {},
+      results: parsed,
+    };
+  }
+  if (Array.isArray(parsed.results)) return parsed;
+  for (const key of ['labResults', 'labs', 'values', 'extractedResults', 'resultRows']) {
+    if (Array.isArray(parsed[key])) return { ...parsed, results: parsed[key] };
+  }
+  if (parsed.data && Array.isArray(parsed.data.results)) return { ...parsed.data, ...parsed, results: parsed.data.results };
+  return null;
+}
+
+function _labExtractDebugSnippet(text) {
+  const s = String(text || '').trim();
+  if (!s) return '';
+  return s.length > 1400 ? s.slice(0, 1400) + '\n... [truncated]' : s;
 }
 
 // Normalize model output into our schema, mapping unknown markers to "custom".
