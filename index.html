@@ -1173,6 +1173,9 @@
   <!-- PLATEAU INSIGHT CARD (v2.12.0) -->
   <div id="plateauInsight" style="display:none;"></div>
 
+  <!-- DATA QUALITY SCORE (v2.18.0) -->
+  <div id="dataQualityScore" style="display:none;"></div>
+
   <!-- ALERT BANNER -->
   <div id="alertBanner"></div>
 
@@ -2061,7 +2064,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.17.0';
+const VERSION = '2.18.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -2351,6 +2354,7 @@ function render() {
   renderAlert(plateau, avg, cw, nextCp);
   if (typeof renderMorningNudge === 'function') renderMorningNudge();
   if (typeof renderPlateauInsight === 'function') renderPlateauInsight(plateau);
+  if (typeof renderDataQualityScore === 'function') renderDataQualityScore(entries);
   if (typeof renderInventory === 'function') renderInventory();
   renderTodaysPlan(entries, cw, avg, plateau);
   renderCommandCenter(entries, cw, avg, plateau, nextCp);
@@ -10844,6 +10848,107 @@ function dismissMorningNudge() {
     });
   }
 })();
+
+// =========================================================
+// DATA QUALITY SCORE (v2.18.0)
+// -------------------------------------------------------
+// Shows trend confidence (high / medium / low) based on how frequently
+// the user has logged weight over the last 14 days. The projection
+// math in this app assumes roughly-daily weigh-ins — when logs are
+// sparse, the plateau detector, weekly-loss average, and ETA become
+// unreliable. This panel makes that honest up-front so the user can't
+// mistake a coincidence-pattern for a real trend.
+//
+// Scoring: "high" ≥ 10 logs in last 14 days with ≤ 3 day max gap.
+//          "medium" ≥ 6 logs and ≤ 5 day max gap.
+//          "low" otherwise (including empty history).
+// Exposed on window for the verify harness and future diagnostics.
+// =========================================================
+function computeDataQualityScore(entries) {
+  const list = (entries || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const WINDOW_DAYS = 14;
+  const windowStart = new Date(today.getTime() - (WINDOW_DAYS - 1) * 86400000);
+  const inWindow = list.filter(e => {
+    const d = new Date(e.date + 'T00:00:00');
+    return d >= windowStart && d <= today;
+  });
+  const loggedDates = new Set(inWindow.map(e => e.date));
+  const logCount = loggedDates.size;
+  const coverage = logCount / WINDOW_DAYS;
+
+  // Max gap between consecutive logs in the window (or from windowStart to first log)
+  let maxGap = 0;
+  let prev = new Date(windowStart.getTime() - 86400000);
+  const sortedDates = [...loggedDates].sort();
+  for (const ds of sortedDates) {
+    const d = new Date(ds + 'T00:00:00');
+    const gap = Math.floor((d - prev) / 86400000);
+    if (gap > maxGap) maxGap = gap;
+    prev = d;
+  }
+  // Gap from last log to today
+  const tailGap = Math.floor((today - prev) / 86400000);
+  if (tailGap > maxGap) maxGap = tailGap;
+
+  let level, label, color, tips = [];
+  if (logCount >= 10 && maxGap <= 3) {
+    level = 'high'; label = 'High confidence';
+    color = 'rgba(52,211,153,0.35)'; // green
+  } else if (logCount >= 6 && maxGap <= 5) {
+    level = 'medium'; label = 'Medium confidence';
+    color = 'rgba(251,191,36,0.35)'; // amber
+    tips.push('Log weight on the days you skipped to tighten projections.');
+    if (maxGap > 3) tips.push(`Max gap in last 14d: ${maxGap} days.`);
+  } else {
+    level = 'low'; label = 'Low confidence';
+    color = 'rgba(239,68,68,0.35)'; // red
+    if (logCount === 0) {
+      tips.push('No weigh-ins in the last 14 days — the trend line is flying blind.');
+    } else {
+      tips.push(`Only ${logCount} weigh-in${logCount === 1 ? '' : 's'} in the last 14 days.`);
+      if (maxGap >= 5) tips.push(`Longest gap: ${maxGap} days between logs.`);
+    }
+    tips.push('Aim for at least a morning weigh-in 5× a week to stabilize the trend.');
+  }
+  return { level, label, color, logCount, maxGap, coverage, windowDays: WINDOW_DAYS, tips };
+}
+
+function renderDataQualityScore(entries) {
+  const el = document.getElementById('dataQualityScore');
+  if (!el) return;
+  const ent = entries || loadEntries();
+  const s = computeDataQualityScore(ent);
+  // Hide entirely in the "empty app" state — the first-run flow handles that
+  if (!ent || ent.length === 0) { el.style.display = 'none'; return; }
+
+  const icon = s.level === 'high' ? '✅' : (s.level === 'medium' ? '⚠️' : '🚨');
+  const pct = Math.round(s.coverage * 100);
+  const tipsHtml = s.tips.length
+    ? `<ul style="margin:6px 0 0 0;padding-left:18px;color:var(--muted);font-size:11px;line-height:1.55;">${s.tips.map(t => `<li>${_escHtml(t)}</li>`).join('')}</ul>`
+    : '';
+
+  el.innerHTML = `
+    <div style="background:var(--card);border:1px solid ${s.color};border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div style="font-size:22px;flex:none;">${icon}</div>
+        <div style="flex:1;min-width:160px;">
+          <div style="font-size:13px;font-weight:800;color:var(--text);">Trend confidence: ${_escHtml(s.label)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">${s.logCount}/${s.windowDays} days logged (${pct}%) · max gap ${s.maxGap}d</div>
+        </div>
+        <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;color:var(--muted);" onclick="document.getElementById('dataQualityScore').style.display='none'" title="Hide">✕</button>
+      </div>
+      ${tipsHtml}
+    </div>`;
+  el.style.display = 'block';
+}
+
+// Expose for verify harness
+if (typeof window !== 'undefined') {
+  window.computeDataQualityScore = computeDataQualityScore;
+  window.renderDataQualityScore = renderDataQualityScore;
+}
 
 // =========================================================
 // PWA SHORTCUT HANDLER (v2.14.0)
