@@ -2050,7 +2050,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.15.0';
+const VERSION = '2.16.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -8793,10 +8793,12 @@ const CAL_DEFAULTS = {
   breakfastTime: '08:00',
   lunchTime: '13:00',
   dinnerTime: '19:00',
+  weeklyReviewTime: '09:00', // Sunday 9 AM
   includeWater: true,
   includeInjections: true,
   includeDose: true,
   includeMeals: false,
+  includeWeeklyReview: true, // v2.16.0 — default on, ~5 min on Sundays
 };
 
 function loadCalSettings() {
@@ -8882,10 +8884,11 @@ function countExpectedReminders() {
   const cal = loadCalSettings();
   const ws  = loadWaterSettings();
   let n = 0;
-  if (cal.includeWater)      n += computeWaterSlots(ws).length;
-  if (cal.includeInjections) n += 1;   // one VEVENT w/ weekly RRULE
-  if (cal.includeDose)       n += 2;
-  if (cal.includeMeals)      n += 3;
+  if (cal.includeWater)        n += computeWaterSlots(ws).length;
+  if (cal.includeInjections)   n += 1;   // one VEVENT w/ weekly RRULE
+  if (cal.includeDose)         n += 2;
+  if (cal.includeMeals)        n += 3;
+  if (cal.includeWeeklyReview) n += 1;   // one VEVENT w/ weekly RRULE
   return n;
 }
 
@@ -8979,6 +8982,31 @@ function generateIcs() {
         durationMin: 30,
       }));
     });
+  }
+
+  // --- Weekly review (Sunday) — v2.16.0 ---
+  if (cal.includeWeeklyReview) {
+    const [wrH, wrM] = (cal.weeklyReviewTime || '09:00').split(':').map(Number);
+    const nextSun = new Date(base);
+    while (nextSun.getDay() !== 0 /* Sunday */) {
+      nextSun.setDate(nextSun.getDate() + 1);
+    }
+    nextSun.setHours(wrH, wrM, 0, 0);
+    events.push(makeVEvent({
+      uid: 'weekly-review@transform.local',
+      startDate: nextSun,
+      summary: '🎯 Weekly Transformation Review',
+      description: [
+        'Open the Health Tracker and review the past 7 days:',
+        '• Weight trend vs last week',
+        '• Protein + water compliance',
+        '• Injection + dose adherence',
+        '• Measurements + progress photos if due',
+        'Adjust the plan for next week before Monday hits.',
+      ].join('\n'),
+      rrule: 'FREQ=WEEKLY;BYDAY=SU',
+      durationMin: 20,
+    }));
   }
 
   // Header — no METHOD:PUBLISH (can confuse importers), no X-WR-CALDESC
@@ -9157,7 +9185,7 @@ function renderCalendarSettings() {
     </label>
 
     <!-- Meals -->
-    <label style="display:flex;align-items:flex-start;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px;cursor:pointer;">
+    <label style="display:flex;align-items:flex-start;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;">
       <input type="checkbox" ${cal.includeMeals?'checked':''} onchange="calSettingToggle('includeMeals')" style="margin-top:3px;flex:none;">
       <div style="flex:1;min-width:0;">
         <div style="font-weight:700;font-size:14px;">🍽 Meal checkpoints</div>
@@ -9169,8 +9197,19 @@ function renderCalendarSettings() {
       </div>
     </label>
 
+    <!-- Weekly Review (v2.16.0) -->
+    <label style="display:flex;align-items:flex-start;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px;cursor:pointer;">
+      <input type="checkbox" ${cal.includeWeeklyReview?'checked':''} onchange="calSettingToggle('includeWeeklyReview')" style="margin-top:3px;flex:none;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:14px;">🎯 Weekly review</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;">
+          Every <strong>Sunday</strong> at ${tbtn('weeklyReviewTime', cal.weeklyReviewTime || '09:00')} — 20 min block to audit the week and plan the next
+        </div>
+      </div>
+    </label>
+
     <div style="background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.25);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--accent);margin-bottom:12px;">
-      📊 <strong><span id="calCountChip">${perDay} per day</span></strong> daily reminders will be exported${cal.includeInjections ? ', plus 1 weekly injection event' : ''}.
+      📊 <strong><span id="calCountChip">${perDay} per day</span></strong> daily reminders will be exported${cal.includeInjections ? ', plus 1 weekly injection event' : ''}${cal.includeWeeklyReview ? ' and a weekly review' : ''}.
     </div>
 
     <div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.25);border-radius:8px;padding:10px 12px;font-size:12px;color:#eab308;margin-bottom:10px;line-height:1.55;">
