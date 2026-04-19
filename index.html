@@ -1024,9 +1024,27 @@
   </div>
 </div>
 
+<!-- DIAGNOSTICS PAGE OVERLAY (v2.26.0) -->
+<div id="diagnosticsOverlay" style="display:none;position:fixed;inset:0;background:#0b0f19;z-index:9998;overflow:auto;padding:20px;">
+  <div style="max-width:720px;margin:0 auto;font-family:system-ui,sans-serif;color:#e5e7eb;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap;">
+      <div>
+        <div style="font-size:20px;font-weight:800;">🔬 Diagnostics</div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:2px;">Internal state · copy to clipboard for bug reports</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button onclick="copyDiagnosticsReport()" style="background:#1f2937;color:#e5e7eb;border:1px solid #374151;border-radius:6px;padding:7px 12px;font-size:12px;cursor:pointer;">📋 Copy</button>
+        <button onclick="refreshDiagnosticsPage()" style="background:#1f2937;color:#e5e7eb;border:1px solid #374151;border-radius:6px;padding:7px 12px;font-size:12px;cursor:pointer;">↻ Refresh</button>
+        <button onclick="hideDiagnostics()" style="background:#ef4444;color:#fff;border:none;border-radius:6px;padding:7px 12px;font-size:12px;cursor:pointer;font-weight:700;">✕ Close</button>
+      </div>
+    </div>
+    <div id="diagnosticsBody"></div>
+  </div>
+</div>
+
 <div class="topbar">
   <div class="topbar-left">
-    <div class="logo">Transformation<span> Protocol</span> <span id="versionTag" style="font-size:10px;font-weight:600;color:var(--muted);letter-spacing:0;padding:2px 6px;border-radius:6px;background:var(--surface2);margin-left:4px;"></span></div>
+    <div class="logo">Transformation<span> Protocol</span> <span id="versionTag" style="font-size:10px;font-weight:600;color:var(--muted);letter-spacing:0;padding:2px 6px;border-radius:6px;background:var(--surface2);margin-left:4px;cursor:pointer;" onclick="_diagVersionTapCounter()" title="Tap 5 times for diagnostics"></span></div>
     <div class="topbar-date" id="topbarDate"></div>
   </div>
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -2086,7 +2104,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.25.0';
+const VERSION = '2.26.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -12234,6 +12252,281 @@ if (typeof window !== 'undefined') {
   window.closeToday = closeToday;
   window.reopenToday = reopenToday;
   window.renderTodayCloseout = renderTodayCloseout;
+}
+
+// =========================================================
+// BUILT-IN DIAGNOSTICS PAGE (v2.26.0)
+// -------------------------------------------------------
+// Hidden debug/support screen. Surfaces internal state so the
+// user can copy/paste a diagnostic report instead of describing
+// a bug. Trigger: tap the version pill 5× (or location hash
+// #diag on page load). Deliberately avoids exposing any raw
+// entry data — only counts, byte sizes, and derived signals.
+// =========================================================
+function buildDiagnosticsReport() {
+  const report = {
+    version: (typeof VERSION !== 'undefined') ? VERSION : 'unknown',
+    generatedAt: new Date().toISOString(),
+    userAgent: (typeof navigator !== 'undefined' ? navigator.userAgent : ''),
+    screen: (typeof window !== 'undefined' && window.screen)
+      ? { w: window.screen.width, h: window.screen.height, dpr: window.devicePixelRatio || 1 }
+      : null,
+    storage: { totalBytes: 0, keyCount: 0, byPrefix: {}, largestKeys: [] },
+    counts: {},
+    integrity: {},
+    features: {},
+    closeout: { today: null, recent: [] },
+  };
+
+  // Storage inventory (size, key count, per-prefix, largest keys)
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.indexOf('tp_') === 0);
+    const entries = keys.map(k => ({ k, v: localStorage.getItem(k) || '' }));
+    let total = 0;
+    const byPrefix = {};
+    for (const e of entries) {
+      const bytes = (e.k.length + e.v.length) * 2;  // UTF-16 approx
+      total += bytes;
+      // Group by second segment of key (tp_X_Y → tp_X)
+      const parts = e.k.split('_');
+      const prefix = 'tp_' + (parts[1] || '');
+      byPrefix[prefix] = (byPrefix[prefix] || 0) + bytes;
+    }
+    report.storage.totalBytes = total;
+    report.storage.keyCount = keys.length;
+    report.storage.byPrefix = byPrefix;
+    report.storage.largestKeys = entries
+      .map(e => ({ key: e.k, bytes: (e.k.length + e.v.length) * 2 }))
+      .sort((a, b) => b.bytes - a.bytes)
+      .slice(0, 10);
+  } catch (e) { report.storage.error = String(e); }
+
+  // Counts of main collections
+  function safeLen(key) {
+    try { const v = JSON.parse(localStorage.getItem(key) || '[]'); return Array.isArray(v) ? v.length : 0; }
+    catch { return 0; }
+  }
+  report.counts.entries      = safeLen('tp_entries');
+  report.counts.injections   = safeLen('tp_injections');
+  report.counts.symptoms     = safeLen('tp_symptoms');
+  report.counts.labs         = safeLen('tp_labs');
+  report.counts.measurements = safeLen('tp_measurements');
+  report.counts.cycles       = safeLen('tp_cycles');
+  report.counts.photos       = safeLen('tp_photos');
+  try {
+    const complianceKeys = Object.keys(localStorage).filter(k => k.indexOf('tp_compliance_') === 0);
+    report.counts.complianceDays = complianceKeys.length;
+  } catch { report.counts.complianceDays = 0; }
+  try {
+    const closedKeys = Object.keys(localStorage).filter(k => k.indexOf('tp_day_closed_') === 0);
+    report.counts.closedDays = closedKeys.length;
+  } catch { report.counts.closedDays = 0; }
+
+  // Data integrity: outliers + quality
+  try {
+    if (typeof detectOutliers === 'function') {
+      const r = detectOutliers({});
+      report.integrity.outlierCount = r.count;
+      report.integrity.outlierSeverities = r.counts;
+    }
+  } catch (e) { report.integrity.outlierError = String(e); }
+  try {
+    if (typeof computeDataQualityScore === 'function') {
+      const q = computeDataQualityScore(loadEntries());
+      report.integrity.trendConfidence = q.level;
+      report.integrity.coverage = q.coverage;
+      report.integrity.logCount = q.logCount;
+      report.integrity.maxGap = q.maxGap;
+    }
+  } catch (e) { report.integrity.qualityError = String(e); }
+
+  // Feature flags / runtime state
+  try {
+    if (typeof loadEncryptionSettings === 'function') {
+      const enc = loadEncryptionSettings();
+      report.features.encryptionEnabled = !!(enc && enc.enabled);
+      report.features.encryptionHint = enc && enc.hint ? '(set)' : '(none)';
+    }
+  } catch {}
+  report.features.pwaInstalled =
+    (typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches) ||
+    (typeof navigator !== 'undefined' && navigator.standalone === true);
+  report.features.serviceWorker =
+    (typeof navigator !== 'undefined' && 'serviceWorker' in navigator)
+      ? (navigator.serviceWorker.controller ? 'active' : 'registered-but-no-controller')
+      : 'unsupported';
+  report.features.online = (typeof navigator !== 'undefined') ? navigator.onLine : null;
+  report.features.notificationsPermission =
+    (typeof Notification !== 'undefined') ? Notification.permission : 'unsupported';
+
+  // Closeout status for today + last 7 closed days
+  try {
+    if (typeof computeTodayCloseoutStatus === 'function') {
+      const cs = computeTodayCloseoutStatus();
+      report.closeout.today = {
+        date: cs.date,
+        closed: cs.closed,
+        ready: cs.ready,
+        okCount: cs.okCount,
+      };
+    }
+    const closedKeys = Object.keys(localStorage)
+      .filter(k => k.indexOf('tp_day_closed_') === 0)
+      .sort()
+      .slice(-7);
+    report.closeout.recent = closedKeys.map(k => {
+      try { const r = JSON.parse(localStorage.getItem(k)); return { date: k.slice('tp_day_closed_'.length), closedAt: r && r.closedAt }; }
+      catch { return { key: k, parseError: true }; }
+    });
+  } catch (e) { report.closeout.error = String(e); }
+
+  return report;
+}
+
+// Tap-counter on version pill: 5 taps within 3 seconds opens diagnostics.
+let _diagTapCount = 0;
+let _diagTapTimer = null;
+function _diagVersionTapCounter() {
+  _diagTapCount++;
+  if (_diagTapTimer) clearTimeout(_diagTapTimer);
+  _diagTapTimer = setTimeout(() => { _diagTapCount = 0; }, 3000);
+  if (_diagTapCount >= 5) {
+    _diagTapCount = 0;
+    showDiagnostics();
+  }
+}
+
+function showDiagnostics() {
+  const ov = document.getElementById('diagnosticsOverlay');
+  if (!ov) return;
+  ov.style.display = 'block';
+  refreshDiagnosticsPage();
+}
+
+function hideDiagnostics() {
+  const ov = document.getElementById('diagnosticsOverlay');
+  if (ov) ov.style.display = 'none';
+}
+
+function _fmtBytes(n) {
+  if (!isFinite(n) || n < 0) return '—';
+  if (n < 1024) return n + ' B';
+  if (n < 1024*1024) return (n / 1024).toFixed(1) + ' KB';
+  return (n / 1024 / 1024).toFixed(2) + ' MB';
+}
+
+function _diagSection(title, html) {
+  return `<div style="background:#1f2937;border:1px solid #374151;border-radius:8px;padding:12px 14px;margin-bottom:12px;">
+    <div style="font-size:13px;font-weight:700;color:#e5e7eb;margin-bottom:8px;">${title}</div>
+    ${html}
+  </div>`;
+}
+
+function _diagKV(rows) {
+  return rows.map(([k, v]) =>
+    `<div style="display:flex;gap:8px;padding:3px 0;font-size:12px;font-family:monospace;">
+       <div style="color:#9ca3af;min-width:140px;">${k}</div>
+       <div style="color:#e5e7eb;flex:1;word-break:break-all;">${v}</div>
+     </div>`
+  ).join('');
+}
+
+function renderDiagnosticsPage() {
+  const body = document.getElementById('diagnosticsBody');
+  if (!body) return;
+  const r = buildDiagnosticsReport();
+
+  const aboutHtml = _diagKV([
+    ['version',     _escHtml(r.version)],
+    ['generated',   _escHtml(r.generatedAt)],
+    ['userAgent',   _escHtml(r.userAgent.slice(0, 140))],
+    ['screen',      r.screen ? `${r.screen.w}×${r.screen.h} @${r.screen.dpr}x` : '—'],
+  ]);
+
+  const storageHtml = _diagKV([
+    ['total',       _fmtBytes(r.storage.totalBytes)],
+    ['keys',        r.storage.keyCount],
+  ]) + '<div style="margin-top:6px;font-size:11px;color:#9ca3af;">By prefix:</div>' +
+    Object.keys(r.storage.byPrefix).sort((a,b)=>r.storage.byPrefix[b]-r.storage.byPrefix[a])
+      .map(p => `<div style="display:flex;gap:8px;font-size:11px;font-family:monospace;padding:1px 0;"><div style="color:#9ca3af;min-width:140px;">${_escHtml(p)}</div><div style="color:#e5e7eb;">${_fmtBytes(r.storage.byPrefix[p])}</div></div>`).join('') +
+    '<div style="margin-top:6px;font-size:11px;color:#9ca3af;">Largest keys:</div>' +
+    r.storage.largestKeys.slice(0, 5).map(item =>
+      `<div style="display:flex;gap:8px;font-size:11px;font-family:monospace;padding:1px 0;"><div style="color:#9ca3af;min-width:200px;">${_escHtml(item.key)}</div><div style="color:#e5e7eb;">${_fmtBytes(item.bytes)}</div></div>`
+    ).join('');
+
+  const countsHtml = _diagKV(Object.keys(r.counts).map(k => [k, r.counts[k]]));
+
+  const integHtml = _diagKV([
+    ['outlierCount',     r.integrity.outlierCount != null ? r.integrity.outlierCount : '—'],
+    ['outlierSeverity',  r.integrity.outlierSeverities ? JSON.stringify(r.integrity.outlierSeverities) : '—'],
+    ['trendConfidence',  _escHtml(r.integrity.trendConfidence || '—')],
+    ['coverage',         r.integrity.coverage != null ? (r.integrity.coverage * 100).toFixed(0) + '%' : '—'],
+    ['logCount',         r.integrity.logCount != null ? r.integrity.logCount : '—'],
+    ['maxGap',           r.integrity.maxGap != null ? r.integrity.maxGap + ' days' : '—'],
+  ]);
+
+  const featuresHtml = _diagKV([
+    ['encryption',         r.features.encryptionEnabled ? 'enabled' : 'disabled'],
+    ['encryptionHint',     _escHtml(r.features.encryptionHint || '—')],
+    ['pwaInstalled',       r.features.pwaInstalled ? 'yes' : 'no'],
+    ['serviceWorker',      _escHtml(r.features.serviceWorker)],
+    ['online',             r.features.online === true ? 'yes' : (r.features.online === false ? 'no' : '—')],
+    ['notifications',      _escHtml(r.features.notificationsPermission)],
+  ]);
+
+  const today = r.closeout.today;
+  const recentClosed = r.closeout.recent.map(c => `<div style="font-size:11px;font-family:monospace;padding:1px 0;color:#e5e7eb;">${_escHtml(c.date || c.key || '?')} · ${_escHtml(c.closedAt || '')}</div>`).join('') || '<div style="font-size:11px;color:#9ca3af;">None</div>';
+  const closeoutHtml = _diagKV([
+    ['today.date',   today ? _escHtml(today.date) : '—'],
+    ['today.closed', today ? (today.closed ? 'yes' : 'no') : '—'],
+    ['today.ready',  today ? (today.ready ? 'yes' : 'no') : '—'],
+    ['today.okCount',today ? today.okCount : '—'],
+  ]) + '<div style="margin-top:6px;font-size:11px;color:#9ca3af;">Recent closeouts (last 7):</div>' + recentClosed;
+
+  body.innerHTML =
+    _diagSection('About',       aboutHtml) +
+    _diagSection('Storage',     storageHtml) +
+    _diagSection('Collections', countsHtml) +
+    _diagSection('Integrity',   integHtml) +
+    _diagSection('Features',    featuresHtml) +
+    _diagSection('Closeout',    closeoutHtml);
+}
+
+function refreshDiagnosticsPage() { renderDiagnosticsPage(); }
+
+async function copyDiagnosticsReport() {
+  const r = buildDiagnosticsReport();
+  const txt = JSON.stringify(r, null, 2);
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(txt);
+      if (typeof showToast === 'function') showToast('Diagnostics copied to clipboard');
+      return;
+    }
+  } catch {}
+  // Fallback: create textarea
+  const ta = document.createElement('textarea');
+  ta.value = txt;
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); if (typeof showToast === 'function') showToast('Diagnostics copied'); } catch {}
+  document.body.removeChild(ta);
+}
+
+// Auto-open diagnostics if the URL hash contains #diag on load.
+if (typeof window !== 'undefined') {
+  window.addEventListener('load', () => {
+    if (location && location.hash && /#diag\b/i.test(location.hash)) {
+      setTimeout(showDiagnostics, 100);
+    }
+  });
+  window.buildDiagnosticsReport = buildDiagnosticsReport;
+  window.renderDiagnosticsPage = renderDiagnosticsPage;
+  window.showDiagnostics = showDiagnostics;
+  window.hideDiagnostics = hideDiagnostics;
+  window.refreshDiagnosticsPage = refreshDiagnosticsPage;
+  window.copyDiagnosticsReport = copyDiagnosticsReport;
+  window._diagVersionTapCounter = _diagVersionTapCounter;
 }
 
 // v2.22.0 — expose encryption primitives + settings helper
