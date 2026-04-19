@@ -1179,6 +1179,9 @@
   <!-- ALERT BANNER -->
   <div id="alertBanner"></div>
 
+  <!-- PROTOCOL GUARDRAIL CENTER (v2.21.0) -->
+  <div id="guardrailCenter" style="display:none;"></div>
+
   <!-- TODAY'S PLAN (daily auto-generated checklist) -->
   <div class="card tp-card" id="todaysPlanCard">
     <div class="tp-top">
@@ -2073,7 +2076,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.20.0';
+const VERSION = '2.21.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -2364,6 +2367,7 @@ function render() {
   if (typeof renderMorningNudge === 'function') renderMorningNudge();
   if (typeof renderPlateauInsight === 'function') renderPlateauInsight(plateau);
   if (typeof renderDataQualityScore === 'function') renderDataQualityScore(entries);
+  if (typeof renderGuardrailCenter === 'function') renderGuardrailCenter(entries);
   if (typeof renderInventory === 'function') renderInventory();
   renderTodaysPlan(entries, cw, avg, plateau);
   renderCommandCenter(entries, cw, avg, plateau, nextCp);
@@ -11171,6 +11175,278 @@ function renderChangeTimeline(entries) {
 if (typeof window !== 'undefined') {
   window.buildChangeTimeline = buildChangeTimeline;
   window.renderChangeTimeline = renderChangeTimeline;
+}
+
+// =========================================================
+// PROTOCOL GUARDRAIL CENTER (v2.21.0)
+// -------------------------------------------------------
+// Green / yellow / stop-light dashboard that grades every safety-
+// relevant signal the app has access to. Rolls up to an overall
+// status: "red" if any signal is red, else "yellow" if any is
+// yellow, else "green". Weight-velocity signals catch both "losing
+// too fast" (potential muscle loss / lean-mass concern on GLP-1)
+// and "stalled" (plateau > 14 days). Vitals come from the latest
+// tp_labs entry for that marker; sleep + hydration from the 7-day
+// compliance rollup; symptoms from tp_symptoms.
+//
+// Signals (each returns {key,label,status,value,target,action}):
+//   - weight_velocity    (green / yellow / red)
+//   - data_freshness     (days since last weigh-in)
+//   - blood_pressure     (from tp_labs bp_systolic / bp_diastolic)
+//   - resting_hr         (from tp_labs resting_hr)
+//   - sleep              (7d avg from compliance)
+//   - hydration          (7d avg from tp_water; uses user target)
+//   - symptoms           (intensity ≥ 3 in last 7d)
+//   - labs_staleness     (no labs in 90+ days)
+//   - cycle_overrun      (active cycle past end date)
+// =========================================================
+const GUARDRAIL_STATUS_RANK = { green: 0, yellow: 1, red: 2, unknown: -1 };
+
+function _grSignal(key, label, status, value, target, action) {
+  return { key, label, status, value, target, action };
+}
+
+function _grLatestLab(marker) {
+  let labs = [];
+  try { labs = JSON.parse(localStorage.getItem('tp_labs') || '[]'); } catch {}
+  const match = labs.filter(l => l && l.marker === marker && l.date).sort((a, b) => b.date.localeCompare(a.date));
+  return match[0] || null;
+}
+
+function _grDaysSince(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr + 'T00:00:00').getTime();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return Math.floor((today.getTime() - d) / 86400000);
+}
+
+function computeGuardrails(opts) {
+  opts = opts || {};
+  const entries = (opts.entries || loadEntries()).slice().sort((a, b) => a.date.localeCompare(b.date));
+  const signals = [];
+
+  // --- Weight velocity (last 14 days)
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const recent = entries.filter(e => {
+    const d = new Date(e.date + 'T00:00:00').getTime();
+    return (today.getTime() - d) <= 14 * 86400000;
+  });
+  if (recent.length >= 2) {
+    const first = recent[0], last = recent[recent.length - 1];
+    const days = Math.max(1, Math.round((new Date(last.date + 'T00:00:00') - new Date(first.date + 'T00:00:00')) / 86400000));
+    const lossPerWeek = ((+first.weight - +last.weight) / days) * 7;
+    let status, action;
+    if (lossPerWeek > 4.5) { status = 'red'; action = `Dropping ${lossPerWeek.toFixed(1)} lb/wk — too fast. Add calories + protein, recheck dose.`; }
+    else if (lossPerWeek > 3.5) { status = 'yellow'; action = `${lossPerWeek.toFixed(1)} lb/wk is aggressive. Verify protein ≥ 1 g/lb LBM and lifting 3×/wk.`; }
+    else if (lossPerWeek < -0.5) { status = 'red'; action = `Net gain of ${(-lossPerWeek).toFixed(1)} lb/wk — audit calories, sleep, stress.`; }
+    else if (Math.abs(lossPerWeek) <= 0.15 && recent.length >= 7) { status = 'yellow'; action = `Plateau — avg 0 lb/wk over ${days}d. Review Plateau Insight card for causes.`; }
+    else { status = 'green'; action = `${lossPerWeek >= 0 ? '−' : '+'}${Math.abs(lossPerWeek).toFixed(1)} lb/wk — on track.`; }
+    signals.push(_grSignal('weight_velocity', 'Weight velocity', status, lossPerWeek.toFixed(2) + ' lb/wk', '1.5 – 3 lb/wk', action));
+  } else {
+    signals.push(_grSignal('weight_velocity', 'Weight velocity', 'unknown', 'not enough data', '1.5 – 3 lb/wk', 'Need ≥ 2 weigh-ins in the last 14 days.'));
+  }
+
+  // --- Data freshness
+  if (entries.length) {
+    const lastDate = entries[entries.length - 1].date;
+    const daysSince = _grDaysSince(lastDate);
+    let status, action;
+    if (daysSince >= 10) { status = 'red'; action = `No weigh-in for ${daysSince} days — log one now to keep trend math valid.`; }
+    else if (daysSince >= 5) { status = 'yellow'; action = `Last weigh-in was ${daysSince} days ago.`; }
+    else { status = 'green'; action = `Last weigh-in ${daysSince} day${daysSince === 1 ? '' : 's'} ago.`; }
+    signals.push(_grSignal('data_freshness', 'Weigh-in freshness', status, daysSince + 'd ago', '≤ 2 days', action));
+  } else {
+    signals.push(_grSignal('data_freshness', 'Weigh-in freshness', 'unknown', 'no entries', '≤ 2 days', 'Log your first weight to start the trend.'));
+  }
+
+  // --- Blood pressure (from latest lab entries)
+  const sys = _grLatestLab('bp_systolic');
+  const dia = _grLatestLab('bp_diastolic');
+  if (sys && typeof sys.value === 'number') {
+    const s = sys.value, d = (dia && typeof dia.value === 'number') ? dia.value : null;
+    let status = 'green', action = `${s}${d != null ? '/' + d : ''} mmHg — within target.`;
+    if (s >= 140 || (d != null && d >= 90)) { status = 'red'; action = `Hypertensive: ${s}${d != null ? '/' + d : ''} mmHg. Pause aggressive dose increases; notify provider.`; }
+    else if (s >= 130 || (d != null && d >= 85)) { status = 'yellow'; action = `Elevated: ${s}${d != null ? '/' + d : ''} mmHg. Recheck in 48h; reduce sodium + check sleep.`; }
+    const staleDays = _grDaysSince(sys.date);
+    if (staleDays != null && staleDays > 30 && status === 'green') { status = 'yellow'; action = `Last BP reading was ${staleDays} days ago — take a fresh measurement.`; }
+    signals.push(_grSignal('blood_pressure', 'Blood pressure', status, `${s}${d != null ? '/' + d : ''} mmHg`, '< 130/85', action));
+  } else {
+    signals.push(_grSignal('blood_pressure', 'Blood pressure', 'unknown', 'not logged', '< 130/85', 'Log a BP reading under Labs.'));
+  }
+
+  // --- Resting HR
+  const hr = _grLatestLab('resting_hr');
+  if (hr && typeof hr.value === 'number') {
+    const v = hr.value;
+    let status = 'green', action = `${v} bpm — healthy resting range.`;
+    if (v >= 90) { status = 'red'; action = `Elevated resting HR (${v} bpm). Rule out dehydration, illness, overtraining.`; }
+    else if (v >= 80) { status = 'yellow'; action = `${v} bpm is on the high side. Check sleep debt and caffeine.`; }
+    signals.push(_grSignal('resting_hr', 'Resting HR', status, v + ' bpm', '50 – 70', action));
+  } else {
+    signals.push(_grSignal('resting_hr', 'Resting HR', 'unknown', 'not logged', '50 – 70', 'Log a resting HR reading under Labs.'));
+  }
+
+  // --- Sleep (7-day avg from compliance)
+  let sleepVals = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today.getTime() - i * 86400000);
+    const k = d.toISOString().slice(0, 10);
+    try {
+      const data = JSON.parse(localStorage.getItem('tp_compliance_' + k) || '{}');
+      if (typeof data.sleep_hours === 'number' && data.sleep_hours > 0) sleepVals.push(data.sleep_hours);
+    } catch {}
+  }
+  if (sleepVals.length >= 3) {
+    const avg = sleepVals.reduce((a, b) => a + b, 0) / sleepVals.length;
+    let status, action;
+    if (avg < 5) { status = 'red'; action = `Only ${avg.toFixed(1)}h avg — critical sleep debt. Protect 8h window tonight.`; }
+    else if (avg < 6) { status = 'yellow'; action = `${avg.toFixed(1)}h avg is low. Aim for ≥ 7h; lights off 30 min earlier.`; }
+    else if (avg < 7) { status = 'yellow'; action = `${avg.toFixed(1)}h avg — below target 7+.`; }
+    else { status = 'green'; action = `${avg.toFixed(1)}h avg over ${sleepVals.length} nights.`; }
+    signals.push(_grSignal('sleep', 'Sleep (7d avg)', status, avg.toFixed(1) + 'h', '≥ 7h', action));
+  } else {
+    signals.push(_grSignal('sleep', 'Sleep (7d avg)', 'unknown', sleepVals.length + '/7 nights logged', '≥ 7h', 'Log sleep in the daily check-in to unlock this guardrail.'));
+  }
+
+  // --- Symptoms (intensity ≥ 3 in last 7 days)
+  let symptoms = [];
+  try { symptoms = JSON.parse(localStorage.getItem('tp_symptoms') || '[]'); } catch {}
+  const recentSevere = symptoms.filter(s => {
+    if (!s || !s.date) return false;
+    const days = _grDaysSince(s.date);
+    return days != null && days <= 7 && Number(s.intensity) >= 3;
+  });
+  if (recentSevere.length) {
+    const names = [...new Set(recentSevere.map(s => s.name || s.symptom || 'symptom'))].slice(0, 3);
+    signals.push(_grSignal('symptoms', 'Symptoms', 'red', recentSevere.length + ' severe in 7d', 'intensity < 3', `Flagged: ${names.join(', ')}. Hold dose escalation; review with provider.`));
+  } else {
+    const anyRecent = symptoms.filter(s => s && s.date && _grDaysSince(s.date) <= 7);
+    if (anyRecent.length) {
+      signals.push(_grSignal('symptoms', 'Symptoms', 'yellow', anyRecent.length + ' mild in 7d', 'intensity < 2', 'Mild symptoms logged — monitor, no action required.'));
+    } else {
+      signals.push(_grSignal('symptoms', 'Symptoms', 'green', 'none in 7d', 'intensity < 2', 'No severe symptoms in the last week.'));
+    }
+  }
+
+  // --- Hydration (7d avg from tp_water)
+  let water = {};
+  try { water = JSON.parse(localStorage.getItem('tp_water') || '{}'); } catch {}
+  let waterSettings = { dailyTargetOz: 90 };
+  try { waterSettings = Object.assign(waterSettings, JSON.parse(localStorage.getItem('tp_water_settings') || '{}')); } catch {}
+  const waterVals = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today.getTime() - i * 86400000);
+    const k = d.toISOString().slice(0, 10);
+    const day = water[k];
+    if (day && typeof day.oz === 'number' && day.oz > 0) waterVals.push(day.oz);
+    else if (typeof day === 'number' && day > 0) waterVals.push(day);
+  }
+  const tgt = waterSettings.dailyTargetOz || 90;
+  if (waterVals.length >= 3) {
+    const avg = waterVals.reduce((a, b) => a + b, 0) / waterVals.length;
+    let status, action;
+    if (avg < tgt * 0.5) { status = 'red'; action = `Avg ${Math.round(avg)} oz/day is under half target. Add 16 oz every 2h while awake.`; }
+    else if (avg < tgt * 0.8) { status = 'yellow'; action = `Avg ${Math.round(avg)} oz/day — short of ${tgt} oz target.`; }
+    else { status = 'green'; action = `Avg ${Math.round(avg)} oz/day — hydration on target.`; }
+    signals.push(_grSignal('hydration', 'Hydration (7d avg)', status, Math.round(avg) + ' oz', tgt + ' oz', action));
+  } else {
+    signals.push(_grSignal('hydration', 'Hydration (7d avg)', 'unknown', waterVals.length + '/7 days logged', tgt + ' oz', 'Log water daily to surface hydration status.'));
+  }
+
+  // --- Labs staleness
+  let labs = [];
+  try { labs = JSON.parse(localStorage.getItem('tp_labs') || '[]'); } catch {}
+  if (labs.length) {
+    const latest = labs.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
+    const days = _grDaysSince(latest.date);
+    let status, action;
+    if (days >= 120) { status = 'red'; action = `${days} days since any lab. Schedule CBC / CMP / lipids now.`; }
+    else if (days >= 90) { status = 'yellow'; action = `${days} days since last lab — due for a panel.`; }
+    else { status = 'green'; action = `Most recent lab ${days} days ago.`; }
+    signals.push(_grSignal('labs_staleness', 'Lab recency', status, days + 'd ago', '≤ 90d', action));
+  } else {
+    signals.push(_grSignal('labs_staleness', 'Lab recency', 'yellow', 'none logged', '≤ 90d', 'Baseline labs recommended before dose increases.'));
+  }
+
+  // --- Cycle overrun
+  let cycles = [];
+  try { cycles = JSON.parse(localStorage.getItem('tp_cycles') || '[]'); } catch {}
+  const overruns = [];
+  for (const c of cycles) {
+    if (!c || !c.startDate || !c.weeks || c.active === false) continue;
+    const end = new Date(c.startDate + 'T00:00:00');
+    end.setDate(end.getDate() + c.weeks * 7);
+    if (end < today) {
+      const overBy = Math.floor((today - end) / 86400000);
+      overruns.push({ name: c.compound || 'compound', overBy });
+    }
+  }
+  if (overruns.length) {
+    const worst = overruns.sort((a, b) => b.overBy - a.overBy)[0];
+    const status = worst.overBy > 14 ? 'red' : 'yellow';
+    signals.push(_grSignal('cycle_overrun', 'Cycle status', status, overruns.length + ' past end', 'none overrun',
+      `${worst.name} is ${worst.overBy}d past end date. Start taper / PCT or pause the cycle in the tracker.`));
+  } else if (cycles.length) {
+    signals.push(_grSignal('cycle_overrun', 'Cycle status', 'green', cycles.filter(c => c.active !== false).length + ' active', 'none overrun', 'All cycles within schedule.'));
+  } else {
+    signals.push(_grSignal('cycle_overrun', 'Cycle status', 'unknown', 'no cycles', 'n/a', 'Add cycles under the Cycle Tracker.'));
+  }
+
+  // Overall status
+  let worst = 'green';
+  for (const s of signals) {
+    if (s.status === 'red') { worst = 'red'; break; }
+    if (s.status === 'yellow' && worst !== 'red') worst = 'yellow';
+  }
+  return { overall: worst, signals };
+}
+
+function renderGuardrailCenter(entries) {
+  const el = document.getElementById('guardrailCenter');
+  if (!el) return;
+  const gr = computeGuardrails({ entries });
+  const ent = entries || loadEntries();
+  // Hide on truly-empty app state (no entries AND no labs AND no compliance)
+  if ((!ent || ent.length === 0) && !localStorage.getItem('tp_labs') && !localStorage.getItem('tp_symptoms')) {
+    el.style.display = 'none'; return;
+  }
+
+  const colorOf = (s) => s === 'green' ? '#22c55e' : (s === 'yellow' ? '#eab308' : (s === 'red' ? '#ef4444' : '#64748b'));
+  const icon = (s) => s === 'green' ? '🟢' : (s === 'yellow' ? '🟡' : (s === 'red' ? '🔴' : '⚪'));
+  const overallIcon = icon(gr.overall);
+  const overallLabel = gr.overall === 'green' ? 'All clear' : (gr.overall === 'yellow' ? 'Watch items' : (gr.overall === 'red' ? 'Action needed' : 'Unknown'));
+  const overallBorder = colorOf(gr.overall);
+
+  const rows = gr.signals.map(s => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-top:1px solid var(--border);">
+      <div style="font-size:14px;flex:none;width:18px;text-align:center;">${icon(s.status)}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:12px;font-weight:700;color:var(--text);">${_escHtml(s.label)}</span>
+          <span style="font-size:11px;color:${colorOf(s.status)};font-weight:700;">${_escHtml(String(s.value))}</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;line-height:1.45;">${_escHtml(s.action)}</div>
+      </div>
+    </div>`).join('');
+
+  el.innerHTML = `
+    <div style="background:var(--card);border:1px solid ${overallBorder};border-radius:12px;padding:10px 12px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div style="font-size:20px;flex:none;">${overallIcon}</div>
+        <div style="flex:1;min-width:160px;">
+          <div style="font-size:13px;font-weight:800;color:var(--text);">Protocol Guardrails — ${_escHtml(overallLabel)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">${gr.signals.filter(s => s.status === 'red').length} red · ${gr.signals.filter(s => s.status === 'yellow').length} yellow · ${gr.signals.filter(s => s.status === 'green').length} green</div>
+        </div>
+        <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;color:var(--muted);" onclick="document.getElementById('guardrailCenter').style.display='none'" title="Hide">✕</button>
+      </div>
+      ${rows}
+    </div>`;
+  el.style.display = 'block';
+}
+
+if (typeof window !== 'undefined') {
+  window.computeGuardrails = computeGuardrails;
+  window.renderGuardrailCenter = renderGuardrailCenter;
 }
 
 // =========================================================
