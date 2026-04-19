@@ -1512,7 +1512,7 @@
         <button onclick="closeCoachSettings()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
       </div>
       <div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.3);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--text);margin-bottom:16px;line-height:1.5;">
-        ⚠ Your API key is stored in this browser's localStorage. Anyone with physical access to this device could read it. Use a key with billing limits set on <a href="https://console.anthropic.com" target="_blank" rel="noopener" style="color:var(--accent);">console.anthropic.com</a> or <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style="color:var(--accent);">platform.openai.com</a>. You can also just keep using the Copy workflow — no key required.
+        ⚠ Your API key is stored only in this browser's localStorage. It is not synced, exported, or backed up. Enter it separately on each device, and use billing limits on <a href="https://console.anthropic.com" target="_blank" rel="noopener" style="color:var(--accent);">console.anthropic.com</a> or <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style="color:var(--accent);">platform.openai.com</a>. You can also just keep using the Copy workflow — no key required.
       </div>
       <div class="field" style="margin-bottom:14px;">
         <label>AI Provider</label>
@@ -2230,8 +2230,19 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.30.3';
+const VERSION = '2.30.4';
 const VERSION_CHANGES = [
+  {
+    version: '2.30.4',
+    date: '2026-04-19',
+    summary: 'Keep AI API keys local-only',
+    details: [
+      'Excluded AI provider keys, GitHub sync tokens, Fitbit tokens, and sync snapshots from Gist sync and backups.',
+      'Added a shared outbound secret filter so API-looking values are skipped before export or sync.',
+      'Preserved local keys during backup imports and ignored secret-bearing keys from imported files.',
+      'Updated the AI Coach settings copy to state that API keys must be entered separately per device.',
+    ],
+  },
   {
     version: '2.30.3',
     date: '2026-04-19',
@@ -2394,9 +2405,70 @@ function bumpChangeCount() {
 // =========================================================
 const SYNC_META_KEY = 'tp_sync_meta';
 const SYNC_SNAPSHOT_KEY = 'tp_sync_lastSnapshot';
-const SYNC_META_EXCLUDE = new Set([
-  'tp_sync', 'tp_sync_meta', 'tp_sync_lastSnapshot', 'tp_meta',
+const LOCAL_ONLY_SECRET_KEYS = new Set([
+  'tp_coach_settings',
+  'tp_sync',
+  'tp_fitbit',
+  'tp_sync_lastSnapshot',
 ]);
+const SYNC_META_EXCLUDE = new Set([
+  'tp_sync_meta', 'tp_meta',
+  ...LOCAL_ONLY_SECRET_KEYS,
+]);
+const OUTBOUND_SECRET_PATTERNS = [
+  /\bsk-ant-[A-Za-z0-9_-]{20,}\b/,
+  /\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b/,
+  /\bgh[pousr]_[A-Za-z0-9_]{20,}\b/,
+  /\bgithub_pat_[A-Za-z0-9_]{20,}\b/,
+];
+
+function valueLooksLikeSecret(value) {
+  const s = String(value == null ? '' : value);
+  return OUTBOUND_SECRET_PATTERNS.some(re => re.test(s));
+}
+
+function shouldExcludeOutboundStorageKey(key, value) {
+  if (!key || !key.startsWith('tp_')) return true;
+  if (LOCAL_ONLY_SECRET_KEYS.has(key)) return true;
+  return valueLooksLikeSecret(value);
+}
+
+function collectSafeStorageDump(opts = {}) {
+  const dump = {};
+  const excluded = [];
+  const excludeKeys = opts.excludeKeys || new Set();
+  const maxValueBytes = Number.isFinite(opts.maxValueBytes) ? opts.maxValueBytes : Infinity;
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k || !k.startsWith('tp_')) continue;
+    const v = localStorage.getItem(k);
+    if (v == null) continue;
+    // Security review note: AI/API tokens are intentionally local-only. This
+    // helper is the single outbound gate for backups, exports, and Gist sync.
+    if (excludeKeys.has(k) || shouldExcludeOutboundStorageKey(k, v)) {
+      excluded.push(k);
+      continue;
+    }
+    if ((v.length * 2) > maxValueBytes) {
+      excluded.push(k);
+      continue;
+    }
+    dump[k] = v;
+  }
+  return { dump, excluded };
+}
+
+function filterSyncMetaForOutbound(meta, data) {
+  const out = {};
+  const dataKeys = new Set(Object.keys(data || {}));
+  for (const [k, v] of Object.entries(meta || {})) {
+    if (!k || !k.startsWith('tp_')) continue;
+    if (LOCAL_ONLY_SECRET_KEYS.has(k) || SYNC_META_EXCLUDE.has(k)) continue;
+    if (v && v.deleted) out[k] = v;
+    else if (dataKeys.has(k)) out[k] = v;
+  }
+  return out;
+}
 
 function loadSyncMeta() {
   try { return JSON.parse(localStorage.getItem(SYNC_META_KEY) || '{}'); }
@@ -4113,13 +4185,9 @@ async function flushBackup() {
     }
     autoBackupStatus = 'writing';
     renderBackupStatus();
-    const dump = {};
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && k.startsWith('tp_')) dump[k] = localStorage.getItem(k);
-    }
+    const { dump, excluded } = collectSafeStorageDump();
     const ts = new Date().toISOString();
-    const payload = { exportedAt: ts, appVersion: VERSION, schemaVersion: 1, autoBackup: true, data: dump };
+    const payload = { exportedAt: ts, appVersion: VERSION, schemaVersion: 2, autoBackup: true, localOnlyExcluded: excluded, data: dump };
     const writable = await backupHandle.createWritable();
     await writable.write(JSON.stringify(payload, null, 2));
     await writable.close();
@@ -4252,13 +4320,9 @@ function isEncryptedEnvelope(obj) {
 }
 
 async function exportData() {
-  const dump = {};
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (k && k.startsWith('tp_')) dump[k] = localStorage.getItem(k);
-  }
+  const { dump, excluded } = collectSafeStorageDump();
   const ts = new Date().toISOString();
-  const payload = { exportedAt: ts, appVersion: VERSION, schemaVersion: 1, data: dump };
+  const payload = { exportedAt: ts, appVersion: VERSION, schemaVersion: 2, localOnlyExcluded: excluded, data: dump };
 
   // v2.22.0 — optional passphrase encryption
   const enc = loadEncryptionSettings();
@@ -4453,6 +4517,10 @@ function analyzeImportPayload(parsed) {
 
   // Sensitive / token-bearing keys — list them and flag
   const SENSITIVE_KEYS = [
+    'tp_coach_settings', // AI provider API keys
+    'tp_sync',           // GitHub gist token
+    'tp_fitbit',         // Fitbit OAuth tokens
+    'tp_sync_lastSnapshot',
     'tp_lock',           // PIN hash
     'tp_gist_token',     // GitHub sync token
     'tp_gist_id',
@@ -4467,6 +4535,9 @@ function analyzeImportPayload(parsed) {
   for (const k of keys) {
     const low = k.toLowerCase();
     if ((low.includes('token') || low.includes('secret') || low.includes('apikey') || low.includes('_key')) && !sensitive.includes(k)) {
+      sensitive.push(k);
+    }
+    if (valueLooksLikeSecret(data[k]) && !sensitive.includes(k)) {
       sensitive.push(k);
     }
   }
@@ -4504,6 +4575,13 @@ function analyzeImportPayload(parsed) {
     warnings.push({
       severity: 'high',
       message: `Suspicious content detected: ${[...foundTypes].join(', ')} (in keys: ${[...foundKeys].join(', ')}). Do NOT import unless you recognize the source.`,
+    });
+  }
+  const secretValueKeys = keys.filter(k => valueLooksLikeSecret(data[k]));
+  if (secretValueKeys.length) {
+    warnings.push({
+      severity: 'high',
+      message: `API/token-looking secrets were detected in this file (${secretValueKeys.join(', ')}). The import will skip those keys so secrets stay local-only.`,
     });
   }
 
@@ -4653,18 +4731,29 @@ function confirmImportAfterPreview() {
   try {
     const parsed = _pendingImportParsed;
     const data = parsed.data || parsed;
-    const count = Object.keys(data).filter(k => k.startsWith('tp_')).length;
+    let count = 0;
+    let skipped = 0;
     for (const k of Object.keys(localStorage)) {
-      if (k.startsWith('tp_')) localStorage.removeItem(k);
+      if (!k.startsWith('tp_')) continue;
+      // Security review note: imported backups must not erase local-only
+      // provider keys or tokens; each device owns its own secrets.
+      if (LOCAL_ONLY_SECRET_KEYS.has(k)) continue;
+      localStorage.removeItem(k);
     }
     for (const [k, v] of Object.entries(data)) {
-      if (k.startsWith('tp_')) localStorage.setItem(k, v);
+      if (!k.startsWith('tp_')) continue;
+      if (shouldExcludeOutboundStorageKey(k, v)) {
+        skipped++;
+        continue;
+      }
+      localStorage.setItem(k, v);
+      count++;
     }
     markExported(parsed.exportedAt || new Date().toISOString());
     const bm = document.getElementById('backupMenu');
     if (bm) bm.style.display = 'none';
     closeImportPreview();
-    showToast(`✓ Imported ${count} records`, 3500);
+    showToast(`✓ Imported ${count} records${skipped ? ` (${skipped} local-only secret key${skipped === 1 ? '' : 's'} skipped)` : ''}`, 3500);
     render();
   } catch (err) {
     alert('Import failed: ' + err.message);
@@ -10014,7 +10103,7 @@ async function tryRegisterPeriodicSync(tag, minIntervalMs) {
 // Security: the Personal Access Token is stored in
 // localStorage. Use a fine-grained token with ONLY the
 // 'gist' scope — revoke immediately if the device is lost.
-// Photos (tp_photos) are excluded — too large for gists.
+// Photos (tp_photos) and local-only secrets are excluded from Gist sync.
 // =========================================================
 const SYNC_GIST_FILENAME = 'health-tracker-data.json';
 const SYNC_EXCLUDE_KEYS = ['tp_photos'];          // too large for gists
@@ -10062,18 +10151,10 @@ function getOrMakeDeviceId() {
 }
 
 function buildSyncPayload() {
-  const dump = {};
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (!k || !k.startsWith('tp_')) continue;
-    if (SYNC_EXCLUDE_KEYS.includes(k)) continue;
-    if (SYNC_META_EXCLUDE.has(k)) continue; // never sync sync infra
-    const v = localStorage.getItem(k);
-    if (v == null) continue;
-    // Skip individual oversized entries (keeps us under gist 1MB limit)
-    if (v.length > SYNC_MAX_VALUE_BYTES) continue;
-    dump[k] = v;
-  }
+  const { dump } = collectSafeStorageDump({
+    excludeKeys: new Set([...SYNC_EXCLUDE_KEYS, ...SYNC_META_EXCLUDE]),
+    maxValueBytes: SYNC_MAX_VALUE_BYTES,
+  });
   return dump;
 }
 
@@ -10099,6 +10180,7 @@ function ensureSyncMetaBackfilled() {
     const k = localStorage.key(i);
     if (!k || !k.startsWith('tp_')) continue;
     if (SYNC_META_EXCLUDE.has(k)) continue;
+    if (LOCAL_ONLY_SECRET_KEYS.has(k)) continue;
     m[k] = { ts, legacy: true };
     stamped++;
   }
@@ -10116,8 +10198,9 @@ function takePreSyncSnapshot(reason) {
     if (!k || !k.startsWith('tp_')) continue;
     if (SYNC_META_EXCLUDE.has(k)) continue;
     if (SYNC_EXCLUDE_KEYS.includes(k)) continue;
+    if (LOCAL_ONLY_SECRET_KEYS.has(k)) continue;
     const v = localStorage.getItem(k);
-    if (v != null) dump[k] = v;
+    if (v != null && !valueLooksLikeSecret(v)) dump[k] = v;
   }
   const meta = loadSyncMeta();
   const snap = {
@@ -10325,7 +10408,7 @@ async function syncPush(opts = {}) {
   _syncInFlight = true;
   try {
     const data = buildSyncPayload();
-    const meta = loadSyncMeta();
+    const meta = filterSyncMetaForOutbound(loadSyncMeta(), data);
     const payload = {
       schemaVersion: 2,                   // v2 = includes per-key meta for merge
       appVersion: VERSION,
@@ -10400,7 +10483,7 @@ async function syncPull(opts = {}) {
     // if a sync goes wrong. Captures both data and meta.
     takePreSyncSnapshot('pre-pull');
 
-    const keepKeys = new Set([...SYNC_EXCLUDE_KEYS, ...SYNC_META_EXCLUDE]);
+    const keepKeys = new Set([...SYNC_EXCLUDE_KEYS, ...SYNC_META_EXCLUDE, ...LOCAL_ONLY_SECRET_KEYS]);
     const localMeta = loadSyncMeta();
     const newMeta = { ...localMeta };
 
@@ -10532,17 +10615,21 @@ async function syncConnect(token, deviceName) {
     saveSyncConfig(c2);
     const r = await syncPull({ force: true });
     if (!r.ok) throw new Error(r.error || 'Initial pull failed');
+    // Security review note: immediately rewrite the current gist through the
+    // safe outbound filter so older payloads stop exposing local-only secrets.
+    await syncPush({ force: true });
     return { created: false, gistId };
   } else {
     // Create with our current data
+    const data = buildSyncPayload();
     const payload = {
       schemaVersion: 2,
       appVersion: VERSION,
       deviceId: cfg.deviceId,
       deviceName: cfg.deviceName || '',
       pushedAt: new Date().toISOString(),
-      data: buildSyncPayload(),
-      meta: loadSyncMeta(),
+      data,
+      meta: filterSyncMetaForOutbound(loadSyncMeta(), data),
     };
     const created = await createSyncGist(payload);
     const c2 = loadSyncConfig();
@@ -10611,7 +10698,7 @@ function renderSyncSettings() {
       <div style="font-size:13px;line-height:1.55;color:var(--text);margin-bottom:14px;">
         Sync your data to a <strong>private GitHub Gist</strong> so desktop, phone, and
         tablet stay in step. Every change pushes in ~5s; other devices pull every 2 min
-        (and on tab focus). Photos stay device-local.
+        (and on tab focus). Photos and API keys stay device-local.
       </div>
 
       <!-- STEP 1 -->
@@ -13828,7 +13915,9 @@ function buildDiagnosticsReport() {
 
   // Storage inventory (size, key count, per-prefix, largest keys)
   try {
-    const keys = Object.keys(localStorage).filter(k => k.indexOf('tp_') === 0);
+    // Security review note: diagnostics are copyable support text, so omit
+    // local-only secret keys even though this section only reports sizes.
+    const keys = Object.keys(localStorage).filter(k => k.indexOf('tp_') === 0 && !LOCAL_ONLY_SECRET_KEYS.has(k));
     const entries = keys.map(k => ({ k, v: localStorage.getItem(k) || '' }));
     let total = 0;
     const byPrefix = {};
@@ -15431,8 +15520,12 @@ renderSyncStatusChip();
   try {
     const cfg = loadSyncConfig();
     if (cfg.enabled && cfg.token && cfg.gistId) {
-      // Pull on startup, then start 2-min poll
-      syncPull().catch(()=>{});
+      // Pull on startup, then push through the sanitized outbound path once.
+      // Security review note: this removes old local-only secrets from the
+      // current gist payload after users upgrade to the patched version.
+      syncPull()
+        .then(() => syncPush({ force: true }))
+        .catch(()=>{});
       startSyncPoll();
     }
   } catch {}
