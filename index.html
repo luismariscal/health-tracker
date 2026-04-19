@@ -1779,6 +1779,7 @@
       </div>
     </div>
     <div id="labsEmpty" style="font-size:12px;color:var(--muted);padding:8px 0;display:none;">No labs logged yet. On retatrutide, pull a basic panel (HbA1c, lipids, ALT/AST, eGFR) every 8–12 weeks.</div>
+    <div id="labsOverview" style="display:none;margin-bottom:12px;"></div>
     <div id="labsGrid" class="meas-stat-grid"></div>
     <div id="labsTrendWrap" style="margin-top:14px;display:none;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -2157,8 +2158,19 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.28.0';
+const VERSION = '2.29.0';
 const VERSION_CHANGES = [
+  {
+    version: '2.29.0',
+    date: '2026-04-19',
+    summary: 'AI lab overview for PDF uploads',
+    details: [
+      'Added an AI-generated lab overview to the PDF extraction review modal.',
+      'Persisted the latest lab overview in the Labs card after applying extracted rows.',
+      'Included the latest AI lab overview in AI Coach context for future reviews.',
+      'Kept the overview informational and review-focused, not diagnostic.',
+    ],
+  },
   {
     version: '2.28.0',
     date: '2026-04-19',
@@ -6081,6 +6093,20 @@ function buildCoachBundle(promptKey) {
           const trend = prev ? ` (prev ${prev.value} on ${prev.date}, Δ${(l.value - prev.value).toFixed(2)})` : '';
           lines.push(`- ${l.label}: ${l.value} ${l.unit || ''} (${l.date})${trend}${l.notes ? ' — ' + l.notes : ''}`);
         });
+      const labOverview = loadLabOverview();
+      if (labOverview?.overview) {
+        lines.push(``);
+        lines.push(`### AI Lab Overview (${labOverview.collectionDate || labOverview.reportDate || 'date unknown'})`);
+        lines.push(`- Status: ${labOverview.overview.status || 'unknown'}`);
+        if (labOverview.overview.headline) lines.push(`- Headline: ${labOverview.overview.headline}`);
+        if (labOverview.overview.summary) lines.push(`- Summary: ${labOverview.overview.summary}`);
+        (labOverview.overview.keyFindings || []).slice(0, 6).forEach(f => {
+          lines.push(`- ${f.severity || 'info'}: ${f.label || 'Finding'} — ${f.detail || ''}`);
+        });
+        (labOverview.overview.questionsForClinician || []).slice(0, 4).forEach(q => {
+          lines.push(`- Ask clinician: ${q}`);
+        });
+      }
       lines.push(``);
     }
   } catch {}
@@ -7222,7 +7248,7 @@ function deleteLab(ts) {
 }
 
 // =========================================================
-// LAB PDF EXTRACTION (v2.28.0)
+// LAB PDF EXTRACTION + AI OVERVIEW (v2.29.0)
 // Upload a PDF or photo of a lab report → Claude Vision extracts
 // structured rows → user reviews and applies.
 //
@@ -7247,7 +7273,19 @@ const LAB_EXTRACT_IMAGE_EXT_MIMES = {
   gif: 'image/gif',
   webp: 'image/webp',
 };
+const LAB_OVERVIEW_KEY = 'tp_labs_overview';
 let _labExtractState = null;
+
+function loadLabOverview() {
+  try { return JSON.parse(localStorage.getItem(LAB_OVERVIEW_KEY) || 'null'); }
+  catch { return null; }
+}
+
+function saveLabOverview(obj) {
+  if (!obj) return;
+  localStorage.setItem(LAB_OVERVIEW_KEY, JSON.stringify(obj));
+  bumpChangeCount();
+}
 
 function _todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
@@ -7369,7 +7407,7 @@ async function handleLabPdfUpload(ev) {
       .map(m => `  - "${m.key}" (${m.label}${m.unit ? ', ' + m.unit : ''})`)
       .join('\n');
 
-    const system = `You are a medical-lab report parser. Extract every numeric lab result from the uploaded document and return them as structured JSON.
+    const system = `You are a medical-lab report parser and cautious patient-facing lab summarizer. Extract every numeric lab result from the uploaded document and return structured JSON.
 
 Known markers (use these keys where possible — map common synonyms, e.g. "HgbA1c"→"hba1c", "ALT (SGPT)"→"alt", "Total Testosterone"→"testosterone"):
 ${markersDesc}
@@ -7378,19 +7416,26 @@ If a result doesn't clearly match one of those, use marker "custom" and put the 
 
 Rules:
 - Return ONLY valid JSON, no commentary, no markdown fences.
-- Shape: { "collectionDate": "YYYY-MM-DD" or null, "reportDate": "YYYY-MM-DD" or null, "results": [ { marker, label, value, unit, refRange, flag, notes } ] }
+- Shape: { "collectionDate": "YYYY-MM-DD" or null, "reportDate": "YYYY-MM-DD" or null, "overview": { "status", "headline", "summary", "keyFindings", "questionsForClinician", "dataQualityNotes", "disclaimer" }, "results": [ { marker, label, value, unit, refRange, flag, notes } ] }
 - "value" must be a number (not a string). If the result is qualitative (e.g. "Negative"), skip it.
 - "flag" is "H" (high), "L" (low), or null.
 - Prefer the collection date for each result's date; fall back to report date.
 - Skip headers, patient demographics, insurance info, lab metadata, disclaimers.
-- If you can't find ANY numeric results, return { "results": [] }.`;
+- If you can't find ANY numeric results, return { "overview": { "status": "unknown", "headline": "No numeric lab values detected", "summary": "No numeric lab values were visible enough to extract.", "keyFindings": [], "questionsForClinician": [], "dataQualityNotes": ["Upload a clearer scan or enter values manually."], "disclaimer": "Informational only; review with a qualified clinician." }, "results": [] }.
+- overview.status must be one of "ok", "attention", "urgent", or "unknown".
+- overview.summary should be 2-4 short sentences in plain language. Do not diagnose, prescribe, or say anything is safe/unsafe.
+- overview.keyFindings is an array of up to 6 objects: { "severity": "info" | "watch" | "high", "label": short label, "detail": concise explanation citing exact extracted values/flags when relevant }.
+- Use "high" only for values explicitly flagged critical/very abnormal by the report or clearly urgent patterns; otherwise use "watch" or "info".
+- overview.questionsForClinician should be 2-5 practical questions to discuss with a clinician.
+- overview.dataQualityNotes should mention missing dates, unclear units, blurry pages, or incomplete panels.
+- overview.disclaimer must say this is informational and not a diagnosis.`;
 
-    const userText = `Extract all lab results from this report. Return JSON only.`;
+    const userText = `Extract all lab results from this report and provide a cautious AI overview. Return JSON only.`;
 
     const resp = await anthropicCall({
       apiKey: settings.apiKey,
       model: settings.model || 'claude-sonnet-4-6',
-      maxTokens: 4096,
+      maxTokens: 6000,
       system,
       messages: [{
         role: 'user',
@@ -7479,13 +7524,110 @@ function _normalizeExtractedRow(row, fallbackDate) {
   };
 }
 
+function _safeLabText(value, fallback = '') {
+  return String(value == null ? fallback : value).trim();
+}
+
+function _normalizeLabOverview(parsed, rows, fallbackDate) {
+  const raw = parsed && typeof parsed.overview === 'object' ? parsed.overview : {};
+  const statusSet = new Set(['ok', 'attention', 'urgent', 'unknown']);
+  const status = statusSet.has(_safeLabText(raw.status).toLowerCase())
+    ? _safeLabText(raw.status).toLowerCase()
+    : 'unknown';
+  const keyFindings = Array.isArray(raw.keyFindings) ? raw.keyFindings : [];
+  const questions = Array.isArray(raw.questionsForClinician) ? raw.questionsForClinician : [];
+  const dataQualityNotes = Array.isArray(raw.dataQualityNotes) ? raw.dataQualityNotes : [];
+  const flaggedRows = (rows || []).filter(r => /flag:\s*[HL]/i.test(r.notes || '')).slice(0, 6);
+  const fallbackSummary = rows && rows.length
+    ? `Extracted ${rows.length} numeric lab value${rows.length === 1 ? '' : 's'} for review. Confirm values, units, and reference ranges against the original report before relying on them.`
+    : 'No numeric lab values were visible enough to extract.';
+
+  return {
+    status,
+    headline: _safeLabText(raw.headline, rows?.length ? 'Lab overview ready' : 'No numeric lab values detected').slice(0, 160),
+    summary: _safeLabText(raw.summary, fallbackSummary).slice(0, 900),
+    keyFindings: keyFindings.slice(0, 8).map(f => ({
+      severity: ['info', 'watch', 'high'].includes(_safeLabText(f?.severity).toLowerCase()) ? _safeLabText(f.severity).toLowerCase() : 'info',
+      label: _safeLabText(f?.label, 'Finding').slice(0, 90),
+      detail: _safeLabText(f?.detail, '').slice(0, 260),
+    })).filter(f => f.detail || f.label),
+    questionsForClinician: questions.slice(0, 6).map(q => _safeLabText(q).slice(0, 220)).filter(Boolean),
+    dataQualityNotes: dataQualityNotes.slice(0, 5).map(n => _safeLabText(n).slice(0, 220)).filter(Boolean),
+    flaggedRows: flaggedRows.map(r => `${r.label}: ${r.value} ${r.unit || ''} (${r.notes})`),
+    disclaimer: _safeLabText(raw.disclaimer, 'Informational only; this is not a diagnosis. Review results with a qualified clinician.').slice(0, 260),
+    collectionDate: _normalizeLabIsoDate(parsed?.collectionDate, fallbackDate),
+    reportDate: parsed?.reportDate ? _normalizeLabIsoDate(parsed.reportDate, '') : '',
+  };
+}
+
+function _labOverviewTone(status) {
+  if (status === 'urgent') return { color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.3)', label: 'Urgent review' };
+  if (status === 'attention') return { color: '#eab308', bg: 'rgba(234,179,8,0.08)', border: 'rgba(234,179,8,0.28)', label: 'Review' };
+  if (status === 'ok') return { color: 'var(--green)', bg: 'rgba(34,197,94,0.08)', border: 'rgba(34,197,94,0.28)', label: 'No major flags' };
+  return { color: 'var(--accent)', bg: 'rgba(0,212,255,0.08)', border: 'rgba(0,212,255,0.24)', label: 'Overview' };
+}
+
+function _renderLabOverviewHtml(record, opts = {}) {
+  const overview = record?.overview || record;
+  if (!overview) return '';
+  const tone = _labOverviewTone(overview.status || 'unknown');
+  const findings = (overview.keyFindings || []).slice(0, opts.compact ? 4 : 8);
+  const questions = (overview.questionsForClinician || []).slice(0, opts.compact ? 3 : 6);
+  const quality = (overview.dataQualityNotes || []).slice(0, 4);
+  const metaDate = record?.collectionDate || overview.collectionDate || record?.reportDate || overview.reportDate || '';
+  const generated = record?.generatedAt ? ` · generated ${relativeTime(new Date(record.generatedAt))}` : '';
+  const findingHtml = findings.length ? `
+    <div style="display:grid;gap:7px;margin-top:10px;">
+      ${findings.map(f => {
+        const ft = f.severity === 'high'
+          ? { c:'#ef4444', b:'rgba(239,68,68,0.25)' }
+          : f.severity === 'watch'
+            ? { c:'#eab308', b:'rgba(234,179,8,0.25)' }
+            : { c:'var(--accent)', b:'rgba(0,212,255,0.22)' };
+        return `<div style="border-left:3px solid ${ft.c};background:${ft.b};border-radius:6px;padding:7px 9px;">
+          <div style="font-size:11px;font-weight:800;color:${ft.c};margin-bottom:2px;">${escapeHtml(f.label || 'Finding')}</div>
+          <div style="font-size:12px;color:var(--text);line-height:1.45;">${escapeHtml(f.detail || '')}</div>
+        </div>`;
+      }).join('')}
+    </div>` : '';
+  const questionsHtml = questions.length ? `
+    <div style="margin-top:10px;">
+      <div style="font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;">Questions for clinician</div>
+      <ul style="margin:0;padding-left:18px;font-size:12px;color:var(--text);line-height:1.5;">
+        ${questions.map(q => `<li>${escapeHtml(q)}</li>`).join('')}
+      </ul>
+    </div>` : '';
+  const qualityHtml = quality.length ? `
+    <div style="font-size:11px;color:var(--muted);line-height:1.45;margin-top:8px;">${quality.map(escapeHtml).join(' · ')}</div>` : '';
+  return `
+    <div style="background:${tone.bg};border:1px solid ${tone.border};border-radius:8px;padding:12px 14px;margin:${opts.compact ? '0 0 12px' : '0 0 14px'};line-height:1.5;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+        <div style="font-size:13px;font-weight:900;color:${tone.color};">AI Lab Overview · ${escapeHtml(tone.label)}</div>
+        <div style="font-size:10px;color:var(--muted);">${metaDate ? 'Lab date ' + escapeHtml(metaDate) : 'Lab date unknown'}${generated}</div>
+      </div>
+      <div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:4px;">${escapeHtml(overview.headline || 'Lab overview ready')}</div>
+      <div style="font-size:12px;color:var(--text);line-height:1.55;">${escapeHtml(overview.summary || '')}</div>
+      ${findingHtml}
+      ${questionsHtml}
+      ${qualityHtml}
+      <div style="font-size:10px;color:var(--muted);line-height:1.45;margin-top:9px;">${escapeHtml(overview.disclaimer || 'Informational only; this is not a diagnosis. Review results with a qualified clinician.')}</div>
+    </div>`;
+}
+
 function _renderLabExtractPreview(parsed, usage) {
   const fallbackDate = _normalizeLabIsoDate(parsed.collectionDate || parsed.reportDate, _todayIsoDate());
   const rows = (parsed.results || [])
     .map(r => _normalizeExtractedRow({ ...r, date: r.date || fallbackDate }, fallbackDate))
     .filter(Boolean);
+  const overview = _normalizeLabOverview(parsed, rows, fallbackDate);
 
-  _labExtractState = { rows, fallbackDate };
+  _labExtractState = {
+    rows,
+    fallbackDate,
+    reportDate: parsed.reportDate ? _normalizeLabIsoDate(parsed.reportDate, '') : '',
+    overview,
+    usage,
+  };
 
   const statusEl = document.getElementById('labExtractStatus');
   const bodyEl = document.getElementById('labExtractBody');
@@ -7497,7 +7639,7 @@ function _renderLabExtractPreview(parsed, usage) {
         <div style="font-weight:700;margin-bottom:4px;">No lab values detected</div>
         <div style="font-size:12px;">Claude read the document but didn't find any numeric lab results to extract. Try a clearer scan, a different page, or enter manually with "+ Add Result".</div>
       </div>`;
-    bodyEl.innerHTML = '';
+    bodyEl.innerHTML = _renderLabOverviewHtml({ overview, collectionDate: fallbackDate }, { compact: true });
     actionsEl.style.display = 'none';
     return;
   }
@@ -7512,7 +7654,7 @@ function _renderLabExtractPreview(parsed, usage) {
     : '';
   statusEl.innerHTML = `
     <div style="line-height:1.55;">
-      Review the extracted rows below. <strong>Uncheck anything that looks wrong</strong>, edit values inline,
+      Review the AI overview and extracted rows below. <strong>Uncheck anything that looks wrong</strong>, edit values inline,
       and click Apply. Collection date detected: <strong>${escapeHtml(fallbackDate)}</strong>. ${costNote}
     </div>`;
 
@@ -7523,6 +7665,7 @@ function _renderLabExtractPreview(parsed, usage) {
   // Anthropic review note: every row value below can originate from the
   // uploaded document/model response, so escape before writing into innerHTML.
   bodyEl.innerHTML = `
+    ${_renderLabOverviewHtml({ overview, collectionDate: fallbackDate, reportDate: _labExtractState.reportDate }, { compact: false })}
     <div style="overflow-x:auto;">
       <table style="width:100%;border-collapse:collapse;font-size:12px;">
         <thead>
@@ -7595,6 +7738,7 @@ function _updateLabExtractCount() {
 function applyLabExtract() {
   const rowEls = document.querySelectorAll('#labExtractRows tr[data-idx]');
   const arr = loadLabs();
+  const appliedRows = [];
   let added = 0, skipped = 0;
   rowEls.forEach(tr => {
     const idx = tr.getAttribute('data-idx');
@@ -7625,10 +7769,22 @@ function applyLabExtract() {
       ts: new Date().toISOString(),
       source: 'pdf-extract',
     });
+    appliedRows.push({ date, marker: storedMarker, label, value, unit });
     added++;
   });
   arr.sort((a, b) => a.date.localeCompare(b.date));
   saveLabs(arr);
+  if (added > 0 && _labExtractState?.overview) {
+    saveLabOverview({
+      generatedAt: new Date().toISOString(),
+      source: 'pdf-extract',
+      collectionDate: _labExtractState.fallbackDate,
+      reportDate: _labExtractState.reportDate || '',
+      resultCount: added,
+      rows: appliedRows.slice(0, 40),
+      overview: _labExtractState.overview,
+    });
+  }
   closeLabExtract();
   renderLabs();
   showToast(`✓ Added ${added} lab result${added === 1 ? '' : 's'}${skipped ? ` · skipped ${skipped}` : ''}`, 3500);
@@ -7649,6 +7805,7 @@ function renderLabs() {
   const arr = loadLabs();
   const grid = document.getElementById('labsGrid');
   const empty = document.getElementById('labsEmpty');
+  const overviewEl = document.getElementById('labsOverview');
   const reminder = document.getElementById('labsReminder');
   const trendWrap = document.getElementById('labsTrendWrap');
   const tableEl = document.getElementById('labsTable');
@@ -7657,12 +7814,23 @@ function renderLabs() {
   if (!arr.length) {
     empty.style.display = 'block';
     grid.innerHTML = '';
+    if (overviewEl) { overviewEl.style.display = 'none'; overviewEl.innerHTML = ''; }
     trendWrap.style.display = 'none';
     tableEl.innerHTML = '';
     reminder.textContent = '';
     return;
   }
   empty.style.display = 'none';
+  const overviewRecord = loadLabOverview();
+  if (overviewEl) {
+    if (overviewRecord?.overview) {
+      overviewEl.style.display = 'block';
+      overviewEl.innerHTML = _renderLabOverviewHtml(overviewRecord, { compact: true });
+    } else {
+      overviewEl.style.display = 'none';
+      overviewEl.innerHTML = '';
+    }
+  }
 
   // Latest value per marker
   const latest = {};
