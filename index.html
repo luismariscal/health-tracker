@@ -5387,11 +5387,11 @@ function renderWaterSettings() {
     <div class="form-grid">
       <div class="field">
         <label>Daily goal</label>
-        <div style="display:flex;gap:6px;width:100%;align-items:stretch;">
-          <input type="number" class="ws-num" id="ws_goal" value="${s.goalOz || 100}" step="1" min="20" inputmode="numeric" style="flex:1 1 0;min-width:0;width:auto;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:16px;">
-          <select id="ws_unit" style="flex:0 0 auto;width:auto;min-width:90px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px;">
+        <div style="display:grid;grid-template-columns:1fr 90px;gap:6px;width:100%;align-items:stretch;">
+          <input type="number" class="ws-num" id="ws_goal" value="${s.goalOz || 100}" step="1" min="20" inputmode="numeric" style="min-width:0;width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:16px;">
+          <select id="ws_unit" style="width:90px;max-width:90px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 4px;font-size:13px;">
             <option value="oz" ${s.unit === 'oz' ? 'selected' : ''}>oz</option>
-            <option value="ml" ${s.unit === 'ml' ? 'selected' : ''}>ml (display)</option>
+            <option value="ml" ${s.unit === 'ml' ? 'selected' : ''}>ml</option>
           </select>
         </div>
         <div style="font-size:10px;color:var(--muted);margin-top:4px;">Common targets: 64oz (half-gallon), 100oz (3L), 128oz (gallon). On GLP-1s, lean higher.</div>
