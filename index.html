@@ -2183,8 +2183,17 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.30.0';
+const VERSION = '2.30.1';
 const VERSION_CHANGES = [
+  {
+    version: '2.30.1',
+    date: '2026-04-19',
+    summary: 'OpenAI PDF upload payload fix',
+    details: [
+      'Wrapped OpenAI PDF file_data as a data URL so the Responses API accepts uploaded lab reports.',
+      'Updated the extraction comment to document the required OpenAI PDF format for future review.',
+    ],
+  },
   {
     version: '2.30.0',
     date: '2026-04-19',
@@ -7468,7 +7477,7 @@ function deleteLab(ts) {
 }
 
 // =========================================================
-// LAB PDF EXTRACTION + AI OVERVIEW (v2.30.0)
+// LAB PDF EXTRACTION + AI OVERVIEW (v2.30.1)
 // Upload a PDF or photo of a lab report → selected AI provider extracts
 // structured rows → user reviews and applies.
 //
@@ -7714,12 +7723,12 @@ async function _callLabExtractProvider({ settings, file, base64, isPdf, mediaTyp
   if (provider === 'openai') {
     const content = [];
     if (isPdf) {
-      // Anthropic review note: OpenAI Responses accepts PDF input_file content
-      // with raw base64 bytes; images use data URLs via input_image.
+      // Anthropic/OpenAI review note: OpenAI Responses expects PDF file_data
+      // as a data URL, while image inputs also use data URLs via input_image.
       content.push({
         type: 'input_file',
         filename: _safeAiUploadFilename(file, 'lab-report.pdf'),
-        file_data: base64,
+        file_data: `data:application/pdf;base64,${base64}`,
       });
     } else {
       content.push({
