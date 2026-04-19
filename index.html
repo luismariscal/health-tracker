@@ -2073,7 +2073,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.19.0';
+const VERSION = '2.20.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -11633,9 +11633,13 @@ function renderPhotoVault() {
 // =========================================================
 let _cmpBefore = null;
 let _cmpAfter  = null;
+let _cmpMode   = 'reveal';  // 'reveal' | 'sidebyside'  (v2.20.0)
+let _cmpBlur   = false;     // face-blur toggle          (v2.20.0)
 // Expose for diagnostics/tests
 Object.defineProperty(window, '_cmpBefore', { get: () => _cmpBefore });
 Object.defineProperty(window, '_cmpAfter',  { get: () => _cmpAfter  });
+Object.defineProperty(window, '_cmpMode',   { get: () => _cmpMode   });
+Object.defineProperty(window, '_cmpBlur',   { get: () => _cmpBlur   });
 
 function openPhotoCompare() {
   const o = document.getElementById('photoCompareOverlay');
@@ -11675,6 +11679,15 @@ function _cmpSelect(which, id) {
   renderPhotoCompare();
 }
 
+// v2.20.0 — SVG face blur overlay: rectangle across top 22% of image.
+// Covers most naturally-framed selfies without requiring face detection.
+// Two rects (one per image in side-by-side) or one rect in reveal mode.
+function _cmpBlurCss() {
+  // Using backdrop-filter would be cleaner but Safari support is spotty.
+  // We paint a solid-blurred overlay via CSS filter on a duplicate bg image.
+  return 'filter:blur(22px);';
+}
+
 function renderPhotoCompare() {
   const body = document.getElementById('photoCompareBody');
   if (!body || !_cmpBefore || !_cmpAfter) return;
@@ -11688,17 +11701,66 @@ function renderPhotoCompare() {
   const lost = weightDiff !== null ? (weightDiff < 0 ? `▼ ${Math.abs(weightDiff)} lb` : weightDiff > 0 ? `▲ ${weightDiff} lb` : 'no change') : null;
   const angleMismatch = _cmpBefore.angle !== _cmpAfter.angle;
 
-  body.innerHTML = `
-    <div style="position:relative;width:100%;aspect-ratio:3/4;max-height:65vh;background:#000;border-radius:10px;overflow:hidden;user-select:none;touch-action:none;" id="cmpStage">
-      <img src="${_cmpAfter.data}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;" alt="after" draggable="false">
-      <img id="cmpBeforeImg" src="${_cmpBefore.data}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;clip-path:inset(0 50% 0 0);" alt="before" draggable="false">
-      <div id="cmpHandle" style="position:absolute;top:0;bottom:0;left:50%;width:3px;background:#fff;box-shadow:0 0 8px rgba(0,0,0,0.5);transform:translateX(-50%);cursor:ew-resize;pointer-events:none;">
-        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:36px;height:36px;border-radius:50%;background:#fff;color:#000;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,0.4);">⇔</div>
-      </div>
-      <div style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.75);color:#fff;font-size:10px;font-weight:800;padding:4px 8px;border-radius:4px;letter-spacing:0.5px;pointer-events:none;">BEFORE · ${_cmpBefore.date}${wB !== null ? ' · '+wB+' lb' : ''}</div>
-      <div style="position:absolute;top:10px;right:10px;background:rgba(0,212,255,0.85);color:#000;font-size:10px;font-weight:800;padding:4px 8px;border-radius:4px;letter-spacing:0.5px;pointer-events:none;">AFTER · ${_cmpAfter.date}${wA !== null ? ' · '+wA+' lb' : ''}</div>
-    </div>
+  // Angle group chips — quick-switch same-angle pairs
+  const angles = [...new Set(photos.map(p => p.angle).filter(Boolean))].sort();
+  const angleGroupChips = angles.map(a => {
+    const count = photos.filter(p => p.angle === a).length;
+    const isActive = _cmpBefore.angle === a && _cmpAfter.angle === a;
+    return `<button class="btn" style="font-size:10px;padding:4px 9px;margin:2px;background:${isActive ? 'var(--accent,#00d4ff)' : 'var(--surface2)'};color:${isActive ? '#000' : 'var(--text)'};border:1px solid var(--border);border-radius:6px;" onclick="_cmpPickAngleGroup('${_escHtml(a)}')">${_escHtml(a)} · ${count}</button>`;
+  }).join('');
 
+  // Mode / blur controls
+  const controls = `
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+      <div style="display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;">
+        <button class="btn" style="font-size:11px;padding:5px 10px;border-radius:0;background:${_cmpMode==='reveal'?'var(--accent,#00d4ff)':'var(--surface2)'};color:${_cmpMode==='reveal'?'#000':'var(--text)'};border:0;" onclick="_cmpSetMode('reveal')">⇔ Reveal</button>
+        <button class="btn" style="font-size:11px;padding:5px 10px;border-radius:0;background:${_cmpMode==='sidebyside'?'var(--accent,#00d4ff)':'var(--surface2)'};color:${_cmpMode==='sidebyside'?'#000':'var(--text)'};border:0;border-left:1px solid var(--border);" onclick="_cmpSetMode('sidebyside')">▯▯ Side</button>
+      </div>
+      <button class="btn" style="font-size:11px;padding:5px 10px;background:${_cmpBlur?'var(--accent,#00d4ff)':'var(--surface2)'};color:${_cmpBlur?'#000':'var(--text)'};border:1px solid var(--border);border-radius:6px;" onclick="_cmpToggleBlur()">${_cmpBlur?'🔓':'🔒'} Face blur</button>
+      <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="exportMonthlyCollage()" title="Export a collage of this angle's monthly progress">📸 Collage</button>
+      ${angles.length ? `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-left:auto;"><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Angle:</span>${angleGroupChips}</div>` : ''}
+    </div>`;
+
+  let stageHtml;
+  if (_cmpMode === 'sidebyside') {
+    // Two images side-by-side with synchronized labels. Face-blur rect overlays top 22%.
+    const blurRect = (d) => _cmpBlur
+      ? `<div style="position:absolute;left:0;right:0;top:0;height:22%;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);background:rgba(0,0,0,0.05);pointer-events:none;"></div>
+         <div style="position:absolute;left:0;right:0;top:0;height:22%;background-image:url('${d}');background-size:cover;background-position:top;filter:blur(22px);pointer-events:none;opacity:0.95;"></div>`
+      : '';
+    stageHtml = `
+      <div id="cmpStage" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#000;border-radius:10px;overflow:hidden;">
+        <div style="position:relative;aspect-ratio:3/4;max-height:65vh;background:#000;">
+          <img src="${_cmpBefore.data}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;" alt="before" draggable="false">
+          ${blurRect(_cmpBefore.data)}
+          <div style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.75);color:#fff;font-size:10px;font-weight:800;padding:4px 8px;border-radius:4px;letter-spacing:0.5px;pointer-events:none;">BEFORE · ${_cmpBefore.date}${wB !== null ? ' · '+wB+' lb' : ''}</div>
+        </div>
+        <div style="position:relative;aspect-ratio:3/4;max-height:65vh;background:#000;">
+          <img src="${_cmpAfter.data}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;" alt="after" draggable="false">
+          ${blurRect(_cmpAfter.data)}
+          <div style="position:absolute;top:10px;right:10px;background:rgba(0,212,255,0.85);color:#000;font-size:10px;font-weight:800;padding:4px 8px;border-radius:4px;letter-spacing:0.5px;pointer-events:none;">AFTER · ${_cmpAfter.date}${wA !== null ? ' · '+wA+' lb' : ''}</div>
+        </div>
+      </div>`;
+  } else {
+    // Reveal mode (original, with optional blur rect on top 22%)
+    const blurOverlay = _cmpBlur
+      ? `<div style="position:absolute;left:0;right:0;top:0;height:22%;background-image:url('${_cmpAfter.data}');background-size:cover;background-position:top;filter:blur(22px);pointer-events:none;z-index:1;"></div>
+         <div id="cmpBlurBefore" style="position:absolute;left:0;right:0;top:0;height:22%;background-image:url('${_cmpBefore.data}');background-size:cover;background-position:top;filter:blur(22px);pointer-events:none;z-index:2;clip-path:inset(0 50% 0 0);"></div>`
+      : '';
+    stageHtml = `
+      <div style="position:relative;width:100%;aspect-ratio:3/4;max-height:65vh;background:#000;border-radius:10px;overflow:hidden;user-select:none;touch-action:none;" id="cmpStage">
+        <img src="${_cmpAfter.data}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;" alt="after" draggable="false">
+        <img id="cmpBeforeImg" src="${_cmpBefore.data}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;clip-path:inset(0 50% 0 0);" alt="before" draggable="false">
+        ${blurOverlay}
+        <div id="cmpHandle" style="position:absolute;top:0;bottom:0;left:50%;width:3px;background:#fff;box-shadow:0 0 8px rgba(0,0,0,0.5);transform:translateX(-50%);cursor:ew-resize;pointer-events:none;z-index:3;">
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:36px;height:36px;border-radius:50%;background:#fff;color:#000;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,0.4);">⇔</div>
+        </div>
+        <div style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.75);color:#fff;font-size:10px;font-weight:800;padding:4px 8px;border-radius:4px;letter-spacing:0.5px;pointer-events:none;z-index:3;">BEFORE · ${_cmpBefore.date}${wB !== null ? ' · '+wB+' lb' : ''}</div>
+        <div style="position:absolute;top:10px;right:10px;background:rgba(0,212,255,0.85);color:#000;font-size:10px;font-weight:800;padding:4px 8px;border-radius:4px;letter-spacing:0.5px;pointer-events:none;z-index:3;">AFTER · ${_cmpAfter.date}${wA !== null ? ' · '+wA+' lb' : ''}</div>
+      </div>`;
+  }
+
+  body.innerHTML = controls + stageHtml + `
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;padding:8px 10px;background:var(--surface2,var(--bg));border:1px solid var(--border);border-radius:8px;flex-wrap:wrap;">
       <div style="font-size:12px;color:var(--muted);">⏱ ${daysBetween} days apart</div>
       ${lost ? `<div style="font-size:13px;font-weight:800;color:${weightDiff < 0 ? 'var(--green,#22c55e)' : 'var(--text)'};">${lost}</div>` : ''}
@@ -11713,19 +11775,21 @@ function renderPhotoCompare() {
     </div>
   `;
 
-  // Wire drag — clip-path gives pixel-perfect alignment between before/after
+  // Wire drag only in reveal mode
+  if (_cmpMode !== 'reveal') return;
   const stage = document.getElementById('cmpStage');
   const handle = document.getElementById('cmpHandle');
   const beforeImg = document.getElementById('cmpBeforeImg');
+  const blurBefore = document.getElementById('cmpBlurBefore');
   if (!stage || !handle || !beforeImg) return;
 
   let dragging = false;
   function setPct(pct) {
     pct = Math.max(0, Math.min(100, pct));
     beforeImg.style.clipPath = `inset(0 ${100 - pct}% 0 0)`;
+    if (blurBefore) blurBefore.style.clipPath = `inset(0 ${100 - pct}% 0 0)`;
     handle.style.left = pct + '%';
   }
-  // Expose for tests
   stage._cmpSetPct = setPct;
 
   function pctFromEvent(e) {
@@ -11733,15 +11797,8 @@ function renderPhotoCompare() {
     const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
     return (x / rect.width) * 100;
   }
-  function onDown(e) {
-    dragging = true;
-    setPct(pctFromEvent(e));
-    e.preventDefault();
-  }
-  function onMove(e) {
-    if (!dragging) return;
-    setPct(pctFromEvent(e));
-  }
+  function onDown(e) { dragging = true; setPct(pctFromEvent(e)); e.preventDefault(); }
+  function onMove(e) { if (dragging) setPct(pctFromEvent(e)); }
   function onUp() { dragging = false; }
   stage.addEventListener('mousedown', onDown);
   stage.addEventListener('touchstart', onDown, { passive: false });
@@ -11749,6 +11806,128 @@ function renderPhotoCompare() {
   window.addEventListener('touchmove', onMove, { passive: false });
   window.addEventListener('mouseup', onUp);
   window.addEventListener('touchend', onUp);
+}
+
+// v2.20.0 helpers
+function _cmpSetMode(m) {
+  if (m !== 'reveal' && m !== 'sidebyside') return;
+  _cmpMode = m;
+  renderPhotoCompare();
+}
+function _cmpToggleBlur() {
+  _cmpBlur = !_cmpBlur;
+  renderPhotoCompare();
+}
+function _cmpPickAngleGroup(angle) {
+  const photos = loadPhotos().filter(p => p.angle === angle).sort((a,b) => a.date.localeCompare(b.date));
+  if (photos.length < 2) { showToast('Need at least 2 photos of that angle', 2500); return; }
+  _cmpBefore = photos[0];
+  _cmpAfter  = photos[photos.length - 1];
+  renderPhotoCompare();
+}
+
+// -------- Monthly collage export (v2.20.0) --------
+// Picks up to 6 photos of the current before/after angle, one per
+// calendar month (earliest per month), renders them into a 3×2 canvas
+// with date + weight labels, and triggers a PNG download.
+async function exportMonthlyCollage() {
+  if (!_cmpBefore || !_cmpAfter) { showToast('Open a compare first', 2500); return; }
+  const angle = _cmpBefore.angle;
+  const pool = loadPhotos().filter(p => p.angle === angle).sort((a,b) => a.date.localeCompare(b.date));
+  if (pool.length < 2) { showToast('Need at least 2 photos in this angle group', 2500); return; }
+
+  // Pick one per month — earliest dated photo per YYYY-MM
+  const byMonth = new Map();
+  for (const p of pool) {
+    const key = p.date.slice(0, 7);
+    if (!byMonth.has(key)) byMonth.set(key, p);
+  }
+  const picks = [...byMonth.values()].sort((a,b) => a.date.localeCompare(b.date)).slice(-6);
+  if (picks.length < 2) { showToast('Need photos from at least 2 different months', 2500); return; }
+
+  // 3 cols × 2 rows, 600×800 per cell = 1800×1600 final
+  const COLS = Math.min(3, picks.length);
+  const ROWS = Math.ceil(picks.length / COLS);
+  const CELL_W = 600, CELL_H = 800;
+  const canvas = document.createElement('canvas');
+  canvas.width = COLS * CELL_W;
+  canvas.height = ROWS * CELL_H + 60;  // +60 for header
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#0b0f19';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Header
+  ctx.fillStyle = '#00d4ff';
+  ctx.font = 'bold 28px Arial';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`Monthly progress · ${angle}`, 20, 30);
+  ctx.fillStyle = '#888';
+  ctx.font = '14px Arial';
+  ctx.textAlign = 'right';
+  ctx.fillText(new Date().toISOString().slice(0, 10), canvas.width - 20, 30);
+  ctx.textAlign = 'left';
+
+  // Load images (data URLs so no cross-origin issues)
+  const imgs = await Promise.all(picks.map(p => new Promise((res, rej) => {
+    const im = new Image();
+    im.onload = () => res({ img: im, p });
+    im.onerror = () => rej(new Error('img load failed'));
+    im.src = p.data;
+  })));
+
+  for (let i = 0; i < imgs.length; i++) {
+    const col = i % COLS, row = Math.floor(i / COLS);
+    const x = col * CELL_W, y = 60 + row * CELL_H;
+    // Fit image (object-fit: contain)
+    const { img, p } = imgs[i];
+    const scale = Math.min(CELL_W / img.width, CELL_H / img.height);
+    const dw = img.width * scale, dh = img.height * scale;
+    const dx = x + (CELL_W - dw) / 2;
+    const dy = y + (CELL_H - dh) / 2;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(x, y, CELL_W, CELL_H);
+    ctx.drawImage(img, dx, dy, dw, dh);
+
+    if (_cmpBlur) {
+      // Top 22% strip — paint a blurred version of the already-drawn top slice
+      const stripH = Math.floor(dh * 0.22);
+      if (stripH > 0) {
+        // Cheap blur: draw a dark translucent rect + emoji
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(dx, dy, dw, stripH);
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.font = '24px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('🔒 face hidden', dx + dw / 2, dy + stripH / 2 + 8);
+        ctx.textAlign = 'left';
+      }
+    }
+
+    // Label
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.fillRect(x + 10, y + CELL_H - 46, 200, 32);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px Arial';
+    ctx.fillText(p.date + (p.weight ? ' · ' + p.weight + ' lb' : ''), x + 18, y + CELL_H - 30);
+  }
+
+  // Download
+  const url = canvas.toDataURL('image/png');
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `transformation-collage-${angle}-${new Date().toISOString().slice(0,10)}.png`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  showToast(`✓ Collage saved: ${picks.length} photos`, 3000);
+  return { picks: picks.length, width: canvas.width, height: canvas.height };
+}
+
+if (typeof window !== 'undefined') {
+  window._cmpSetMode = _cmpSetMode;
+  window._cmpToggleBlur = _cmpToggleBlur;
+  window._cmpPickAngleGroup = _cmpPickAngleGroup;
+  window.exportMonthlyCollage = exportMonthlyCollage;
 }
 
 // -----------------------------
