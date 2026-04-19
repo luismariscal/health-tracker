@@ -1592,6 +1592,7 @@
         <label class="btn btn-primary" style="font-size:11px;padding:6px 12px;cursor:pointer;">
           + Upload <input type="file" accept="image/*" onchange="addProgressPhoto(event)" style="display:none;">
         </label>
+        <button class="btn btn-ghost" style="font-size:11px;padding:6px 12px;" onclick="openPhotoCompare()">⚡ Compare</button>
       </div>
     </div>
     <div id="photoVaultBody"></div>
@@ -2012,6 +2013,17 @@
   <img id="lightboxImg" style="max-width:92vw;max-height:92vh;border-radius:8px;" alt="">
 </div>
 
+<!-- PHOTO COMPARE OVERLAY (v2.15.0) -->
+<div id="photoCompareOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.94);z-index:400;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;width:100%;max-width:760px;max-height:94vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div style="font-size:16px;font-weight:800;">⚡ Before / After</div>
+      <button onclick="closePhotoCompare()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div id="photoCompareBody"></div>
+  </div>
+</div>
+
 <!-- STACK EDIT MODAL -->
 <div id="stackModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:300;align-items:center;justify-content:center;">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;">
@@ -2038,7 +2050,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.14.0';
+const VERSION = '2.15.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -10971,6 +10983,133 @@ function renderPhotoVault() {
       <button class="photo-thumb-del" onclick="event.stopPropagation();deletePhoto('${p.id}')">✕</button>
       <div class="photo-thumb-meta">${p.date}${p.weight ? ' · '+p.weight+' lb' : ''}</div>
     </div>`).join('')}</div>`;
+}
+
+// =========================================================
+// BEFORE / AFTER PHOTO COMPARE (v2.15.0)
+// A draggable reveal slider that wipes between two photos of the
+// same angle. Defaults to oldest vs newest of whatever angle is
+// selected in #photoAngleSelect so one click usually gives the
+// right comparison without picking.
+// =========================================================
+let _cmpBefore = null;
+let _cmpAfter  = null;
+// Expose for diagnostics/tests
+Object.defineProperty(window, '_cmpBefore', { get: () => _cmpBefore });
+Object.defineProperty(window, '_cmpAfter',  { get: () => _cmpAfter  });
+
+function openPhotoCompare() {
+  const o = document.getElementById('photoCompareOverlay');
+  if (!o) return;
+  const photos = loadPhotos();
+  if (photos.length < 2) {
+    showToast('Need at least 2 photos to compare', 3000);
+    return;
+  }
+  // Prefer the angle currently selected in the vault; fall back to any
+  const preferredAngle = (document.getElementById('photoAngleSelect') || {}).value || '';
+  const sameAngle = preferredAngle ? photos.filter(p => p.angle === preferredAngle) : [];
+  const pool = sameAngle.length >= 2 ? sameAngle : photos;
+  const sorted = pool.slice().sort((a,b) => a.date.localeCompare(b.date));
+  _cmpBefore = sorted[0];
+  _cmpAfter  = sorted[sorted.length - 1];
+  o.style.display = 'flex';
+  renderPhotoCompare();
+}
+function closePhotoCompare() {
+  const o = document.getElementById('photoCompareOverlay');
+  if (o) o.style.display = 'none';
+  _cmpBefore = null;
+  _cmpAfter = null;
+}
+
+function _cmpPhotoOption(p, which) {
+  const sel = (which === 'before' ? _cmpBefore : _cmpAfter);
+  const isSelected = sel && sel.id === p.id;
+  return `<button class="btn" style="padding:3px 8px;font-size:10px;margin:2px;background:${isSelected ? 'var(--accent,#00d4ff)' : 'var(--surface2)'};color:${isSelected ? '#000' : 'var(--text)'};border:1px solid var(--border);border-radius:6px;" onclick="_cmpSelect('${which}','${p.id}')">${p.date} · ${p.angle}${p.weight ? ' · '+p.weight : ''}</button>`;
+}
+
+function _cmpSelect(which, id) {
+  const p = loadPhotos().find(x => x.id === id);
+  if (!p) return;
+  if (which === 'before') _cmpBefore = p; else _cmpAfter = p;
+  renderPhotoCompare();
+}
+
+function renderPhotoCompare() {
+  const body = document.getElementById('photoCompareBody');
+  if (!body || !_cmpBefore || !_cmpAfter) return;
+  const photos = loadPhotos().slice().sort((a,b) => a.date.localeCompare(b.date));
+  const dA = new Date(_cmpBefore.date);
+  const dB = new Date(_cmpAfter.date);
+  const daysBetween = Math.round((dB - dA) / 86400000);
+  const wB = parseFloat(_cmpBefore.weight) || null;
+  const wA = parseFloat(_cmpAfter.weight) || null;
+  const weightDiff = (wB !== null && wA !== null) ? (wA - wB).toFixed(1) : null;
+  const lost = weightDiff !== null ? (weightDiff < 0 ? `▼ ${Math.abs(weightDiff)} lb` : weightDiff > 0 ? `▲ ${weightDiff} lb` : 'no change') : null;
+  const angleMismatch = _cmpBefore.angle !== _cmpAfter.angle;
+
+  body.innerHTML = `
+    <div style="position:relative;width:100%;aspect-ratio:3/4;max-height:65vh;background:#000;border-radius:10px;overflow:hidden;user-select:none;touch-action:none;" id="cmpStage">
+      <img src="${_cmpAfter.data}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;" alt="after" draggable="false">
+      <img id="cmpBeforeImg" src="${_cmpBefore.data}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;clip-path:inset(0 50% 0 0);" alt="before" draggable="false">
+      <div id="cmpHandle" style="position:absolute;top:0;bottom:0;left:50%;width:3px;background:#fff;box-shadow:0 0 8px rgba(0,0,0,0.5);transform:translateX(-50%);cursor:ew-resize;pointer-events:none;">
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:36px;height:36px;border-radius:50%;background:#fff;color:#000;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,0.4);">⇔</div>
+      </div>
+      <div style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.75);color:#fff;font-size:10px;font-weight:800;padding:4px 8px;border-radius:4px;letter-spacing:0.5px;pointer-events:none;">BEFORE · ${_cmpBefore.date}${wB !== null ? ' · '+wB+' lb' : ''}</div>
+      <div style="position:absolute;top:10px;right:10px;background:rgba(0,212,255,0.85);color:#000;font-size:10px;font-weight:800;padding:4px 8px;border-radius:4px;letter-spacing:0.5px;pointer-events:none;">AFTER · ${_cmpAfter.date}${wA !== null ? ' · '+wA+' lb' : ''}</div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;padding:8px 10px;background:var(--surface2,var(--bg));border:1px solid var(--border);border-radius:8px;flex-wrap:wrap;">
+      <div style="font-size:12px;color:var(--muted);">⏱ ${daysBetween} days apart</div>
+      ${lost ? `<div style="font-size:13px;font-weight:800;color:${weightDiff < 0 ? 'var(--green,#22c55e)' : 'var(--text)'};">${lost}</div>` : ''}
+      ${angleMismatch ? `<div style="font-size:11px;color:#eab308;">⚠ Different angles — same angle gives the cleanest compare</div>` : ''}
+    </div>
+
+    <div style="margin-top:14px;">
+      <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Before:</div>
+      <div style="display:flex;flex-wrap:wrap;">${photos.map(p => _cmpPhotoOption(p, 'before')).join('')}</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin:10px 0 4px;">After:</div>
+      <div style="display:flex;flex-wrap:wrap;">${photos.map(p => _cmpPhotoOption(p, 'after')).join('')}</div>
+    </div>
+  `;
+
+  // Wire drag — clip-path gives pixel-perfect alignment between before/after
+  const stage = document.getElementById('cmpStage');
+  const handle = document.getElementById('cmpHandle');
+  const beforeImg = document.getElementById('cmpBeforeImg');
+  if (!stage || !handle || !beforeImg) return;
+
+  let dragging = false;
+  function setPct(pct) {
+    pct = Math.max(0, Math.min(100, pct));
+    beforeImg.style.clipPath = `inset(0 ${100 - pct}% 0 0)`;
+    handle.style.left = pct + '%';
+  }
+  // Expose for tests
+  stage._cmpSetPct = setPct;
+
+  function pctFromEvent(e) {
+    const rect = stage.getBoundingClientRect();
+    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    return (x / rect.width) * 100;
+  }
+  function onDown(e) {
+    dragging = true;
+    setPct(pctFromEvent(e));
+    e.preventDefault();
+  }
+  function onMove(e) {
+    if (!dragging) return;
+    setPct(pctFromEvent(e));
+  }
+  function onUp() { dragging = false; }
+  stage.addEventListener('mousedown', onDown);
+  stage.addEventListener('touchstart', onDown, { passive: false });
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('touchmove', onMove, { passive: false });
+  window.addEventListener('mouseup', onUp);
+  window.addEventListener('touchend', onUp);
 }
 
 // -----------------------------
