@@ -1183,6 +1183,9 @@
   <!-- PROTOCOL GUARDRAIL CENTER (v2.21.0) -->
   <div id="guardrailCenter" style="display:none;"></div>
 
+  <!-- WEEKLY REVIEW DIFF (v2.23.0) -->
+  <div id="weeklyReviewDiff" style="display:none;"></div>
+
   <!-- TODAY'S PLAN (daily auto-generated checklist) -->
   <div class="card tp-card" id="todaysPlanCard">
     <div class="tp-top">
@@ -2077,7 +2080,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.22.0';
+const VERSION = '2.23.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -2369,6 +2372,7 @@ function render() {
   if (typeof renderPlateauInsight === 'function') renderPlateauInsight(plateau);
   if (typeof renderDataQualityScore === 'function') renderDataQualityScore(entries);
   if (typeof renderGuardrailCenter === 'function') renderGuardrailCenter(entries);
+  if (typeof renderWeeklyReviewDiff === 'function') renderWeeklyReviewDiff(entries);
   if (typeof renderInventory === 'function') renderInventory();
   renderTodaysPlan(entries, cw, avg, plateau);
   renderCommandCenter(entries, cw, avg, plateau, nextCp);
@@ -11577,6 +11581,230 @@ function renderGuardrailCenter(entries) {
 if (typeof window !== 'undefined') {
   window.computeGuardrails = computeGuardrails;
   window.renderGuardrailCenter = renderGuardrailCenter;
+}
+
+// =========================================================
+// WEEKLY REVIEW DIFF (v2.23.0)
+// -------------------------------------------------------
+// Compares the trailing 7 days ("this week") against the prior
+// 7 days ("last week") for every metric the app tracks: weight,
+// macros, water, subjective 1-5 scales, injection count, and
+// compliance signals (sleep, steps). For each metric it shows
+// the two means, the delta, and a direction glyph colored by
+// whether the change helps the user's goal.
+//
+// Direction semantics (what counts as "better"):
+//   weight, hunger                  → down is good
+//   protein, water, energy,
+//   recovery, steps, sleep,
+//   injection-adherence             → up is good
+//   calories                        → neutral (user decides)
+// =========================================================
+function computeWeeklyDiff(opts) {
+  opts = opts || {};
+  const entries = (opts.entries || loadEntries()).slice();
+  const today = opts.today ? new Date(opts.today + 'T00:00:00') : new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const DAY = 86400000;
+  // This week: today - 6 .. today  (7 days ending today)
+  // Last week: today - 13 .. today - 7
+  const thisStart = new Date(today.getTime() - 6 * DAY);
+  const thisEnd   = today;
+  const lastStart = new Date(today.getTime() - 13 * DAY);
+  const lastEnd   = new Date(today.getTime() - 7 * DAY);
+
+  function fmt(d) { return d.toISOString().slice(0, 10); }
+  function inRange(dateStr, start, end) {
+    return dateStr >= fmt(start) && dateStr <= fmt(end);
+  }
+
+  function mean(vals) {
+    const nums = vals.filter(v => typeof v === 'number' && isFinite(v));
+    if (nums.length === 0) return null;
+    return nums.reduce((a,b) => a + b, 0) / nums.length;
+  }
+
+  const thisEntries = entries.filter(e => e.date && inRange(e.date, thisStart, thisEnd));
+  const lastEntries = entries.filter(e => e.date && inRange(e.date, lastStart, lastEnd));
+
+  // Pull compliance (sleep/steps) for each window
+  function collectCompliance(start, end, field) {
+    const out = [];
+    for (let t = start.getTime(); t <= end.getTime(); t += DAY) {
+      const k = 'tp_compliance_' + fmt(new Date(t));
+      try {
+        const data = JSON.parse(localStorage.getItem(k) || '{}');
+        const v = +data[field];
+        if (isFinite(v) && v > 0) out.push(v);
+      } catch {}
+    }
+    return out;
+  }
+
+  // Injection count in window
+  let injections = [];
+  try { injections = JSON.parse(localStorage.getItem('tp_injections') || '[]'); } catch {}
+  function countInj(start, end) {
+    return injections.filter(i => i && i.date && inRange(i.date, start, end)).length;
+  }
+
+  function metric(key, label, betterDir, fmtFn) {
+    const a = mean(thisEntries.map(e => +e[key]).filter(v => isFinite(v) && v > 0));
+    const b = mean(lastEntries.map(e => +e[key]).filter(v => isFinite(v) && v > 0));
+    let delta = null;
+    if (a != null && b != null) delta = a - b;
+    let verdict = 'neutral';
+    if (delta != null && Math.abs(delta) > 1e-9) {
+      if (betterDir === 'down') verdict = delta < 0 ? 'better' : 'worse';
+      else if (betterDir === 'up') verdict = delta > 0 ? 'better' : 'worse';
+    }
+    return { key, label, betterDir, thisMean: a, lastMean: b, delta, verdict, fmt: fmtFn };
+  }
+
+  const rows = [
+    metric('weight',   'Weight (lb)',      'down', v => v.toFixed(1)),
+    metric('protein',  'Protein (g)',      'up',   v => Math.round(v).toString()),
+    metric('water',    'Water (oz)',       'up',   v => Math.round(v).toString()),
+    metric('calories', 'Calories (kcal)',  'neutral', v => Math.round(v).toString()),
+    metric('energy',   'Energy (1-5)',     'up',   v => v.toFixed(1)),
+    metric('hunger',   'Hunger (1-5)',     'down', v => v.toFixed(1)),
+    metric('recovery', 'Recovery (1-5)',   'up',   v => v.toFixed(1)),
+  ];
+
+  // Compliance sleep/steps
+  function complianceMetric(field, label, betterDir, fmtFn) {
+    const a = mean(collectCompliance(thisStart, thisEnd, field));
+    const b = mean(collectCompliance(lastStart, lastEnd, field));
+    let delta = null;
+    if (a != null && b != null) delta = a - b;
+    let verdict = 'neutral';
+    if (delta != null && Math.abs(delta) > 1e-9) {
+      if (betterDir === 'down') verdict = delta < 0 ? 'better' : 'worse';
+      else if (betterDir === 'up') verdict = delta > 0 ? 'better' : 'worse';
+    }
+    return { key: field, label, betterDir, thisMean: a, lastMean: b, delta, verdict, fmt: fmtFn };
+  }
+  rows.push(complianceMetric('sleep', 'Sleep (hrs)', 'up', v => v.toFixed(1)));
+  rows.push(complianceMetric('steps', 'Steps',       'up', v => Math.round(v).toString()));
+
+  // Injection adherence — integer count in each 7-day window
+  const injThis = countInj(thisStart, thisEnd);
+  const injLast = countInj(lastStart, lastEnd);
+  let injDelta = injThis - injLast;
+  let injVerdict = 'neutral';
+  if (injDelta > 0) injVerdict = 'better';
+  else if (injDelta < 0 && injLast > 0) injVerdict = 'worse';
+  rows.push({
+    key: 'injections',
+    label: 'Injections',
+    betterDir: 'up',
+    thisMean: injThis,
+    lastMean: injLast,
+    delta: injDelta,
+    verdict: injVerdict,
+    fmt: v => v.toString(),
+    isCount: true,
+  });
+
+  // Summary: net better/worse/neutral counts
+  let better = 0, worse = 0, tracked = 0;
+  for (const r of rows) {
+    if (r.thisMean == null && r.lastMean == null) continue;
+    tracked++;
+    if (r.verdict === 'better') better++;
+    else if (r.verdict === 'worse') worse++;
+  }
+
+  return {
+    thisWeek: { start: fmt(thisStart), end: fmt(thisEnd), days: thisEntries.length },
+    lastWeek: { start: fmt(lastStart), end: fmt(lastEnd), days: lastEntries.length },
+    rows,
+    summary: { better, worse, tracked, net: better - worse },
+  };
+}
+
+function renderWeeklyReviewDiff(entries) {
+  const el = document.getElementById('weeklyReviewDiff');
+  if (!el) return;
+  const ent = entries || loadEntries();
+  // Need at least 7 days of entries to be meaningful
+  if (!ent || ent.length < 7) { el.style.display = 'none'; return; }
+
+  const diff = computeWeeklyDiff({ entries: ent });
+
+  // Header color by net
+  let accent = 'var(--border)';
+  let headIcon = '📊';
+  if (diff.summary.net > 0) { accent = 'rgba(52,211,153,0.45)'; headIcon = '📈'; }
+  else if (diff.summary.net < 0) { accent = 'rgba(239,68,68,0.45)'; headIcon = '📉'; }
+
+  function deltaCell(r) {
+    if (r.thisMean == null || r.lastMean == null) {
+      return '<span style="color:var(--muted);font-size:11px;">—</span>';
+    }
+    const raw = r.delta;
+    const abs = Math.abs(raw);
+    let sign = raw > 0 ? '+' : (raw < 0 ? '−' : '');
+    let shown = r.isCount ? abs.toString() : (abs < 10 ? abs.toFixed(1) : Math.round(abs).toString());
+    let color = 'var(--muted)';
+    let glyph = '→';
+    if (r.verdict === 'better') { color = '#34d399'; glyph = r.betterDir === 'down' ? '↓' : '↑'; }
+    else if (r.verdict === 'worse') { color = '#ef4444'; glyph = r.betterDir === 'down' ? '↑' : '↓'; }
+    return `<span style="color:${color};font-weight:700;">${glyph} ${sign}${shown}</span>`;
+  }
+
+  function cellVal(r, which) {
+    const v = which === 'this' ? r.thisMean : r.lastMean;
+    if (v == null) return '<span style="color:var(--muted);">—</span>';
+    return r.fmt(v);
+  }
+
+  const rowsHtml = diff.rows.map(r => {
+    // Skip rows where neither week has data (to keep the card compact)
+    if (r.thisMean == null && r.lastMean == null) return '';
+    return `
+      <div style="display:grid;grid-template-columns:1fr 70px 70px 70px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+        <div style="font-size:12px;color:var(--text);">${_escHtml(r.label)}</div>
+        <div style="font-size:12px;color:var(--text);text-align:right;font-variant-numeric:tabular-nums;">${cellVal(r, 'this')}</div>
+        <div style="font-size:12px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;">${cellVal(r, 'last')}</div>
+        <div style="font-size:12px;text-align:right;font-variant-numeric:tabular-nums;">${deltaCell(r)}</div>
+      </div>`;
+  }).join('');
+
+  const summaryLine = diff.summary.tracked === 0
+    ? 'Not enough data yet'
+    : `<span style="color:#34d399;">${diff.summary.better} better</span> · <span style="color:#ef4444;">${diff.summary.worse} worse</span> · ${diff.summary.tracked - diff.summary.better - diff.summary.worse} flat`;
+
+  el.innerHTML = `
+    <div style="background:var(--card);border:1px solid ${accent};border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div style="font-size:22px;flex:none;">${headIcon}</div>
+        <div style="flex:1;min-width:160px;">
+          <div style="font-size:13px;font-weight:800;color:var(--text);">Weekly Review</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">
+            ${_escHtml(diff.thisWeek.start)} → ${_escHtml(diff.thisWeek.end)} vs ${_escHtml(diff.lastWeek.start)} → ${_escHtml(diff.lastWeek.end)}
+          </div>
+          <div style="font-size:11px;margin-top:3px;">${summaryLine}</div>
+        </div>
+        <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;color:var(--muted);" onclick="document.getElementById('weeklyReviewDiff').style.display='none'" title="Hide">✕</button>
+      </div>
+      <div style="margin-top:10px;">
+        <div style="display:grid;grid-template-columns:1fr 70px 70px 70px;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Metric</div>
+          <div style="font-size:10px;color:var(--muted);text-align:right;text-transform:uppercase;letter-spacing:0.5px;">This</div>
+          <div style="font-size:10px;color:var(--muted);text-align:right;text-transform:uppercase;letter-spacing:0.5px;">Last</div>
+          <div style="font-size:10px;color:var(--muted);text-align:right;text-transform:uppercase;letter-spacing:0.5px;">Δ</div>
+        </div>
+        ${rowsHtml}
+      </div>
+    </div>`;
+  el.style.display = 'block';
+}
+
+if (typeof window !== 'undefined') {
+  window.computeWeeklyDiff = computeWeeklyDiff;
+  window.renderWeeklyReviewDiff = renderWeeklyReviewDiff;
 }
 
 // v2.22.0 — expose encryption primitives + settings helper
