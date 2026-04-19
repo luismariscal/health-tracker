@@ -1773,6 +1773,15 @@
     </div>
   </div>
 
+  <!-- CHANGE TIMELINE (v2.19.0) -->
+  <div class="card card-collapsible" id="changeTimelineCard">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
+      <div class="card-title" style="margin-bottom:0">Change Timeline</div>
+      <div style="font-size:11px;color:var(--muted);">What changed before the stall or the drop?</div>
+    </div>
+    <div id="changeTimeline"></div>
+  </div>
+
   <!-- BODY MEASUREMENTS -->
   <div class="card card-collapsible" id="measurementsCard">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
@@ -2064,7 +2073,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.18.0';
+const VERSION = '2.19.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -2365,6 +2374,7 @@ function render() {
   renderCompliance();
   renderCheckinForm();
   renderHistory(entries);
+  if (typeof renderChangeTimeline === 'function') renderChangeTimeline(entries);
   renderCheckpoints(cw);
   renderMacros(cw);
   renderProtocol();
@@ -10948,6 +10958,219 @@ function renderDataQualityScore(entries) {
 if (typeof window !== 'undefined') {
   window.computeDataQualityScore = computeDataQualityScore;
   window.renderDataQualityScore = renderDataQualityScore;
+}
+
+// =========================================================
+// CHANGE TIMELINE (v2.19.0)
+// -------------------------------------------------------
+// Aggregates "interventions" across the app (cycle start/end, labs,
+// measurements, symptoms, weight-milestone crossings) into one
+// descending-chronological list. Each event carries a weight-impact
+// delta computed as "weight N days after event − weight on event date"
+// so the user can see "I started Tesamorelin on Mar 10 → weight was
+// down 3.2 lb by Mar 17" without cross-referencing charts.
+//
+// Intentionally excludes high-frequency logs (daily weigh-ins, daily
+// supplement checks, daily water) — those are noise for a "what
+// changed?" view. Only events that meaningfully shift the protocol.
+// =========================================================
+function buildChangeTimeline(opts) {
+  opts = opts || {};
+  const entries = (opts.entries || loadEntries()).slice().sort((a, b) => a.date.localeCompare(b.date));
+  const weightByDate = new Map(entries.map(e => [e.date, +e.weight]));
+  const sortedDates = entries.map(e => e.date);
+
+  // Find closest weight within ±3 days of target date
+  function weightNear(dateStr) {
+    if (weightByDate.has(dateStr)) return weightByDate.get(dateStr);
+    const target = new Date(dateStr + 'T00:00:00').getTime();
+    let best = null, bestDist = Infinity;
+    for (const ds of sortedDates) {
+      const d = Math.abs(new Date(ds + 'T00:00:00').getTime() - target);
+      if (d < bestDist && d <= 3 * 86400000) { bestDist = d; best = weightByDate.get(ds); }
+    }
+    return best;
+  }
+
+  // Weight N days after event
+  function impactAfter(dateStr, daysAfter) {
+    const start = new Date(dateStr + 'T00:00:00');
+    const end = new Date(start.getTime() + daysAfter * 86400000);
+    const baseW = weightNear(dateStr);
+    if (baseW == null) return null;
+    // Find the nearest weigh-in at-or-after end, within ±3 days
+    let best = null, bestDist = Infinity;
+    const endMs = end.getTime();
+    for (const ds of sortedDates) {
+      const dMs = new Date(ds + 'T00:00:00').getTime();
+      if (dMs < start.getTime()) continue;
+      const dist = Math.abs(dMs - endMs);
+      if (dist < bestDist && dist <= 3 * 86400000) { bestDist = dist; best = weightByDate.get(ds); }
+    }
+    if (best == null) return null;
+    return +(best - baseW).toFixed(1);
+  }
+
+  const events = [];
+
+  // 1. Cycle starts (and ends)
+  let cycles = [];
+  try { cycles = JSON.parse(localStorage.getItem('tp_cycles') || '[]'); } catch {}
+  for (const c of cycles) {
+    if (!c || !c.startDate) continue;
+    events.push({
+      date: c.startDate,
+      type: 'cycle-start',
+      icon: '▶️',
+      color: 'rgba(52,211,153,0.35)',
+      label: 'Started ' + (c.compound || 'compound'),
+      detail: (c.weeks ? `${c.weeks}-week cycle` : 'cycle start') + (c.active === false ? ' (paused)' : ''),
+    });
+    if (c.weeks && c.active !== false) {
+      const end = new Date(c.startDate + 'T00:00:00');
+      end.setDate(end.getDate() + c.weeks * 7);
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      if (end <= today) {
+        events.push({
+          date: end.toISOString().slice(0, 10),
+          type: 'cycle-end',
+          icon: '⏹️',
+          color: 'rgba(251,146,60,0.35)',
+          label: 'Ended ' + (c.compound || 'compound'),
+          detail: 'cycle complete after ' + c.weeks + ' weeks',
+        });
+      }
+    }
+  }
+
+  // 2. Labs
+  let labs = [];
+  try { labs = JSON.parse(localStorage.getItem('tp_labs') || '[]'); } catch {}
+  for (const l of labs) {
+    if (!l || !l.date) continue;
+    events.push({
+      date: l.date,
+      type: 'lab',
+      icon: '🧪',
+      color: 'rgba(168,85,247,0.35)',
+      label: 'Lab: ' + (l.marker || l.label || 'panel'),
+      detail: (l.value != null ? String(l.value) + (l.unit ? ' ' + l.unit : '') : '') + (l.notes ? ' · ' + l.notes : ''),
+    });
+  }
+
+  // 3. Measurements (group by date — one event per date, not one per tape)
+  let meas = [];
+  try { meas = JSON.parse(localStorage.getItem('tp_meas') || '[]'); } catch {}
+  for (const m of meas) {
+    if (!m || !m.date) continue;
+    const parts = [];
+    if (m.waist != null) parts.push('waist ' + m.waist + '"');
+    if (m.chest != null) parts.push('chest ' + m.chest + '"');
+    if (m.hips != null) parts.push('hips ' + m.hips + '"');
+    events.push({
+      date: m.date,
+      type: 'measurement',
+      icon: '📏',
+      color: 'rgba(56,189,248,0.35)',
+      label: 'Measurements recorded',
+      detail: parts.slice(0, 3).join(' · ') || 'tape measurements',
+    });
+  }
+
+  // 4. Symptoms (only noteworthy ones — intensity ≥ 2 if the schema has it; otherwise all)
+  let symptoms = [];
+  try { symptoms = JSON.parse(localStorage.getItem('tp_symptoms') || '[]'); } catch {}
+  for (const s of symptoms) {
+    if (!s || !s.date) continue;
+    const intensity = Number(s.intensity);
+    if (Number.isFinite(intensity) && intensity < 2) continue;
+    events.push({
+      date: s.date,
+      type: 'symptom',
+      icon: '⚠️',
+      color: 'rgba(251,191,36,0.35)',
+      label: 'Symptom: ' + (s.name || s.symptom || 'flagged'),
+      detail: (s.notes || s.note || '') + (Number.isFinite(intensity) ? ' · intensity ' + intensity : ''),
+    });
+  }
+
+  // 5. Weight milestones (crossing a 5-lb boundary downward)
+  const milestonesHit = new Set();
+  let prevW = null;
+  for (const e of entries) {
+    const w = +e.weight;
+    if (prevW != null) {
+      // Crossed any 5-lb floor (e.g., 315 → 314.7 crosses 315)
+      const floorPrev = Math.floor(prevW / 5) * 5;
+      const floorCur = Math.floor(w / 5) * 5;
+      if (floorCur < floorPrev) {
+        const mile = floorPrev;
+        if (!milestonesHit.has(mile)) {
+          milestonesHit.add(mile);
+          events.push({
+            date: e.date,
+            type: 'milestone',
+            icon: '🏁',
+            color: 'rgba(34,211,238,0.35)',
+            label: 'Crossed ' + mile + ' lb',
+            detail: 'first time below ' + mile + ' lb · ' + w + ' lb',
+          });
+        }
+      }
+    }
+    prevW = w;
+  }
+
+  // Attach 7-day and 14-day weight impact to each event
+  for (const ev of events) {
+    ev.impact7 = impactAfter(ev.date, 7);
+    ev.impact14 = impactAfter(ev.date, 14);
+  }
+
+  // Sort descending (newest first)
+  events.sort((a, b) => b.date.localeCompare(a.date));
+  return events;
+}
+
+function _fmtImpact(delta) {
+  if (delta == null) return '<span style="color:var(--muted);">no weigh-ins nearby</span>';
+  const cls = delta < 0 ? 'pos' : (delta > 0 ? 'neg' : 'neutral');
+  const sign = delta > 0 ? '+' : '';
+  const color = delta < 0 ? '#34d399' : (delta > 0 ? '#f87171' : 'var(--muted)');
+  return `<span style="color:${color};font-weight:700;">${sign}${delta} lb</span>`;
+}
+
+function renderChangeTimeline(entries) {
+  const el = document.getElementById('changeTimeline');
+  if (!el) return;
+  const events = buildChangeTimeline({ entries });
+  if (!events.length) {
+    el.innerHTML = '<div class="empty-state">No interventions logged yet. Cycle starts, labs, measurements, and milestone crossings will show up here once you have history.</div>';
+    return;
+  }
+
+  const rows = events.slice(0, 30).map(ev => `
+    <div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);align-items:flex-start;">
+      <div style="font-size:20px;flex:none;width:28px;text-align:center;">${ev.icon}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <span style="font-size:11px;color:var(--muted);font-family:monospace;">${_escHtml(ev.date)}</span>
+          <span style="font-size:13px;font-weight:700;color:var(--text);">${_escHtml(ev.label)}</span>
+        </div>
+        ${ev.detail ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">${_escHtml(ev.detail)}</div>` : ''}
+        <div style="font-size:11px;margin-top:4px;color:var(--muted);">
+          7d: ${_fmtImpact(ev.impact7)} &nbsp;·&nbsp; 14d: ${_fmtImpact(ev.impact14)}
+        </div>
+      </div>
+    </div>`).join('');
+
+  const more = events.length > 30 ? `<div style="font-size:11px;color:var(--muted);text-align:center;padding:8px 0 0;">+ ${events.length - 30} older event${events.length - 30 === 1 ? '' : 's'} not shown</div>` : '';
+  el.innerHTML = rows + more;
+}
+
+if (typeof window !== 'undefined') {
+  window.buildChangeTimeline = buildChangeTimeline;
+  window.renderChangeTimeline = renderChangeTimeline;
 }
 
 // =========================================================
