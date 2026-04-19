@@ -1426,7 +1426,7 @@
       </div>
     </div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;" id="coachIntro">
-      Bundles your last 14 days of data + protocol context into a coaching prompt. Copy into <a href="https://claude.ai" target="_blank" rel="noopener" style="color:var(--accent);">claude.ai</a>, or add an API key in Settings for inline replies.
+      Bundles your last 14 days of data + protocol context into a coaching prompt. Copy into <a href="https://claude.ai" target="_blank" rel="noopener" style="color:var(--accent);">Claude</a> or <a href="https://chatgpt.com" target="_blank" rel="noopener" style="color:var(--accent);">ChatGPT</a>, or add an API key in Settings for inline replies.
     </div>
     <div id="coachPresetGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:10px;"></div>
     <div id="coachReplyPanel" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px;">
@@ -1503,26 +1503,51 @@
 
   <!-- COACH SETTINGS MODAL -->
   <div id="coachSettingsOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:320;align-items:center;justify-content:center;">
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;width:100%;max-width:500px;max-height:90vh;overflow:auto;">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;width:100%;max-width:560px;max-height:90vh;overflow:auto;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
         <div style="font-size:16px;font-weight:800;">🤖 AI Coach — Inline Settings</div>
         <button onclick="closeCoachSettings()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
       </div>
       <div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.3);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--text);margin-bottom:16px;line-height:1.5;">
-        ⚠ Your API key is stored in this browser's localStorage. Anyone with physical access to this device could read it. Use a key with billing limits set on <a href="https://console.anthropic.com" target="_blank" rel="noopener" style="color:var(--accent);">console.anthropic.com</a>. You can also just keep using the Copy workflow — no key required.
+        ⚠ Your API key is stored in this browser's localStorage. Anyone with physical access to this device could read it. Use a key with billing limits set on <a href="https://console.anthropic.com" target="_blank" rel="noopener" style="color:var(--accent);">console.anthropic.com</a> or <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style="color:var(--accent);">platform.openai.com</a>. You can also just keep using the Copy workflow — no key required.
       </div>
       <div class="field" style="margin-bottom:14px;">
-        <label>Anthropic API Key</label>
-        <input type="password" id="coachApiKey" placeholder="sk-ant-api03-…" style="width:100%;" autocomplete="off">
-        <div style="font-size:10px;color:var(--muted);margin-top:4px;">Get one at console.anthropic.com/settings/keys</div>
-      </div>
-      <div class="field" style="margin-bottom:14px;">
-        <label>Model</label>
-        <select id="coachModel" style="width:100%;">
-          <option value="claude-opus-4-7">Claude Opus 4.7 — most capable (default)</option>
-          <option value="claude-sonnet-4-6">Claude Sonnet 4.6 — balanced</option>
-          <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — fastest, cheapest</option>
+        <label>AI Provider</label>
+        <select id="coachProvider" style="width:100%;" onchange="onCoachProviderChange()">
+          <option value="anthropic">Claude (Anthropic)</option>
+          <option value="openai">ChatGPT (OpenAI)</option>
         </select>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">Used for inline coach replies, weekly reports, and lab PDF extraction.</div>
+      </div>
+      <div id="coachAnthropicFields">
+        <div class="field" style="margin-bottom:14px;">
+          <label>Anthropic API Key</label>
+          <input type="password" id="coachApiKey" placeholder="sk-ant-api03-..." style="width:100%;" autocomplete="off">
+          <div style="font-size:10px;color:var(--muted);margin-top:4px;">Get one at console.anthropic.com/settings/keys</div>
+        </div>
+        <div class="field" style="margin-bottom:14px;">
+          <label>Claude Model</label>
+          <select id="coachModel" style="width:100%;">
+            <option value="claude-opus-4-7">Claude Opus 4.7 - most capable (default)</option>
+            <option value="claude-sonnet-4-6">Claude Sonnet 4.6 - balanced</option>
+            <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 - fastest, cheapest</option>
+          </select>
+        </div>
+      </div>
+      <div id="coachOpenaiFields" style="display:none;">
+        <div class="field" style="margin-bottom:14px;">
+          <label>OpenAI API Key</label>
+          <input type="password" id="coachOpenaiApiKey" placeholder="sk-..." style="width:100%;" autocomplete="off">
+          <div style="font-size:10px;color:var(--muted);margin-top:4px;">Get one at platform.openai.com/api-keys. OpenAI recommends server-side storage for production apps.</div>
+        </div>
+        <div class="field" style="margin-bottom:14px;">
+          <label>ChatGPT Model</label>
+          <select id="coachOpenaiModel" style="width:100%;">
+            <option value="gpt-5.4-mini">GPT-5.4 mini - recommended balance</option>
+            <option value="gpt-5.4">GPT-5.4 - most capable</option>
+            <option value="gpt-5.4-nano">GPT-5.4 nano - lowest cost</option>
+          </select>
+        </div>
       </div>
       <div class="field" style="margin-bottom:14px;">
         <label>Max response tokens</label>
@@ -1771,7 +1796,7 @@
       <div class="card-title" style="margin-bottom:0">🧪 Lab Results</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;">
         <span id="labsReminder" style="font-size:11px;color:var(--muted);align-self:center;"></span>
-        <label class="btn btn-ghost" style="font-size:11px;padding:5px 12px;cursor:pointer;" title="Upload a PDF or photo of your lab report — Claude will extract the values for you to review.">
+        <label class="btn btn-ghost" style="font-size:11px;padding:5px 12px;cursor:pointer;" title="Upload a PDF or photo of your lab report - your selected AI provider will extract the values for review.">
           📄 Upload PDF
           <input type="file" accept=".pdf,application/pdf,.jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp" onchange="handleLabPdfUpload(event)" style="display:none;">
         </label>
@@ -2158,8 +2183,19 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.29.0';
+const VERSION = '2.30.0';
 const VERSION_CHANGES = [
+  {
+    version: '2.30.0',
+    date: '2026-04-19',
+    summary: 'ChatGPT provider option for AI Coach and lab uploads',
+    details: [
+      'Added a provider selector for Claude/Anthropic or ChatGPT/OpenAI in AI Coach settings.',
+      'Added OpenAI API key and GPT-5.4 model choices for inline coach replies and weekly reports.',
+      'Routed lab PDF/image extraction through the selected provider, including OpenAI Responses API file and image inputs.',
+      'Made lab extraction warnings, status text, and copy workflow provider-aware.',
+    ],
+  },
   {
     version: '2.29.0',
     date: '2026-04-19',
@@ -2600,7 +2636,7 @@ function restoreCoachThread() {
   showCoachReply({
     thread: t,
     settings,
-    meta: `${preset?.label || t.promptKey} · ${settings.model || 'opus-4-7'} · restored`,
+    meta: `${preset?.label || t.promptKey} - ${coachProviderStatus(settings)} - restored`,
   });
 }
 
@@ -6133,7 +6169,7 @@ function copyCoachBundle(promptKey) {
     ta.select();
     try { document.execCommand('copy'); } finally { document.body.removeChild(ta); }
   };
-  const done = () => showToast(`✓ Coach briefing copied (${text.length.toLocaleString()} chars) — paste into claude.ai`, 4000);
+  const done = () => showToast(`✓ Coach briefing copied (${text.length.toLocaleString()} chars) — paste into Claude or ChatGPT`, 4000);
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(done, () => { fallback(); done(); });
   } else {
@@ -6142,8 +6178,13 @@ function copyCoachBundle(promptKey) {
 }
 
 // =========================================================
-// AI COACH — INLINE (direct Anthropic API call from browser)
+// AI COACH — INLINE (direct provider API call from browser)
 // =========================================================
+const COACH_DEFAULT_PROVIDER = 'anthropic';
+const COACH_DEFAULT_ANTHROPIC_MODEL = 'claude-opus-4-7';
+const COACH_DEFAULT_ANTHROPIC_LAB_MODEL = 'claude-sonnet-4-6';
+const COACH_DEFAULT_OPENAI_MODEL = 'gpt-5.4-mini';
+
 const COACH_PRESETS = [
   { key: 'weekly',   label: '📊 Weekly Review',     primary: true },
   { key: 'plateau',  label: '📉 Troubleshoot Plateau' },
@@ -6159,9 +6200,32 @@ function loadCoachSettings() {
 function saveCoachSettingsObj(s) {
   localStorage.setItem('tp_coach_settings', JSON.stringify(s));
 }
+function getCoachProvider(settings = loadCoachSettings()) {
+  return settings && settings.provider === 'openai' ? 'openai' : COACH_DEFAULT_PROVIDER;
+}
+function getCoachProviderLabel(provider) {
+  return provider === 'openai' ? 'ChatGPT' : 'Claude';
+}
+function getActiveCoachKey(settings = loadCoachSettings()) {
+  return getCoachProvider(settings) === 'openai' ? (settings.openaiApiKey || '') : (settings.apiKey || '');
+}
+function getActiveCoachModel(settings = loadCoachSettings(), purpose = 'coach') {
+  if (getCoachProvider(settings) === 'openai') return settings.openaiModel || COACH_DEFAULT_OPENAI_MODEL;
+  if (purpose === 'lab') return settings.model || COACH_DEFAULT_ANTHROPIC_LAB_MODEL;
+  return settings.model || COACH_DEFAULT_ANTHROPIC_MODEL;
+}
+function coachKeyLooksValid(provider, key) {
+  if (!key) return false;
+  return provider === 'openai' ? key.startsWith('sk-') : key.startsWith('sk-ant-');
+}
+function coachProviderStatus(settings = loadCoachSettings()) {
+  const provider = getCoachProvider(settings);
+  return `${getCoachProviderLabel(provider)} - ${getActiveCoachModel(settings)}`;
+}
 function hasCoachKey() {
   const s = loadCoachSettings();
-  return !!(s.apiKey && s.apiKey.startsWith('sk-ant-'));
+  const provider = getCoachProvider(s);
+  return coachKeyLooksValid(provider, getActiveCoachKey(s));
 }
 
 function renderCoachPresets() {
@@ -6171,7 +6235,7 @@ function renderCoachPresets() {
   const label = document.getElementById('coachModeLabel');
   if (label) {
     const s = loadCoachSettings();
-    label.textContent = inline ? `Inline · ${s.model || 'opus-4-7'}` : 'Copy mode';
+    label.textContent = inline ? `Inline - ${coachProviderStatus(s)}` : 'Copy mode';
     label.style.color = inline ? 'var(--green)' : 'var(--muted)';
   }
   grid.innerHTML = COACH_PRESETS.map(p => {
@@ -6188,20 +6252,34 @@ function renderCoachPresets() {
 
 function openCoachSettings() {
   const s = loadCoachSettings();
+  document.getElementById('coachProvider').value = getCoachProvider(s);
   document.getElementById('coachApiKey').value = s.apiKey || '';
-  document.getElementById('coachModel').value = s.model || 'claude-opus-4-7';
+  document.getElementById('coachModel').value = s.model || COACH_DEFAULT_ANTHROPIC_MODEL;
+  document.getElementById('coachOpenaiApiKey').value = s.openaiApiKey || '';
+  document.getElementById('coachOpenaiModel').value = s.openaiModel || COACH_DEFAULT_OPENAI_MODEL;
   document.getElementById('coachMaxTokens').value = s.maxTokens || 2000;
   document.getElementById('coachAutoWeekly').checked = !!s.autoWeekly;
   document.getElementById('coachReviewDay').value = String(s.reviewDay ?? 0);
   document.getElementById('coachSettingsStatus').innerHTML = '';
+  onCoachProviderChange();
   document.getElementById('coachSettingsOverlay').style.display = 'flex';
+}
+function onCoachProviderChange() {
+  const provider = document.getElementById('coachProvider')?.value || COACH_DEFAULT_PROVIDER;
+  const anthropicFields = document.getElementById('coachAnthropicFields');
+  const openaiFields = document.getElementById('coachOpenaiFields');
+  if (anthropicFields) anthropicFields.style.display = provider === 'anthropic' ? 'block' : 'none';
+  if (openaiFields) openaiFields.style.display = provider === 'openai' ? 'block' : 'none';
 }
 function closeCoachSettings() {
   document.getElementById('coachSettingsOverlay').style.display = 'none';
 }
 function saveCoachSettings() {
+  const provider = document.getElementById('coachProvider').value || COACH_DEFAULT_PROVIDER;
   const apiKey = document.getElementById('coachApiKey').value.trim();
   const model = document.getElementById('coachModel').value;
+  const openaiApiKey = document.getElementById('coachOpenaiApiKey').value.trim();
+  const openaiModel = document.getElementById('coachOpenaiModel').value;
   const maxTokens = parseInt(document.getElementById('coachMaxTokens').value, 10) || 2000;
   const autoWeekly = document.getElementById('coachAutoWeekly').checked;
   const reviewDay = parseInt(document.getElementById('coachReviewDay').value, 10) || 0;
@@ -6210,10 +6288,17 @@ function saveCoachSettings() {
     status.innerHTML = `<span style="color:#ef4444;">⚠ Key should start with "sk-ant-". Double-check and paste again.</span>`;
     return;
   }
+  if (openaiApiKey && !openaiApiKey.startsWith('sk-')) {
+    status.innerHTML = `<span style="color:#ef4444;">⚠ OpenAI key should start with "sk-". Double-check and paste again.</span>`;
+    return;
+  }
   const prev = loadCoachSettings();
-  saveCoachSettingsObj({ ...prev, apiKey, model, maxTokens, autoWeekly, reviewDay });
+  saveCoachSettingsObj({ ...prev, provider, apiKey, model, openaiApiKey, openaiModel, maxTokens, autoWeekly, reviewDay });
   renderCoachPresets();
-  status.innerHTML = `<span style="color:var(--green);">✓ Saved. Inline coach is now active.</span>`;
+  const activeKey = provider === 'openai' ? openaiApiKey : apiKey;
+  status.innerHTML = activeKey
+    ? `<span style="color:var(--green);">✓ Saved. Inline coach is now using ${getCoachProviderLabel(provider)}.</span>`
+    : `<span style="color:var(--muted);">Saved. Add a ${getCoachProviderLabel(provider)} API key to enable inline replies.</span>`;
   setTimeout(() => { closeCoachSettings(); checkScheduledReview(); }, 800);
 }
 function clearCoachSettings() {
@@ -6221,19 +6306,41 @@ function clearCoachSettings() {
   localStorage.removeItem('tp_coach_settings');
   localStorage.removeItem('tp_coach_thread');
   document.getElementById('coachApiKey').value = '';
+  document.getElementById('coachOpenaiApiKey').value = '';
   renderCoachPresets();
   clearCoachReply();
   document.getElementById('coachSettingsStatus').innerHTML = `<span style="color:var(--muted);">Cleared.</span>`;
 }
 async function testCoachKey() {
-  const apiKey = document.getElementById('coachApiKey').value.trim();
-  const model = document.getElementById('coachModel').value;
+  const provider = document.getElementById('coachProvider').value || COACH_DEFAULT_PROVIDER;
+  const apiKey = provider === 'openai'
+    ? document.getElementById('coachOpenaiApiKey').value.trim()
+    : document.getElementById('coachApiKey').value.trim();
+  const model = provider === 'openai'
+    ? document.getElementById('coachOpenaiModel').value
+    : document.getElementById('coachModel').value;
   const status = document.getElementById('coachSettingsStatus');
   if (!apiKey) { status.innerHTML = `<span style="color:#ef4444;">Paste a key first.</span>`; return; }
+  if (!coachKeyLooksValid(provider, apiKey)) {
+    status.innerHTML = `<span style="color:#ef4444;">⚠ That does not look like a ${getCoachProviderLabel(provider)} API key.</span>`;
+    return;
+  }
   status.innerHTML = `<span style="color:var(--muted);">Testing…</span>`;
   try {
-    const resp = await anthropicCall({ apiKey, model, maxTokens: 64, messages: [{ role: 'user', content: 'Reply with exactly: OK' }] });
-    const txt = (resp.content?.[0]?.text || '').trim();
+    let txt = '';
+    if (provider === 'openai') {
+      const resp = await openaiCall({
+        apiKey,
+        model,
+        maxTokens: 64,
+        instructions: 'Reply with exactly: OK',
+        input: [{ role: 'user', content: [{ type: 'input_text', text: 'Connection test.' }] }],
+      });
+      txt = openaiResponseText(resp);
+    } else {
+      const resp = await anthropicCall({ apiKey, model, maxTokens: 64, messages: [{ role: 'user', content: 'Reply with exactly: OK' }] });
+      txt = (resp.content?.[0]?.text || '').trim();
+    }
     status.innerHTML = `<span style="color:var(--green);">✓ Connection OK. Reply: "${txt}"</span>`;
   } catch (e) {
     status.innerHTML = `<span style="color:#ef4444;">✗ ${e.message}</span>`;
@@ -6262,6 +6369,66 @@ async function anthropicCall({ apiKey, model, maxTokens, messages, system }) {
     throw new Error(msg);
   }
   return await resp.json();
+}
+
+async function openaiCall({ apiKey, model, maxTokens, input, instructions }) {
+  const body = {
+    model,
+    input,
+    max_output_tokens: maxTokens,
+  };
+  if (instructions) body.instructions = instructions;
+  const resp = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'authorization': 'Bearer ' + apiKey,
+    },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    let msg = `HTTP ${resp.status}`;
+    try {
+      const err = await resp.json();
+      msg = err.error?.message || err.message || msg;
+    } catch {}
+    throw new Error(msg);
+  }
+  return await resp.json();
+}
+
+function openaiResponseText(resp) {
+  if (resp?.output_text) return String(resp.output_text).trim();
+  const chunks = [];
+  (resp?.output || []).forEach(item => {
+    (item.content || []).forEach(c => {
+      if (typeof c.text === 'string') chunks.push(c.text);
+      else if (typeof c.output_text === 'string') chunks.push(c.output_text);
+    });
+  });
+  return chunks.join('').trim();
+}
+
+function normalizeOpenaiUsage(resp) {
+  const u = resp?.usage || {};
+  return {
+    input_tokens: u.input_tokens || u.prompt_tokens || 0,
+    output_tokens: u.output_tokens || u.completion_tokens || 0,
+    total_tokens: u.total_tokens || 0,
+  };
+}
+
+function openaiCoachInputFromThread(messages) {
+  const transcript = (messages || [])
+    .map(m => `${m.role === 'assistant' ? 'Assistant' : 'User'}:\n${m.content || ''}`)
+    .join('\n\n');
+  return [{
+    role: 'user',
+    content: [{
+      type: 'input_text',
+      text: `Use this conversation transcript as context and answer the latest user message.\n\n${transcript}`,
+    }],
+  }];
 }
 
 async function anthropicStream({ apiKey, model, maxTokens, messages, system, onText, onDone, onError }) {
@@ -6343,6 +6510,9 @@ function saveCoachThread(thread) {
 
 async function runCoachTurn(thread, meta) {
   const settings = loadCoachSettings();
+  const provider = getCoachProvider(settings);
+  const apiKey = getActiveCoachKey(settings);
+  const model = getActiveCoachModel(settings);
   showCoachReply({ loading: true, meta });
 
   // Append a placeholder assistant turn we'll stream into
@@ -6358,9 +6528,31 @@ async function runCoachTurn(thread, meta) {
     showCoachReply({ thread, settings, streaming: true, meta });
   };
 
+  if (provider === 'openai') {
+    try {
+      const resp = await openaiCall({
+        apiKey,
+        model,
+        maxTokens: settings.maxTokens || 2000,
+        instructions: COACH_SYSTEM_PROMPT,
+        input: openaiCoachInputFromThread(thread.messages.slice(0, -1)),
+      });
+      const fullText = openaiResponseText(resp) || '(empty reply)';
+      thread.messages[streamingIdx].content = fullText;
+      thread.usage = normalizeOpenaiUsage(resp);
+      saveCoachThread(thread);
+      showCoachReply({ thread, settings, meta });
+    } catch (e) {
+      thread.messages.pop();
+      saveCoachThread(thread);
+      showCoachReply({ error: e.message });
+    }
+    return;
+  }
+
   await anthropicStream({
-    apiKey: settings.apiKey,
-    model: settings.model || 'claude-opus-4-7',
+    apiKey,
+    model,
     maxTokens: settings.maxTokens || 2000,
     system: COACH_SYSTEM_PROMPT,
     messages: thread.messages.slice(0, -1), // don't send the empty placeholder
@@ -6382,7 +6574,7 @@ async function runCoachTurn(thread, meta) {
 
 async function askCoach(promptKey) {
   const settings = loadCoachSettings();
-  if (!settings.apiKey) { openCoachSettings(); return; }
+  if (!hasCoachKey()) { openCoachSettings(); return; }
   const briefing = buildCoachBundle(promptKey);
   const thread = {
     startedAt: new Date().toISOString(),
@@ -6390,7 +6582,7 @@ async function askCoach(promptKey) {
     messages: [{ role: 'user', content: briefing }],
   };
   saveCoachThread(thread);
-  const meta = `${COACH_PRESETS.find(p => p.key === promptKey)?.label || promptKey} · ${settings.model}`;
+  const meta = `${COACH_PRESETS.find(p => p.key === promptKey)?.label || promptKey} - ${coachProviderStatus(settings)}`;
   await runCoachTurn(thread, meta);
 }
 
@@ -6404,7 +6596,7 @@ async function sendCoachFollowup() {
   thread.messages.push({ role: 'user', content: q });
   input.value = '';
   saveCoachThread(thread);
-  await runCoachTurn(thread, `Follow-up · ${settings.model}`);
+  await runCoachTurn(thread, `Follow-up - ${coachProviderStatus(settings)}`);
 }
 
 function showCoachReply({ text, loading, error, meta, thread, settings, streaming }) {
@@ -6555,7 +6747,8 @@ function renderWeeklyReport() {
   card.style.display = 'block';
   const gen = new Date(r.generatedAt);
   const meta = document.getElementById('weeklyReportMeta');
-  meta.textContent = `Week of ${r.weekKey} · generated ${relativeTime(gen)} · ${r.model || 'coach'}${r.streaming ? ' (streaming…)' : ''}`;
+  const modelLabel = r.provider ? `${getCoachProviderLabel(r.provider)} - ${r.model || 'coach'}` : (r.model || 'coach');
+  meta.textContent = `Week of ${r.weekKey} · generated ${relativeTime(gen)} · ${modelLabel}${r.streaming ? ' (streaming…)' : ''}`;
   document.getElementById('weeklyReportBody').innerHTML = renderMarkdown(r.text);
 }
 
@@ -6568,20 +6761,47 @@ function dismissWeeklyReport() {
 
 async function generateWeeklyReview(force = false) {
   const settings = loadCoachSettings();
-  if (!settings.apiKey) { showToast('Set an API key in Coach Settings first'); return; }
+  if (!hasCoachKey()) { showToast('Set an API key in Coach Settings first'); return; }
+  const provider = getCoachProvider(settings);
+  const apiKey = getActiveCoachKey(settings);
+  const model = getActiveCoachModel(settings);
   const weekKey = isoWeekKey();
   const existing = loadWeeklyReport();
   if (!force && existing && existing.weekKey === weekKey && existing.text) return;
 
   const briefing = buildCoachBundle('weekly');
-  const report = { weekKey, generatedAt: new Date().toISOString(), model: settings.model, text: '', streaming: true };
+  const report = { weekKey, generatedAt: new Date().toISOString(), provider, model, text: '', streaming: true };
   saveWeeklyReport(report);
   renderWeeklyReport();
 
+  if (provider === 'openai') {
+    try {
+      const resp = await openaiCall({
+        apiKey,
+        model,
+        maxTokens: settings.maxTokens || 2000,
+        instructions: COACH_SYSTEM_PROMPT,
+        input: [{ role: 'user', content: [{ type: 'input_text', text: briefing }] }],
+      });
+      report.text = openaiResponseText(resp) || '(empty reply)';
+      report.usage = normalizeOpenaiUsage(resp);
+      report.streaming = false;
+      saveWeeklyReport(report);
+      renderWeeklyReport();
+      showToast('✓ Weekly report ready');
+    } catch (e) {
+      report.text = `⚠ Generation failed: ${e.message}`;
+      report.streaming = false;
+      saveWeeklyReport(report);
+      renderWeeklyReport();
+    }
+    return;
+  }
+
   let lastRender = 0;
   await anthropicStream({
-    apiKey: settings.apiKey,
-    model: settings.model || 'claude-opus-4-7',
+    apiKey,
+    model,
     maxTokens: settings.maxTokens || 2000,
     system: COACH_SYSTEM_PROMPT,
     messages: [{ role: 'user', content: briefing }],
@@ -6613,7 +6833,7 @@ async function generateWeeklyReview(force = false) {
 function checkScheduledReview() {
   renderWeeklyReport();
   const settings = loadCoachSettings();
-  if (!settings.apiKey || !settings.autoWeekly) return;
+  if (!hasCoachKey() || !settings.autoWeekly) return;
   const now = new Date();
   const scheduledDay = settings.reviewDay ?? 0;
   // Only run if today is ≥ scheduled day within the current week
@@ -7248,22 +7468,21 @@ function deleteLab(ts) {
 }
 
 // =========================================================
-// LAB PDF EXTRACTION + AI OVERVIEW (v2.29.0)
-// Upload a PDF or photo of a lab report → Claude Vision extracts
+// LAB PDF EXTRACTION + AI OVERVIEW (v2.30.0)
+// Upload a PDF or photo of a lab report → selected AI provider extracts
 // structured rows → user reviews and applies.
 //
-// Security note: the file is sent directly to Anthropic's API
+// Security note: the file is sent directly to the selected provider API
 // from the browser using the user's saved API key (tp_coach_settings).
 // Nothing is stored server-side by us. The file never leaves the
-// browser except to go straight to Anthropic.
+// browser except to go straight to Anthropic or OpenAI.
 //
-// Cost note: PDFs are ~$0.03–0.10 per page with Claude Sonnet 4.
-// A typical lab report (2–4 pages) is pennies. Multi-page panels
-// up to ~100 pages / 32 MB are accepted by the API.
+// Cost note: PDFs consume image+text tokens. A typical lab report
+// (2-4 pages) is usually low cost, but long panels can add up.
 // =========================================================
 const LAB_EXTRACT_MAX_MB = 22;
-// Anthropic review note: the API limit applies to the whole JSON request, and
-// base64 adds roughly 33%, so keep the raw file well below the 32 MB cap.
+// Anthropic/OpenAI review note: provider limits apply to the whole JSON request,
+// and base64 adds roughly 33%, so keep the raw file well below the tightest cap.
 const LAB_EXTRACT_MAX_BYTES = LAB_EXTRACT_MAX_MB * 1024 * 1024;
 const LAB_EXTRACT_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 const LAB_EXTRACT_IMAGE_EXT_MIMES = {
@@ -7358,7 +7577,7 @@ async function handleLabPdfUpload(ev) {
 
   // Basic validation
   const isPdf = /\/pdf$/i.test(file.type) || /\.pdf$/i.test(file.name);
-  // Anthropic review note: Messages image blocks support JPEG, PNG, GIF, and WebP.
+  // Anthropic/OpenAI review note: both providers support JPEG, PNG, GIF, and WebP.
   // Reject HEIC/TIFF/SVG/etc. before reading and uploading a file that the API will refuse.
   const imageMime = _supportedLabImageMime(file);
   const isImg = !!imageMime;
@@ -7371,14 +7590,17 @@ async function handleLabPdfUpload(ev) {
     return;
   }
 
-  // Must have an Anthropic API key configured (same key as AI Coach)
+  // Must have the selected provider API key configured (same settings as AI Coach)
   const settings = loadCoachSettings();
-  if (!settings.apiKey) {
+  const provider = getCoachProvider(settings);
+  const providerLabel = getCoachProviderLabel(provider);
+  const activeKey = getActiveCoachKey(settings);
+  if (!coachKeyLooksValid(provider, activeKey)) {
     openLabExtract();
     document.getElementById('labExtractStatus').innerHTML = `
       <div style="padding:14px;background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.25);border-radius:8px;color:#eab308;line-height:1.55;">
         <div style="font-weight:700;margin-bottom:6px;">⚠ AI Coach API key required</div>
-        <div style="font-size:11px;">PDF extraction sends the file directly to Anthropic for OCR + structured parsing. Add your API key in the AI Coach card's ⚙ Settings (above), then try again. Free workflow: use "+ Add Result" to enter values manually.</div>
+        <div style="font-size:11px;">PDF extraction sends the file directly to ${escapeHtml(providerLabel)} for OCR + structured parsing. Select Claude or ChatGPT and add that API key in the AI Coach card's ⚙ Settings (above), then try again. Free workflow: use "+ Add Result" to enter values manually.</div>
       </div>`;
     document.getElementById('labExtractBody').innerHTML = '';
     document.getElementById('labExtractActions').style.display = 'none';
@@ -7398,9 +7620,6 @@ async function handleLabPdfUpload(ev) {
   try {
     const base64 = await _fileToBase64(file);
     const mediaType = isPdf ? 'application/pdf' : imageMime;
-    const contentBlock = isPdf
-      ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }
-      : { type: 'image',    source: { type: 'base64', media_type: mediaType, data: base64 } };
 
     const markersDesc = LAB_MARKERS
       .filter(m => m.key !== 'custom')
@@ -7432,27 +7651,25 @@ Rules:
 
     const userText = `Extract all lab results from this report and provide a cautious AI overview. Return JSON only.`;
 
-    const resp = await anthropicCall({
-      apiKey: settings.apiKey,
-      model: settings.model || 'claude-sonnet-4-6',
-      maxTokens: 6000,
+    const aiResp = await _callLabExtractProvider({
+      settings,
+      file,
+      base64,
+      isPdf,
+      mediaType,
       system,
-      messages: [{
-        role: 'user',
-        content: [contentBlock, { type: 'text', text: userText }],
-      }],
+      userText,
     });
 
-    // Anthropic returns { content: [{type:'text', text:'...'}, ...], usage: {...} }
-    const rawText = (resp.content || []).filter(c => c.type === 'text').map(c => c.text).join('').trim();
+    const rawText = aiResp.text;
     const parsed = _extractJson(rawText);
     if (!parsed || !Array.isArray(parsed.results)) {
-      throw new Error('Claude returned unexpected output. See browser console for details.');
+      throw new Error(`${aiResp.providerLabel} returned unexpected output. See browser console for details.`);
     }
-    console.log('[labExtract] raw:', rawText);
+    console.log('[labExtract] provider:', aiResp.provider, 'raw:', rawText);
     console.log('[labExtract] parsed:', parsed);
 
-    _renderLabExtractPreview(parsed, resp.usage);
+    _renderLabExtractPreview(parsed, aiResp.usage, aiResp.providerLabel);
   } catch (e) {
     document.getElementById('labExtractStatus').innerHTML = `
       <div style="padding:14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#ef4444;line-height:1.55;">
@@ -7483,7 +7700,74 @@ function _guessImageMime(name) {
   return LAB_EXTRACT_IMAGE_EXT_MIMES[ext] || '';
 }
 
-// Claude sometimes wraps JSON in ```json fences despite instructions. Be lenient.
+function _safeAiUploadFilename(file, fallback) {
+  return String(file?.name || fallback || 'upload')
+    .replace(/[^\w.\- ()]/g, '_')
+    .slice(0, 120) || fallback || 'upload';
+}
+
+async function _callLabExtractProvider({ settings, file, base64, isPdf, mediaType, system, userText }) {
+  const provider = getCoachProvider(settings);
+  const apiKey = getActiveCoachKey(settings);
+  const model = getActiveCoachModel(settings, 'lab');
+
+  if (provider === 'openai') {
+    const content = [];
+    if (isPdf) {
+      // Anthropic review note: OpenAI Responses accepts PDF input_file content
+      // with raw base64 bytes; images use data URLs via input_image.
+      content.push({
+        type: 'input_file',
+        filename: _safeAiUploadFilename(file, 'lab-report.pdf'),
+        file_data: base64,
+      });
+    } else {
+      content.push({
+        type: 'input_image',
+        image_url: `data:${mediaType};base64,${base64}`,
+        detail: 'high',
+      });
+    }
+    content.push({ type: 'input_text', text: userText });
+    const resp = await openaiCall({
+      apiKey,
+      model,
+      maxTokens: 6000,
+      instructions: system,
+      input: [{ role: 'user', content }],
+    });
+    return {
+      provider,
+      providerLabel: getCoachProviderLabel(provider),
+      raw: resp,
+      text: openaiResponseText(resp),
+      usage: normalizeOpenaiUsage(resp),
+    };
+  }
+
+  const contentBlock = isPdf
+    ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }
+    : { type: 'image',    source: { type: 'base64', media_type: mediaType, data: base64 } };
+  const resp = await anthropicCall({
+    apiKey,
+    model,
+    maxTokens: 6000,
+    system,
+    messages: [{
+      role: 'user',
+      content: [contentBlock, { type: 'text', text: userText }],
+    }],
+  });
+  return {
+    provider,
+    providerLabel: getCoachProviderLabel(provider),
+    raw: resp,
+    text: (resp.content || []).filter(c => c.type === 'text').map(c => c.text).join('').trim(),
+    usage: resp.usage,
+  };
+}
+
+// Models sometimes wrap JSON in ```json fences despite instructions. Be lenient.
 function _extractJson(text) {
   if (!text) return null;
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -7498,7 +7782,7 @@ function _extractJson(text) {
   return null;
 }
 
-// Normalize Claude's output into our schema, mapping unknown markers to "custom".
+// Normalize model output into our schema, mapping unknown markers to "custom".
 function _normalizeExtractedRow(row, fallbackDate) {
   const knownKeys = new Set(LAB_MARKERS.map(m => m.key));
   let markerKey = (row.marker || '').toLowerCase().trim();
@@ -7614,7 +7898,7 @@ function _renderLabOverviewHtml(record, opts = {}) {
     </div>`;
 }
 
-function _renderLabExtractPreview(parsed, usage) {
+function _renderLabExtractPreview(parsed, usage, providerLabel = 'AI') {
   const fallbackDate = _normalizeLabIsoDate(parsed.collectionDate || parsed.reportDate, _todayIsoDate());
   const rows = (parsed.results || [])
     .map(r => _normalizeExtractedRow({ ...r, date: r.date || fallbackDate }, fallbackDate))
@@ -7626,6 +7910,7 @@ function _renderLabExtractPreview(parsed, usage) {
     fallbackDate,
     reportDate: parsed.reportDate ? _normalizeLabIsoDate(parsed.reportDate, '') : '',
     overview,
+    providerLabel,
     usage,
   };
 
@@ -7637,7 +7922,7 @@ function _renderLabExtractPreview(parsed, usage) {
     statusEl.innerHTML = `
       <div style="padding:14px;background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.25);border-radius:8px;color:#eab308;line-height:1.55;">
         <div style="font-weight:700;margin-bottom:4px;">No lab values detected</div>
-        <div style="font-size:12px;">Claude read the document but didn't find any numeric lab results to extract. Try a clearer scan, a different page, or enter manually with "+ Add Result".</div>
+        <div style="font-size:12px;">${escapeHtml(providerLabel)} read the document but didn't find any numeric lab results to extract. Try a clearer scan, a different page, or enter manually with "+ Add Result".</div>
       </div>`;
     bodyEl.innerHTML = _renderLabOverviewHtml({ overview, collectionDate: fallbackDate }, { compact: true });
     actionsEl.style.display = 'none';
