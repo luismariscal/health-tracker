@@ -506,6 +506,8 @@
   .inj-btn.idle  { background: var(--surface); color: var(--muted); border: 1px solid var(--border); cursor: default; }
   .inj-history-row { display: flex; gap: 6px; flex-wrap: wrap; }
   .inj-hist-chip { font-size: 11px; padding: 3px 10px; border-radius: 20px; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); }
+  button.inj-hist-chip { cursor: pointer; font: inherit; }
+  button.inj-hist-chip:hover { border-color: var(--accent); color: var(--text); }
   .inj-hist-chip.full { background: rgba(34,197,94,0.12); color: var(--green); border-color: rgba(34,197,94,0.3); }
   .inj-hist-chip.partial { background: rgba(234,179,8,0.12); color: var(--yellow); border-color: rgba(234,179,8,0.3); }
 
@@ -1374,6 +1376,7 @@
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
       <div class="card-title" style="margin-bottom:0">Injection Tracker</div>
       <div style="display:flex;gap:6px;align-items:center;">
+        <button class="btn btn-ghost" onclick="openInjectionLogModal()" style="font-size:11px;padding:4px 10px;">+ Log / Edit</button>
         <button id="injNotifyBtn" class="btn btn-ghost" onclick="toggleInjectionNotifications()" style="font-size:11px;padding:4px 10px;"></button>
         <span id="injNextBadge" style="font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;"></span>
       </div>
@@ -2115,6 +2118,50 @@
   </div>
 </div>
 
+<!-- PEPTIDE / INJECTION LOG EDITOR MODAL (v2.30.3) -->
+<div id="injLogModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:312;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;width:100%;max-width:560px;max-height:90vh;overflow:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+      <div style="font-size:16px;font-weight:800;" id="injLogModalTitle">Edit Peptide Injection</div>
+      <button onclick="closeInjectionLogModal()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted);line-height:1.45;margin-bottom:14px;">
+      Edit the peptide, site, dose, date, and time for an injection log entry. Moving the date will move the saved entry.
+    </div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Peptide / Compound</label>
+        <select id="injLogCompound" onchange="onInjectionLogCompoundChange()"></select>
+      </div>
+      <div class="field">
+        <label>Dose</label>
+        <input id="injLogDose" type="text" placeholder="4 mg">
+      </div>
+      <div class="field">
+        <label>Date</label>
+        <input id="injLogDate" type="date">
+      </div>
+      <div class="field">
+        <label>Time</label>
+        <input id="injLogTime" type="time">
+      </div>
+      <div class="field">
+        <label>Injection Site</label>
+        <select id="injLogSite"></select>
+      </div>
+    </div>
+    <div class="field" style="margin-top:12px;">
+      <label>Notes</label>
+      <textarea id="injLogNotes" rows="3" placeholder="Optional notes, reaction, needle size, etc."></textarea>
+    </div>
+    <div class="form-actions" style="margin-top:16px;">
+      <button class="btn btn-primary" onclick="saveInjectionLogModal()">Save Entry</button>
+      <button class="btn btn-ghost" onclick="closeInjectionLogModal()">Cancel</button>
+      <button class="btn btn-danger" id="injLogDeleteBtn" style="margin-left:auto;display:none;" onclick="deleteInjectionLogModal()">Delete</button>
+    </div>
+  </div>
+</div>
+
 <!-- INJECTION SITE PICKER MODAL -->
 <div id="sitePickerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:310;align-items:center;justify-content:center;">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;width:100%;max-width:520px;">
@@ -2183,8 +2230,18 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.30.2';
+const VERSION = '2.30.3';
 const VERSION_CHANGES = [
+  {
+    version: '2.30.3',
+    date: '2026-04-19',
+    summary: 'Editable peptide injection log dates and times',
+    details: [
+      'Added a peptide/injection editor for logged compounds, site, dose, notes, date, and time.',
+      'Made recent injection log chips clickable so past peptide entries can be edited directly.',
+      'Kept explicit review comments in the new editor code explaining date moves and inventory behavior.',
+    ],
+  },
   {
     version: '2.30.2',
     date: '2026-04-19',
@@ -5687,21 +5744,142 @@ function isInjLogged(entry) {
 function getInjSite(entry) {
   return entry && typeof entry === 'object' ? entry.site : null;
 }
+function getInjDose(entry, compoundKey) {
+  const fallback = INJ_COMPOUNDS.find(c => c.key === compoundKey)?.dose || '';
+  return entry && typeof entry === 'object' && entry.dose ? entry.dose : fallback;
+}
+function getInjTime(entry) {
+  if (entry && typeof entry === 'object' && /^\d{2}:\d{2}$/.test(entry.time || '')) return entry.time;
+  if (entry && typeof entry === 'object' && entry.ts) return _injTimeKey(new Date(entry.ts));
+  return _injTimeKey(new Date());
+}
+function getInjNotes(entry) {
+  return entry && typeof entry === 'object' ? (entry.notes || '') : '';
+}
+function _injDateKey(d = new Date()) {
+  const dt = d instanceof Date ? d : new Date(d);
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+function _injTimeKey(d = new Date()) {
+  const dt = d instanceof Date ? d : new Date(d);
+  return `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+}
+function _injTimestamp(dateKey, timeKey) {
+  const dt = new Date(`${dateKey}T${timeKey || '12:00'}`);
+  return Number.isNaN(dt.getTime()) ? Date.now() : dt.getTime();
+}
+function _injEntryFor(dateKey, compoundKey) {
+  const log = loadInjLog();
+  return log?.[dateKey]?.[compoundKey];
+}
+function _injDeleteFromLog(log, dateKey, compoundKey) {
+  if (!log?.[dateKey]) return;
+  delete log[dateKey][compoundKey];
+  if (!Object.keys(log[dateKey]).length) delete log[dateKey];
+}
 
 function toggleInj(key) {
-  if (!isInjDay()) return;
   const log = loadInjLog();
   const dk  = todayKey();
   if (!log[dk]) log[dk] = {};
   if (isInjLogged(log[dk][key])) {
-    delete log[dk][key];
-    saveInjLog(log);
-    renderInjectionTracker();
-    renderSiteRotation();
+    openInjectionLogModal(dk, key);
+  } else if (!isInjDay()) {
+    openInjectionLogModal(_injDateKey(), key);
   } else {
     openSitePicker(key);
   }
 }
+
+let editingInjRef = null;
+function openInjectionLogModal(dateKey = _injDateKey(), compoundKey = null) {
+  const key = compoundKey || INJ_COMPOUNDS[0]?.key || '';
+  const entry = _injEntryFor(dateKey, key);
+  const isEdit = isInjLogged(entry);
+  editingInjRef = isEdit ? { dateKey, compoundKey: key } : null;
+
+  document.getElementById('injLogModalTitle').textContent = isEdit ? 'Edit Peptide Injection' : 'Log Peptide Injection';
+  document.getElementById('injLogCompound').innerHTML = INJ_COMPOUNDS.map(c =>
+    `<option value="${escapeHtml(c.key)}">${escapeHtml(c.name)}</option>`
+  ).join('');
+  document.getElementById('injLogSite').innerHTML = INJ_SITES.map(s =>
+    `<option value="${escapeHtml(s.key)}">${escapeHtml(s.label)}</option>`
+  ).join('');
+
+  document.getElementById('injLogCompound').value = key;
+  document.getElementById('injLogDate').value = dateKey || _injDateKey();
+  document.getElementById('injLogTime').value = getInjTime(entry);
+  document.getElementById('injLogDose').value = getInjDose(entry, key);
+  document.getElementById('injLogSite').value = getInjSite(entry) || recommendNextSite();
+  document.getElementById('injLogNotes').value = getInjNotes(entry);
+  document.getElementById('injLogDeleteBtn').style.display = isEdit ? 'inline-flex' : 'none';
+  document.getElementById('injLogModalOverlay').style.display = 'flex';
+}
+function closeInjectionLogModal() {
+  editingInjRef = null;
+  const ov = document.getElementById('injLogModalOverlay');
+  if (ov) ov.style.display = 'none';
+}
+function onInjectionLogCompoundChange() {
+  const key = document.getElementById('injLogCompound').value;
+  const dateKey = document.getElementById('injLogDate').value || _injDateKey();
+  const entry = _injEntryFor(dateKey, key);
+  document.getElementById('injLogDose').value = getInjDose(entry, key);
+  document.getElementById('injLogSite').value = getInjSite(entry) || recommendNextSite();
+  document.getElementById('injLogNotes').value = getInjNotes(entry);
+}
+function saveInjectionLogModal() {
+  const compoundKey = document.getElementById('injLogCompound').value;
+  const dateKey = document.getElementById('injLogDate').value || _injDateKey();
+  const timeKey = document.getElementById('injLogTime').value || _injTimeKey();
+  const dose = document.getElementById('injLogDose').value.trim();
+  const site = document.getElementById('injLogSite').value;
+  const notes = document.getElementById('injLogNotes').value.trim();
+  if (!compoundKey || !dateKey || !site) {
+    showToast('Pick a peptide, date, and site before saving.', 3500);
+    return;
+  }
+  const log = loadInjLog();
+
+  // Review note: editing may move a peptide injection across dates or compounds,
+  // so remove the original key first and then write the updated entry atomically.
+  if (editingInjRef) _injDeleteFromLog(log, editingInjRef.dateKey, editingInjRef.compoundKey);
+  if (!log[dateKey]) log[dateKey] = {};
+  log[dateKey][compoundKey] = {
+    done: true,
+    site,
+    dose,
+    time: timeKey,
+    ts: _injTimestamp(dateKey, timeKey),
+    notes,
+    updatedAt: Date.now(),
+  };
+  saveInjLog(log);
+
+  // Review note: manual edits do not decrement inventory, because changing a
+  // historical date/time should not accidentally consume stock a second time.
+  closeInjectionLogModal();
+  renderInjectionTracker();
+  renderSiteRotation();
+  showToast('✓ Peptide injection saved');
+}
+function deleteInjectionLogModal() {
+  if (!editingInjRef) return;
+  if (!confirm('Delete this peptide injection entry?')) return;
+  const log = loadInjLog();
+  _injDeleteFromLog(log, editingInjRef.dateKey, editingInjRef.compoundKey);
+  saveInjLog(log);
+  closeInjectionLogModal();
+  renderInjectionTracker();
+  renderSiteRotation();
+  showToast('Injection entry deleted');
+}
+document.getElementById('injLogModalOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeInjectionLogModal();
+});
 
 let pendingInjKey = null;
 function computeSiteHistory() {
@@ -5768,8 +5946,12 @@ function confirmSitePick(siteKey) {
   if (!pendingInjKey) return;
   const log = loadInjLog();
   const dk  = todayKey();
+  const now = new Date();
+  const compound = INJ_COMPOUNDS.find(c => c.key === pendingInjKey);
   if (!log[dk]) log[dk] = {};
-  log[dk][pendingInjKey] = { done: true, site: siteKey, ts: Date.now() };
+  // Review note: quick logging still represents a just-administered dose, so it
+  // captures the current time and keeps the existing inventory decrement hook.
+  log[dk][pendingInjKey] = { done: true, site: siteKey, dose: compound?.dose || '', time: _injTimeKey(now), ts: now.getTime() };
   saveInjLog(log);
   // Decrement inventory for this compound (v2.13.0)
   try {
@@ -5835,17 +6017,18 @@ function renderInjectionTracker() {
     const logged     = isInjLogged(entry);
     const site       = getInjSite(entry);
     const siteLabel  = site ? INJ_SITES.find(s => s.key === site)?.label || '' : '';
-    const stateClass = !isToday ? 'not-today' : logged ? 'logged' : '';
-    const btnClass   = !isToday ? 'idle' : logged ? 'done' : 'log';
-    const btnText    = !isToday ? 'Not today' : logged ? `✓ ${siteLabel || 'Logged'}` : 'Log Dose';
+    const stateClass = logged ? 'logged' : !isToday ? 'not-today' : '';
+    const btnClass   = logged ? 'done' : 'log';
+    const btnText    = logged ? `Edit ${siteLabel || 'logged dose'}` : isToday ? 'Log Dose' : 'Log Custom';
+    const meta       = logged ? `${getInjDose(entry, c.key)} · ${getInjTime(entry)}${siteLabel ? ' · ' + siteLabel : ''}` : `${c.dose} · Thu & Sun`;
     return `<div class="inj-item ${stateClass}">
       <div class="inj-name" style="color:${c.color}">${c.name}</div>
-      <div class="inj-dose-label">${c.dose} · Thu &amp; Sun</div>
+      <div class="inj-dose-label">${escapeHtml(meta)}</div>
       <button class="inj-btn ${btnClass}" onclick="toggleInj('${c.key}')">${btnText}</button>
     </div>`;
   }).join('');
 
-  // Recent history — last 8 injection days
+  // Recent history: clickable chips open the peptide editor on that exact date.
   const allDates = Object.keys(log).sort().reverse().slice(0, 8);
   const histRow  = document.getElementById('injHistoryRow');
   if (!allDates.length) {
@@ -5853,13 +6036,21 @@ function renderInjectionTracker() {
     renderSiteRotation();
     return;
   }
-  histRow.innerHTML = allDates.map(d => {
+  const chips = [];
+  allDates.forEach(d => {
     const entry  = log[d] || {};
-    const count  = INJ_COMPOUNDS.filter(c => isInjLogged(entry[c.key])).length;
+    const loggedCompounds = INJ_COMPOUNDS.filter(c => isInjLogged(entry[c.key]));
+    const count  = loggedCompounds.length;
     const cls    = count === INJ_COMPOUNDS.length ? 'full' : count > 0 ? 'partial' : '';
     const label  = new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' });
-    return `<span class="inj-hist-chip ${cls}">${label} ${count}/${INJ_COMPOUNDS.length}</span>`;
-  }).join('');
+    loggedCompounds.forEach(c => {
+      const info = entry[c.key];
+      const site = getInjSite(info);
+      const siteLabel = site ? INJ_SITES.find(s => s.key === site)?.label || site : '';
+      chips.push(`<button class="inj-hist-chip ${cls}" onclick="openInjectionLogModal(${escapeHtml(JSON.stringify(d))},${escapeHtml(JSON.stringify(c.key))})" title="Edit ${escapeHtml(c.name)} on ${escapeHtml(d)}">${escapeHtml(label)} · ${escapeHtml(c.name)} ${escapeHtml(getInjTime(info))}${siteLabel ? ' · ' + escapeHtml(siteLabel) : ''}</button>`);
+    });
+  });
+  histRow.innerHTML = chips.length ? chips.join('') : `<span style="font-size:12px;color:var(--muted)">No injections logged yet.</span>`;
   renderSiteRotation();
 }
 
