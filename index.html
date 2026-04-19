@@ -142,12 +142,16 @@
   .badge-planned { background: rgba(234,179,8,0.12); color: var(--yellow); border: 1px solid rgba(234,179,8,0.25); }
   .badge-paused { background: rgba(100,116,139,0.15); color: var(--muted); border: 1px solid rgba(100,116,139,0.3); }
   .badge-held { background: rgba(239,68,68,0.12); color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); }
-  .stack-edit-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 3px 6px; border-radius: 4px; transition: all 0.15s; opacity: 0; }
-  .stack-table tbody tr:hover .stack-edit-btn { opacity: 1; }
-  .stack-edit-btn:hover { color: var(--accent); background: rgba(0,212,255,0.1); }
-  .stack-del-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 3px 6px; border-radius: 4px; transition: all 0.15s; opacity: 0; }
-  .stack-table tbody tr:hover .stack-del-btn { opacity: 1; }
-  .stack-del-btn:hover { color: var(--red); background: rgba(239,68,68,0.1); }
+  /* Edit/delete action buttons are always visible (was hover-only; that
+     hid the affordance on touch devices and was confusing on desktop too). */
+  .stack-edit-btn { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 14px; padding: 4px 7px; border-radius: 4px; transition: all 0.15s; opacity: 0.85; }
+  .stack-edit-btn:hover { color: var(--accent); background: rgba(0,212,255,0.12); opacity: 1; }
+  .stack-del-btn { background: none; border: none; color: #fca5a5; cursor: pointer; font-size: 14px; padding: 4px 7px; border-radius: 4px; transition: all 0.15s; opacity: 0.75; }
+  .stack-del-btn:hover { color: var(--red); background: rgba(239,68,68,0.12); opacity: 1; }
+  .stack-table tbody tr { cursor: pointer; }
+  .stack-table tbody tr:hover td { background: var(--surface2); }
+  .stack-hint { font-size: 11px; color: var(--muted); margin-bottom: 8px; display:flex; align-items:center; gap:6px; }
+  .stack-hint .hint-pill { background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.25); color: var(--accent); padding: 2px 7px; border-radius: 10px; font-weight: 700; font-size: 10px; letter-spacing: 0.5px; text-transform: uppercase; }
   .stack-add-bar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
   /* STACK EDIT MODAL */
   .stack-modal-form .form-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
@@ -315,8 +319,23 @@
   }
   .water-entry .we-del:hover { color: var(--red); opacity: 1; }
   .water-timeline-empty { font-size: 11px; color: var(--muted); padding: 6px 0; font-style: italic; }
+  /* 7-day water trend strip */
+  .water-trend-wrap { padding-top: 10px; border-top: 1px solid var(--border); }
+  .water-trend-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 8px; display:flex; justify-content:space-between; align-items:center; }
+  .water-trend-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .water-trend-day { display:flex; flex-direction:column; align-items:center; gap:4px; background: var(--surface2); border:1px solid var(--border); border-radius:8px; padding:6px 2px; min-width:0; }
+  .water-trend-day.today { border-color: rgba(14,165,233,0.6); background: rgba(14,165,233,0.08); }
+  .water-trend-day .wt-label { font-size: 10px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .water-trend-day .wt-bar-outer { width: 100%; height: 38px; background: rgba(100,116,139,0.15); border-radius: 4px; position: relative; overflow: hidden; display:flex; align-items:flex-end; }
+  .water-trend-day .wt-bar-fill { width: 100%; background: linear-gradient(to top, #0ea5e9, #38bdf8); border-radius: 4px 4px 0 0; min-height: 2px; transition: height 0.25s; }
+  .water-trend-day .wt-bar-fill.hit { background: linear-gradient(to top, #22c55e, #4ade80); }
+  .water-trend-day .wt-val { font-size: 10px; font-weight: 700; color: var(--text); }
+  .water-trend-day .wt-val.muted { color: var(--muted); font-weight: 600; }
   @media (max-width: 560px) {
     .water-quick-row { grid-template-columns: repeat(3, 1fr); }
+    .water-trend-day { padding: 4px 1px; }
+    .water-trend-day .wt-label { font-size: 9px; }
+    .water-trend-day .wt-val { font-size: 9px; }
   }
 
   /* PEAK WEEK AI — real-time conditioning controller */
@@ -725,7 +744,7 @@
   body { overflow-x: hidden; }
   .scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
 
-  /* Touch devices: keep row-action buttons visible (no hover) */
+  /* Touch devices: make tap targets bigger (buttons are already always-visible) */
   @media (hover: none), (pointer: coarse) {
     .stack-edit-btn, .stack-del-btn { opacity: 1; }
     .stack-edit-btn, .stack-del-btn, .del-row { min-width: 32px; min-height: 32px; font-size: 16px; }
@@ -1279,6 +1298,7 @@
     <div id="waterProgressWrap" style="margin-top:14px;"></div>
     <div class="water-quick-row" id="waterQuickRow"></div>
     <div id="waterTimeline" style="margin-top:10px;"></div>
+    <div id="waterTrend" style="margin-top:12px;"></div>
   </div>
 
   <!-- PEAK WEEK -->
@@ -1687,31 +1707,31 @@
   <!-- POWER TOOLS: Notifications + PDF + CSV Import + Voice -->
   <div class="card card-collapsible" id="powerToolsCard">
     <div class="card-title">⚡ Power Tools</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">
-      <div style="background:var(--surface2);border-radius:8px;padding:12px;">
+    <div class="power-tools-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;">
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;min-width:0;">
         <div style="font-size:12px;font-weight:800;margin-bottom:4px;">🔔 Notifications</div>
         <div style="font-size:11px;color:var(--muted);margin-bottom:8px;" id="notifStatus">Not enabled.</div>
         <button class="btn btn-ghost" onclick="enableNotifications()" style="font-size:11px;padding:5px 10px;">Enable</button>
         <button class="btn btn-ghost" onclick="testNotification()" style="font-size:11px;padding:5px 10px;">Test</button>
       </div>
-      <div style="background:var(--surface2);border-radius:8px;padding:12px;">
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;min-width:0;">
         <div style="font-size:12px;font-weight:800;margin-bottom:4px;">📄 PDF Report</div>
         <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Weekly summary for prescriber / coach.</div>
         <button class="btn btn-primary" onclick="openPrintReport()" style="font-size:11px;padding:5px 10px;">Generate PDF</button>
       </div>
-      <div style="background:var(--surface2);border-radius:8px;padding:12px;">
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;min-width:0;">
         <div style="font-size:12px;font-weight:800;margin-bottom:4px;">📱 Wearable CSV Import</div>
         <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Apple Health / Oura / Garmin export.</div>
         <label class="btn btn-ghost" style="font-size:11px;padding:5px 10px;cursor:pointer;">Import<input type="file" accept=".csv" onchange="importWearableCSV(event)" style="display:none;"></label>
         <span id="csvImportStatus" style="font-size:10px;color:var(--muted);margin-left:6px;"></span>
       </div>
-      <div style="background:var(--surface2);border-radius:8px;padding:12px;">
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;min-width:0;">
         <div style="font-size:12px;font-weight:800;margin-bottom:4px;">🎙️ Voice Log</div>
         <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Say: "Log 285 pounds look tight slept 7 hours"</div>
         <button class="btn btn-primary" onclick="startVoiceLog()" id="voiceBtn" style="font-size:11px;padding:5px 10px;">🎤 Listen</button>
         <div id="voiceResult" style="font-size:11px;color:var(--muted);margin-top:6px;"></div>
       </div>
-      <div style="background:var(--surface2);border-radius:8px;padding:12px;">
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;min-width:0;">
         <div style="font-size:12px;font-weight:800;margin-bottom:4px;">☕ Caffeine / Alcohol</div>
         <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
           <span style="font-size:11px;min-width:55px;">Caffeine</span>
@@ -1724,20 +1744,20 @@
         <button class="btn btn-ghost" onclick="saveStimLog()" style="font-size:11px;padding:5px 10px;">Save today</button>
         <div id="stimSummary" style="font-size:10px;color:var(--muted);margin-top:6px;"></div>
       </div>
-      <div style="background:var(--surface2);border-radius:8px;padding:12px;">
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;min-width:0;">
         <div style="font-size:12px;font-weight:800;margin-bottom:4px;">🏃 Cardio Session</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px;">
-          <input type="text" id="cardioType" placeholder="Type (walk, LISS...)" style="background:var(--surface);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:4px 8px;font-size:11px;">
-          <input type="number" id="cardioMin" placeholder="min" style="background:var(--surface);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:4px 8px;font-size:11px;">
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:6px;margin-bottom:6px;">
+          <input type="text" id="cardioType" placeholder="Type (walk, bike...)" style="background:var(--surface);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 8px;font-size:12px;min-width:0;width:100%;box-sizing:border-box;">
+          <input type="number" id="cardioMin" placeholder="min" inputmode="numeric" style="background:var(--surface);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 8px;font-size:12px;min-width:0;width:100%;box-sizing:border-box;">
         </div>
         <button class="btn btn-ghost" onclick="saveCardioLog()" style="font-size:11px;padding:5px 10px;">Log</button>
         <div id="cardioSummary" style="font-size:10px;color:var(--muted);margin-top:6px;"></div>
       </div>
-      <div style="background:var(--surface2);border-radius:8px;padding:12px;">
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;min-width:0;">
         <div style="font-size:12px;font-weight:800;margin-bottom:4px;">📐 DEXA / InBody Scan</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:4px;">
-          <input type="number" step="0.1" id="dexaBF" placeholder="BF %" style="background:var(--surface);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:4px 8px;font-size:11px;">
-          <input type="number" step="0.1" id="dexaLean" placeholder="Lean lb" style="background:var(--surface);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:4px 8px;font-size:11px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:4px;">
+          <input type="number" step="0.1" id="dexaBF" placeholder="BF %" inputmode="decimal" style="background:var(--surface);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 8px;font-size:12px;min-width:0;width:100%;box-sizing:border-box;">
+          <input type="number" step="0.1" id="dexaLean" placeholder="Lean lb" inputmode="decimal" style="background:var(--surface);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 8px;font-size:12px;min-width:0;width:100%;box-sizing:border-box;">
         </div>
         <button class="btn btn-ghost" onclick="saveDexaScan()" style="font-size:11px;padding:5px 10px;">Log scan</button>
         <div id="dexaSummary" style="font-size:10px;color:var(--muted);margin-top:6px;"></div>
@@ -1960,6 +1980,10 @@
     <div class="tab-content" id="tab2-stack">
       <div class="stack-add-bar">
         <button class="btn btn-primary" onclick="openStackEdit(-1)" style="font-size:13px;padding:8px 16px;">+ Add Supplement or Compound</button>
+      </div>
+      <div class="stack-hint">
+        <span class="hint-pill">Tip</span>
+        <span>Tap any row to edit dose, timing, or notes. Use ✏️ to edit, ✕ to remove.</span>
       </div>
       <div class="scroll-x"><table class="stack-table" id="stackTable"></table></div>
     </div>
@@ -5163,7 +5187,56 @@ function renderWaterCard() {
     ).join('') + `</div>`;
   }
 
+  renderWaterTrend();
   renderWaterNotifyBtn();
+}
+
+// 7-day hydration trend: today + prior 6 days, bars scaled to daily goal.
+function renderWaterTrend() {
+  const wrap = document.getElementById('waterTrend');
+  if (!wrap) return;
+  const s = loadWaterSettings();
+  const goal = s.goalOz || 100;
+  const water = loadWater();
+  const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const now = new Date();
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    const key = d.toISOString().slice(0,10);
+    const entries = water[key] || [];
+    const total = entries.reduce((sum, e) => sum + (+e.oz || 0), 0);
+    days.push({ key, dow: DOW[d.getDay()], dayNum: d.getDate(), total, isToday: i === 0 });
+  }
+  // Scale bars against the greater of goal or the week's max, so a light day
+  // visually reads as light rather than stretching to fill.
+  const maxSeen = Math.max(goal, ...days.map(d => d.total));
+  const weekTotal = days.reduce((a, d) => a + d.total, 0);
+  const weekAvg = weekTotal / 7;
+  const hitCount = days.filter(d => d.total >= goal).length;
+
+  wrap.innerHTML = `
+    <div class="water-trend-wrap">
+      <div class="water-trend-title">
+        <span>📅 Last 7 days</span>
+        <span style="font-weight:600;text-transform:none;letter-spacing:0;">
+          Avg <b style="color:var(--text);">${fmtWater(weekAvg, s.unit)}</b> ·
+          ${hitCount}/7 hit goal
+        </span>
+      </div>
+      <div class="water-trend-row">
+        ${days.map(d => {
+          const pct = maxSeen > 0 ? Math.min(100, (d.total / maxSeen) * 100) : 0;
+          const hit = d.total >= goal;
+          const hasData = d.total > 0;
+          return `<div class="water-trend-day${d.isToday ? ' today' : ''}" title="${d.key}: ${fmtWater(d.total, s.unit)} / ${fmtWater(goal, s.unit)}">
+            <div class="wt-label">${d.isToday ? 'Today' : d.dow}</div>
+            <div class="wt-bar-outer"><div class="wt-bar-fill${hit ? ' hit' : ''}" style="height:${pct.toFixed(1)}%;"></div></div>
+            <div class="wt-val${hasData ? '' : ' muted'}">${hasData ? fmtWater(d.total, s.unit) : '—'}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
 }
 
 function renderWaterNotifyBtn() {
