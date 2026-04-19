@@ -2013,6 +2013,17 @@
   <img id="lightboxImg" style="max-width:92vw;max-height:92vh;border-radius:8px;" alt="">
 </div>
 
+<!-- IMPORT PREVIEW OVERLAY (v2.17.0) -->
+<div id="importPreviewOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:320;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="font-size:16px;font-weight:800;">🛡 Import Preview</div>
+      <button onclick="closeImportPreview()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div id="importPreviewBody"></div>
+  </div>
+</div>
+
 <!-- PHOTO COMPARE OVERLAY (v2.15.0) -->
 <div id="photoCompareOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.94);z-index:400;align-items:center;justify-content:center;padding:16px;">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;width:100%;max-width:760px;max-height:94vh;overflow-y:auto;">
@@ -2050,7 +2061,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.16.0';
+const VERSION = '2.17.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -3935,39 +3946,300 @@ function relativeTime(d) {
   return Math.floor(hr / 24) + 'd ago';
 }
 
+// =========================================================
+// SAFE IMPORT PREVIEW (v2.17.0)
+// Before overwriting local data, parse the file and surface:
+//   - record count + key breakdown
+//   - date range of weight entries
+//   - photo count + total photo bytes
+//   - presence of API / token fields (and whether they differ from
+//     what you already have — since import wipes them)
+//   - warnings for suspicious HTML/script-like content anywhere in
+//     the values (strings containing <script, javascript:, on*= , etc.)
+// The preview is a modal. Only after explicit "Import anyway" does
+// it actually overwrite.
+// =========================================================
+let _pendingImportParsed = null;  // the parsed backup object awaiting confirmation
+let _pendingImportSource = null;  // metadata for telemetry
+
 function importData(event) {
   const file = event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
-      const parsed = JSON.parse(e.target.result);
+      const raw = e.target.result;
+      const parsed = JSON.parse(raw);
       const data = parsed.data || parsed;
-      if (!data || typeof data !== 'object') throw new Error('Invalid backup file');
+      if (!data || typeof data !== 'object') throw new Error('Invalid backup file (not an object)');
       const count = Object.keys(data).filter(k => k.startsWith('tp_')).length;
       if (!count) throw new Error('No transformation data found in file');
-      if (!confirm(`Import ${count} records? This will overwrite your current data.`)) {
-        event.target.value = '';
-        return;
-      }
-      for (const k of Object.keys(localStorage)) {
-        if (k.startsWith('tp_')) localStorage.removeItem(k);
-      }
-      for (const [k, v] of Object.entries(data)) {
-        if (k.startsWith('tp_')) localStorage.setItem(k, v);
-      }
-      // After import, data matches the file → treat as freshly backed up
-      markExported(parsed.exportedAt || new Date().toISOString());
-      event.target.value = '';
-      document.getElementById('backupMenu').style.display = 'none';
-      alert(`Imported ${count} records successfully.`);
-      render();
+      _pendingImportParsed = parsed;
+      _pendingImportSource = { fileName: file.name, fileSize: file.size };
+      openImportPreview();
     } catch (err) {
       alert('Import failed: ' + err.message);
-      event.target.value = '';
+    } finally {
+      event.target.value = '';  // allow re-picking same file
     }
   };
   reader.readAsText(file);
+}
+
+// Return a report object: { count, byKey, dateRange, photoCount, photoBytes, sensitive, warnings }
+function analyzeImportPayload(parsed) {
+  const data = parsed.data || parsed;
+  const keys = Object.keys(data).filter(k => k.startsWith('tp_'));
+
+  // Record count by key family
+  const byKey = {};
+  for (const k of keys) byKey[k] = typeof data[k] === 'string' ? data[k].length : 0;
+
+  // Date range from weight entries
+  let dateRange = null;
+  try {
+    const entriesRaw = data['tp_entries'];
+    if (entriesRaw) {
+      const entries = JSON.parse(entriesRaw);
+      if (Array.isArray(entries) && entries.length) {
+        const dates = entries.map(e => e.date).filter(Boolean).sort();
+        dateRange = { first: dates[0], last: dates[dates.length - 1], count: entries.length };
+      }
+    }
+  } catch {}
+
+  // Photo count + bytes
+  let photoCount = 0, photoBytes = 0;
+  try {
+    const photosRaw = data['tp_photos'];
+    if (photosRaw) {
+      const arr = JSON.parse(photosRaw);
+      if (Array.isArray(arr)) {
+        photoCount = arr.length;
+        for (const p of arr) photoBytes += (p.data || '').length;
+      }
+    }
+  } catch {}
+
+  // Sensitive / token-bearing keys — list them and flag
+  const SENSITIVE_KEYS = [
+    'tp_lock',           // PIN hash
+    'tp_gist_token',     // GitHub sync token
+    'tp_gist_id',
+    'tp_fitbit_token',   // Fitbit OAuth
+    'tp_fitbit_refresh',
+  ];
+  const sensitive = [];
+  for (const k of SENSITIVE_KEYS) {
+    if (k in data) sensitive.push(k);
+  }
+  // Also scan for any key containing "token"/"secret"/"key" case-insensitively
+  for (const k of keys) {
+    const low = k.toLowerCase();
+    if ((low.includes('token') || low.includes('secret') || low.includes('apikey') || low.includes('_key')) && !sensitive.includes(k)) {
+      sensitive.push(k);
+    }
+  }
+
+  // Suspicious content scan — walk every string value, look for XSS markers.
+  // The app does not currently inject user-controlled strings as innerHTML in
+  // most places, but a compromised backup could poison rendered fields. We
+  // show a loud warning so the user can bail.
+  const warnings = [];
+  const XSS_PATTERNS = [
+    { re: /<script\b/i, label: 'inline <script> tag' },
+    { re: /javascript:/i, label: 'javascript: URL' },
+    { re: /\son\w+\s*=\s*["']/i, label: 'inline event handler (onerror/onclick/etc.)' },
+    { re: /<iframe\b/i, label: '<iframe> embed' },
+    { re: /<object\b/i, label: '<object> embed' },
+    { re: /<embed\b/i, label: '<embed> tag' },
+    { re: /srcdoc\s*=/i, label: 'srcdoc attribute' },
+    { re: /data:text\/html/i, label: 'data:text/html URL (non-image)' },
+  ];
+  const foundTypes = new Set();
+  const foundKeys = new Set();
+  for (const k of keys) {
+    const v = data[k];
+    if (typeof v !== 'string') continue;
+    // Skip photo data URLs — base64 jpeg/png is expected
+    if (k === 'tp_photos') continue;
+    for (const p of XSS_PATTERNS) {
+      if (p.re.test(v)) {
+        foundTypes.add(p.label);
+        foundKeys.add(k);
+      }
+    }
+  }
+  if (foundTypes.size) {
+    warnings.push({
+      severity: 'high',
+      message: `Suspicious content detected: ${[...foundTypes].join(', ')} (in keys: ${[...foundKeys].join(', ')}). Do NOT import unless you recognize the source.`,
+    });
+  }
+
+  // Version drift warning
+  if (parsed.version && VERSION && parsed.version !== VERSION) {
+    warnings.push({
+      severity: 'info',
+      message: `Backup was created with app version ${parsed.version}; you're running ${VERSION}. Usually fine; newer fields may be missing.`,
+    });
+  }
+
+  // File staleness warning
+  if (parsed.exportedAt) {
+    const ageDays = Math.round((Date.now() - new Date(parsed.exportedAt).getTime()) / 86400000);
+    if (ageDays > 60) {
+      warnings.push({
+        severity: 'medium',
+        message: `Backup is ${ageDays} days old. Importing will overwrite everything you've logged since then.`,
+      });
+    }
+  }
+
+  // Currently-installed app has sensitive data that will be wiped
+  const currentSensitive = SENSITIVE_KEYS.filter(k => localStorage.getItem(k) != null);
+  const wiped = currentSensitive.filter(k => !(k in data));
+  if (wiped.length) {
+    warnings.push({
+      severity: 'medium',
+      message: `Importing will wipe these currently-saved secrets that are NOT in the backup: ${wiped.join(', ')}. You'll need to re-authenticate.`,
+    });
+  }
+
+  return {
+    count: keys.length,
+    byKey,
+    dateRange,
+    photoCount,
+    photoBytes,
+    sensitive,
+    warnings,
+    exportedAt: parsed.exportedAt || null,
+    version: parsed.version || null,
+  };
+}
+
+function openImportPreview() {
+  const o = document.getElementById('importPreviewOverlay');
+  if (!o || !_pendingImportParsed) return;
+  o.style.display = 'flex';
+  renderImportPreview();
+}
+function closeImportPreview() {
+  const o = document.getElementById('importPreviewOverlay');
+  if (o) o.style.display = 'none';
+  _pendingImportParsed = null;
+  _pendingImportSource = null;
+}
+function _fmtBytes(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  return (n / 1024 / 1024).toFixed(2) + ' MB';
+}
+function renderImportPreview() {
+  const body = document.getElementById('importPreviewBody');
+  if (!body || !_pendingImportParsed) return;
+  const r = analyzeImportPayload(_pendingImportParsed);
+  const src = _pendingImportSource || {};
+  const hasHigh = r.warnings.some(w => w.severity === 'high');
+
+  const warningHtml = r.warnings.length
+    ? r.warnings.map(w => {
+        const color = w.severity === 'high' ? '#ef4444' : w.severity === 'medium' ? '#eab308' : '#60a5fa';
+        const bg    = w.severity === 'high' ? 'rgba(239,68,68,0.1)' : w.severity === 'medium' ? 'rgba(234,179,8,0.1)' : 'rgba(96,165,250,0.1)';
+        const icon  = w.severity === 'high' ? '⛔' : w.severity === 'medium' ? '⚠' : 'ℹ';
+        return `<div style="background:${bg};border:1px solid ${color};border-radius:8px;padding:10px 12px;margin-bottom:6px;font-size:12px;line-height:1.5;color:${color};"><strong>${icon} ${w.severity.toUpperCase()}</strong> — ${_escHtml(w.message)}</div>`;
+      }).join('')
+    : `<div style="background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;padding:10px 12px;font-size:12px;color:#22c55e;">✓ No suspicious content detected.</div>`;
+
+  const sensitiveHtml = r.sensitive.length
+    ? `<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;">
+         <div style="font-weight:700;color:var(--text);margin-bottom:4px;">🔑 Sensitive keys in file</div>
+         <div style="color:var(--muted);line-height:1.5;">${r.sensitive.map(k => `<code style="background:var(--surface2);padding:1px 5px;border-radius:3px;">${_escHtml(k)}</code>`).join(' ')}</div>
+         <div style="color:var(--muted);margin-top:4px;font-size:11px;">These will overwrite your current PIN / tokens.</div>
+       </div>`
+    : '';
+
+  body.innerHTML = `
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">
+      File: <strong style="color:var(--text);">${_escHtml(src.fileName || 'unknown')}</strong> · ${_fmtBytes(src.fileSize || 0)}
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Records</div>
+        <div style="font-size:20px;font-weight:800;color:var(--text);">${r.count}</div>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Photos</div>
+        <div style="font-size:20px;font-weight:800;color:var(--text);">${r.photoCount}${r.photoCount ? ` <span style="font-size:11px;color:var(--muted);font-weight:500;">(${_fmtBytes(r.photoBytes)})</span>` : ''}</div>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;grid-column:1/-1;">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Weight entries</div>
+        ${r.dateRange
+          ? `<div style="font-size:13px;font-weight:700;color:var(--text);">${r.dateRange.count} entries</div>
+             <div style="font-size:11px;color:var(--muted);">${_escHtml(r.dateRange.first)} → ${_escHtml(r.dateRange.last)}</div>`
+          : `<div style="font-size:13px;color:var(--muted);">No weight entries found</div>`}
+      </div>
+    </div>
+
+    ${sensitiveHtml}
+
+    <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Safety check</div>
+    ${warningHtml}
+
+    <details style="margin-top:12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;">
+      <summary style="cursor:pointer;font-size:12px;color:var(--muted);">Show key-by-key breakdown</summary>
+      <div style="margin-top:8px;font-size:11px;color:var(--muted);font-family:monospace;max-height:200px;overflow-y:auto;">
+        ${Object.entries(r.byKey).sort((a,b) => b[1] - a[1]).map(([k, sz]) =>
+          `<div>${_escHtml(k)} <span style="color:var(--text);">${_fmtBytes(sz)}</span></div>`
+        ).join('')}
+      </div>
+    </details>
+
+    <div style="display:flex;justify-content:space-between;gap:8px;margin-top:16px;align-items:center;flex-wrap:wrap;">
+      <div style="font-size:11px;color:var(--muted);flex:1;min-width:160px;">
+        ${r.version ? `App version in file: <strong style="color:var(--text);">${_escHtml(r.version)}</strong>` : ''}
+        ${r.exportedAt ? `<br>Exported: ${new Date(r.exportedAt).toLocaleString()}` : ''}
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost" onclick="closeImportPreview()">Cancel</button>
+        <button class="btn btn-primary" style="background:${hasHigh ? '#ef4444' : ''};" onclick="confirmImportAfterPreview()">${hasHigh ? 'Import anyway (high-risk)' : 'Import'}</button>
+      </div>
+    </div>
+  `;
+}
+
+function _escHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function confirmImportAfterPreview() {
+  if (!_pendingImportParsed) return;
+  try {
+    const parsed = _pendingImportParsed;
+    const data = parsed.data || parsed;
+    const count = Object.keys(data).filter(k => k.startsWith('tp_')).length;
+    for (const k of Object.keys(localStorage)) {
+      if (k.startsWith('tp_')) localStorage.removeItem(k);
+    }
+    for (const [k, v] of Object.entries(data)) {
+      if (k.startsWith('tp_')) localStorage.setItem(k, v);
+    }
+    markExported(parsed.exportedAt || new Date().toISOString());
+    const bm = document.getElementById('backupMenu');
+    if (bm) bm.style.display = 'none';
+    closeImportPreview();
+    showToast(`✓ Imported ${count} records`, 3500);
+    render();
+  } catch (err) {
+    alert('Import failed: ' + err.message);
+    closeImportPreview();
+  }
 }
 document.getElementById('modalOverlay').addEventListener('click', (e) => {
   if (e.target === e.currentTarget) closeCheckin();
