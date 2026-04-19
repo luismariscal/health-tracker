@@ -2136,7 +2136,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.26.0';
+const VERSION = '2.27.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -2219,6 +2219,64 @@ function bumpChangeCount() {
   // v2.7.0: republish reminders.ics so subscribed calendars pick up changes
   if (typeof schedulePublishReminders === 'function') schedulePublishReminders();
 }
+
+// =========================================================
+// PER-KEY SYNC META (v2.27.0)
+// Every tp_* write/delete records a timestamp in tp_sync_meta
+// so the cross-device pull can merge per-key instead of doing
+// a destructive wipe-and-replace. This is the core fix for
+// "today's logged data disappears after I open another device".
+//
+// We monkey-patch localStorage.setItem / removeItem ONCE here.
+// Anything written through localStorage.setItem('tp_…', …)
+// from anywhere in the app (or DevTools) is automatically
+// tracked. tp_sync, tp_sync_meta, tp_sync_lastSnapshot, and
+// tp_meta itself are excluded — they're either sync infra or
+// pure bookkeeping that has its own change-count semantics.
+// =========================================================
+const SYNC_META_KEY = 'tp_sync_meta';
+const SYNC_SNAPSHOT_KEY = 'tp_sync_lastSnapshot';
+const SYNC_META_EXCLUDE = new Set([
+  'tp_sync', 'tp_sync_meta', 'tp_sync_lastSnapshot', 'tp_meta',
+]);
+
+function loadSyncMeta() {
+  try { return JSON.parse(localStorage.getItem(SYNC_META_KEY) || '{}'); }
+  catch { return {}; }
+}
+function saveSyncMetaRaw(obj) {
+  // Use the raw native setter to avoid recursing through our patch.
+  try { _origSetItem.call(localStorage, SYNC_META_KEY, JSON.stringify(obj)); }
+  catch {}
+}
+function touchSyncMeta(key, deleted) {
+  if (!key || !key.startsWith('tp_')) return;
+  if (SYNC_META_EXCLUDE.has(key)) return;
+  const m = loadSyncMeta();
+  m[key] = { ts: new Date().toISOString(), ...(deleted ? { deleted: true } : {}) };
+  saveSyncMetaRaw(m);
+}
+
+// Capture native methods BEFORE patching so meta writes can use them
+// without re-entering our own hooks.
+const _origSetItem    = Storage.prototype.setItem;
+const _origRemoveItem = Storage.prototype.removeItem;
+const _origClear      = Storage.prototype.clear;
+
+Storage.prototype.setItem = function (k, v) {
+  const r = _origSetItem.call(this, k, v);
+  if (this === window.localStorage) touchSyncMeta(k, false);
+  return r;
+};
+Storage.prototype.removeItem = function (k) {
+  const r = _origRemoveItem.call(this, k);
+  if (this === window.localStorage) touchSyncMeta(k, true);
+  return r;
+};
+// localStorage.clear() is intentionally NOT marked as deletes per-key —
+// it's user-initiated reset, not a sync-relevant change. Other devices
+// will keep their own data; only an explicit push would propagate.
+Storage.prototype.clear = function () { return _origClear.call(this); };
 function markExported(ts) {
   const meta = loadMeta();
   meta.lastExport = ts || new Date().toISOString();
@@ -8775,7 +8833,7 @@ function buildSyncPayload() {
     const k = localStorage.key(i);
     if (!k || !k.startsWith('tp_')) continue;
     if (SYNC_EXCLUDE_KEYS.includes(k)) continue;
-    if (k === 'tp_sync') continue; // never sync sync config itself
+    if (SYNC_META_EXCLUDE.has(k)) continue; // never sync sync infra
     const v = localStorage.getItem(k);
     if (v == null) continue;
     // Skip individual oversized entries (keeps us under gist 1MB limit)
@@ -8783,6 +8841,86 @@ function buildSyncPayload() {
     dump[k] = v;
   }
   return dump;
+}
+
+// One-time migration: if the user has existing tp_* data but no per-key
+// meta yet (i.e. they're upgrading from <2.27.0), stamp every existing
+// key with a "legacy" meta entry so the merge has SOMETHING to compare
+// against. The legacy ts is the last successful sync we know about, or
+// epoch-0 as a last resort. Edits made AFTER this backfill will have
+// fresh ISO timestamps that always beat the legacy stamps.
+function ensureSyncMetaBackfilled() {
+  const meta = loadSyncMeta();
+  if (Object.keys(meta).length > 0) return; // already initialised
+  // Pick a timestamp that's older than any post-upgrade write
+  let ts;
+  try {
+    const cfg = JSON.parse(localStorage.getItem('tp_sync') || '{}');
+    ts = cfg.lastPulledAt || cfg.lastPushedAt || '';
+  } catch {}
+  if (!ts) ts = new Date(0).toISOString();
+  const m = {};
+  let stamped = 0;
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k || !k.startsWith('tp_')) continue;
+    if (SYNC_META_EXCLUDE.has(k)) continue;
+    m[k] = { ts, legacy: true };
+    stamped++;
+  }
+  if (stamped > 0) saveSyncMetaRaw(m);
+}
+ensureSyncMetaBackfilled();
+
+// Snapshot of all tp_* state BEFORE applying a remote pull. Used by
+// "Restore last snapshot" — one-tap undo if a sync goes wrong.
+// Only one snapshot is kept (the most recent pre-pull state).
+function takePreSyncSnapshot(reason) {
+  const dump = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k || !k.startsWith('tp_')) continue;
+    if (SYNC_META_EXCLUDE.has(k)) continue;
+    if (SYNC_EXCLUDE_KEYS.includes(k)) continue;
+    const v = localStorage.getItem(k);
+    if (v != null) dump[k] = v;
+  }
+  const meta = loadSyncMeta();
+  const snap = {
+    takenAt: new Date().toISOString(),
+    reason: reason || 'pre-pull',
+    keyCount: Object.keys(dump).length,
+    data: dump,
+    meta: meta,
+  };
+  try { _origSetItem.call(localStorage, SYNC_SNAPSHOT_KEY, JSON.stringify(snap)); }
+  catch (e) { /* quota — ignore, user can still use cloud rollback */ }
+  return snap;
+}
+
+function loadPreSyncSnapshot() {
+  try {
+    const raw = localStorage.getItem(SYNC_SNAPSHOT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function restorePreSyncSnapshot() {
+  const snap = loadPreSyncSnapshot();
+  if (!snap || !snap.data) return { ok: false, error: 'No snapshot available' };
+  // Wipe existing tp_* (except infra) and restore from snapshot
+  for (const k of Object.keys(localStorage)) {
+    if (!k.startsWith('tp_')) continue;
+    if (SYNC_META_EXCLUDE.has(k)) continue;
+    if (SYNC_EXCLUDE_KEYS.includes(k)) continue;
+    _origRemoveItem.call(localStorage, k);
+  }
+  for (const [k, v] of Object.entries(snap.data)) {
+    _origSetItem.call(localStorage, k, v);
+  }
+  // Restore meta as it was at snapshot time
+  if (snap.meta) saveSyncMetaRaw(snap.meta);
+  return { ok: true, restored: Object.keys(snap.data).length, takenAt: snap.takenAt };
 }
 
 // -------- GitHub API helpers --------
@@ -8953,13 +9091,15 @@ async function syncPush(opts = {}) {
   _syncInFlight = true;
   try {
     const data = buildSyncPayload();
+    const meta = loadSyncMeta();
     const payload = {
-      schemaVersion: 1,
+      schemaVersion: 2,                   // v2 = includes per-key meta for merge
       appVersion: VERSION,
       deviceId: cfg.deviceId || getOrMakeDeviceId(),
       deviceName: cfg.deviceName || '',
       pushedAt: new Date().toISOString(),
       data,
+      meta,
     };
     const json = JSON.stringify(payload);
     const hash = _hashString(json);
@@ -8987,6 +9127,17 @@ async function syncPush(opts = {}) {
   }
 }
 
+// PER-KEY MERGE PULL (v2.27.0)
+// Old behavior wiped every tp_* key then wrote the remote snapshot whole.
+// That caused the "today's data disappeared" bug whenever a stale snapshot
+// from another device arrived — recent local entries that hadn't pushed
+// yet got obliterated.
+//
+// New behavior: for each key in (local ∪ remote), pick the side with the
+// newer per-key meta.ts. Tombstones (meta.deleted) propagate as deletes.
+// If remote has no meta (schemaVersion 1 client), we fall back to using
+// remote.pushedAt as the timestamp for every remote key — equivalent to
+// the old "snapshot wins" but only for keys present on the remote.
 async function syncPull(opts = {}) {
   const cfg = loadSyncConfig();
   if (!cfg.enabled || !cfg.token || !cfg.gistId) return { ok: false, reason: 'disabled' };
@@ -9006,28 +9157,72 @@ async function syncPull(opts = {}) {
       renderSyncSettings();
       return { ok: true, skipped: 'own-device' };
     }
-    // Ignore if remote pushedAt <= our lastPushedAt (we've already written newer)
-    if (!opts.force && fresh.lastPushedAt && remote.pushedAt && remote.pushedAt <= fresh.lastPushedAt) {
-      saveSyncConfig(fresh);
-      renderSyncStatusChip();
-      renderSyncSettings();
-      return { ok: true, skipped: 'stale' };
-    }
     const data = remote.data || {};
-    if (!data || typeof data !== 'object') throw new Error('Invalid remote payload');
+    const remoteMeta = remote.meta || {};
+    const remotePushedAt = remote.pushedAt || new Date().toISOString();
+    if (typeof data !== 'object') throw new Error('Invalid remote payload');
 
-    // Apply: overwrite tp_* keys, but keep excluded (e.g. tp_photos) and tp_sync locally
-    const keepKeys = new Set([...SYNC_EXCLUDE_KEYS, 'tp_sync']);
-    for (const k of Object.keys(localStorage)) {
-      if (k.startsWith('tp_') && !keepKeys.has(k)) localStorage.removeItem(k);
+    // Snapshot CURRENT state before merging — gives the user a one-tap undo
+    // if a sync goes wrong. Captures both data and meta.
+    takePreSyncSnapshot('pre-pull');
+
+    const keepKeys = new Set([...SYNC_EXCLUDE_KEYS, ...SYNC_META_EXCLUDE]);
+    const localMeta = loadSyncMeta();
+    const newMeta = { ...localMeta };
+
+    // Build the union of all keys we need to consider
+    const allKeys = new Set();
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('tp_') && !keepKeys.has(k)) allKeys.add(k);
     }
-    let applied = 0;
-    for (const [k, v] of Object.entries(data)) {
-      if (!k.startsWith('tp_')) continue;
-      if (keepKeys.has(k)) continue;
-      localStorage.setItem(k, v);
-      applied++;
+    for (const k of Object.keys(data)) {
+      if (k.startsWith('tp_') && !keepKeys.has(k)) allKeys.add(k);
     }
+    for (const k of Object.keys(remoteMeta)) {
+      if (k.startsWith('tp_') && !keepKeys.has(k)) allKeys.add(k);
+    }
+
+    let adopted = 0, kept = 0, deleted = 0;
+    for (const k of allKeys) {
+      const localVal = localStorage.getItem(k);   // null if absent
+      const localM = localMeta[k] || null;
+      const remoteHasValue = Object.prototype.hasOwnProperty.call(data, k);
+      const remoteVal = remoteHasValue ? data[k] : null;
+      // remote meta: explicit if provided, else synthesize from pushedAt if value exists
+      let remoteM = remoteMeta[k] || null;
+      if (!remoteM && remoteHasValue) remoteM = { ts: remotePushedAt, legacy: true };
+
+      // Decide newer side. Missing meta on a side ranks as oldest.
+      const localTs  = localM  ? localM.ts  : '';
+      const remoteTs = remoteM ? remoteM.ts : '';
+      // Prefer non-legacy over legacy at equal-ish times
+      let pick;
+      if (!remoteM) pick = 'local';
+      else if (!localM && (localVal == null)) pick = 'remote';
+      else if (!localM) pick = 'remote'; // local has value but no meta = legacy unstamped, treat as older
+      else if (localM.legacy && !remoteM.legacy) pick = 'remote';
+      else if (!localM.legacy && remoteM.legacy) pick = 'local';
+      else pick = (remoteTs > localTs) ? 'remote' : 'local';
+
+      if (pick === 'remote') {
+        if (remoteM && remoteM.deleted) {
+          if (localVal != null) { _origRemoveItem.call(localStorage, k); deleted++; }
+          newMeta[k] = { ts: remoteM.ts, deleted: true };
+        } else if (remoteHasValue) {
+          if (remoteVal !== localVal) {
+            _origSetItem.call(localStorage, k, remoteVal);
+            adopted++;
+          }
+          newMeta[k] = { ts: remoteM.ts };
+        }
+      } else {
+        // local wins — no change needed; keep our meta as-is
+        kept++;
+      }
+    }
+
+    saveSyncMetaRaw(newMeta);
     fresh.lastRemoteDevice = remote.deviceName || remote.deviceId || '';
     saveSyncConfig(fresh);
     // Prevent our own post-pull no-op push from feeding back
@@ -9038,8 +9233,10 @@ async function syncPull(opts = {}) {
     try { if (typeof renderWaterCard === 'function') renderWaterCard(); } catch {}
     renderSyncStatusChip();
     renderSyncSettings();
-    showToast(`☁ Synced from ${fresh.lastRemoteDevice || 'other device'} (${applied} keys)`, 3000);
-    return { ok: true, applied };
+    if (adopted || deleted) {
+      showToast(`☁ Merged from ${fresh.lastRemoteDevice || 'other device'} (+${adopted} updated, ${deleted} removed, ${kept} kept local)`, 3500);
+    }
+    return { ok: true, adopted, kept, deleted };
   } catch (e) {
     const fresh = loadSyncConfig();
     fresh.lastError = (e && e.message) || 'Pull failed';
@@ -9105,12 +9302,13 @@ async function syncConnect(token, deviceName) {
   } else {
     // Create with our current data
     const payload = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       appVersion: VERSION,
       deviceId: cfg.deviceId,
       deviceName: cfg.deviceName || '',
       pushedAt: new Date().toISOString(),
       data: buildSyncPayload(),
+      meta: loadSyncMeta(),
     };
     const created = await createSyncGist(payload);
     const c2 = loadSyncConfig();
@@ -9266,8 +9464,21 @@ function renderSyncSettings() {
       </ol>
     </details>
     <div style="font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.5;">
-      Every change pushes in ~5s. Every 2 min (and on tab focus) this device pulls the latest. Photos are not synced.
+      Every change pushes in ~5s. Every 2 min (and on tab focus) this device <strong>merges per-key</strong> with the latest from the cloud — newer entries win, no destructive wipes. A snapshot of this device's data is taken before each merge so you can roll back if anything looks off. Photos are not synced.
     </div>
+    ${(() => {
+      const snap = loadPreSyncSnapshot();
+      if (!snap) return '';
+      return `<div style="background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.25);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-weight:700;color:var(--accent);">🛟 Snapshot available</div>
+          <div style="color:var(--muted);font-size:11px;margin-top:2px;">
+            ${snap.keyCount} keys · taken ${relativeTime(new Date(snap.takenAt))} (${snap.reason || 'pre-pull'})
+          </div>
+        </div>
+        <button class="btn btn-ghost" onclick="handleRestoreSnapshot()" style="font-size:11px;padding:6px 12px;">Restore</button>
+      </div>`;
+    })()}
     <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
       <button class="btn btn-ghost" onclick="syncPull({force:true}).then(r=>r.ok&&showToast('Pulled',1500))">⬇ Pull now</button>
       <button class="btn btn-ghost" onclick="syncPush({force:true}).then(r=>r.ok&&showToast('Pushed',1500))">⬆ Push now</button>
@@ -9275,6 +9486,27 @@ function renderSyncSettings() {
       <button class="btn btn-primary" onclick="closeSyncSettings()">Done</button>
     </div>
   `;
+}
+
+function handleRestoreSnapshot() {
+  const snap = loadPreSyncSnapshot();
+  if (!snap) { showToast('No snapshot available', 2500); return; }
+  const when = relativeTime(new Date(snap.takenAt));
+  if (!confirm(
+    `Restore snapshot taken ${when}?\n\n` +
+    `This will replace ALL current health-tracker data on THIS device with ` +
+    `the ${snap.keyCount}-key snapshot. Your other devices won't be affected ` +
+    `unless this device pushes afterward.\n\nProceed?`
+  )) return;
+  const r = restorePreSyncSnapshot();
+  if (!r.ok) { showToast('Restore failed: ' + (r.error || 'unknown'), 3000); return; }
+  showToast(`✓ Restored ${r.restored} keys from snapshot`, 3000);
+  try { if (typeof render === 'function') render(); } catch {}
+  try { if (typeof renderBackupStatus === 'function') renderBackupStatus(); } catch {}
+  try { if (typeof renderWaterCard === 'function') renderWaterCard(); } catch {}
+  renderSyncSettings();
+  // Push the restored state so other devices receive it on next pull
+  if (typeof scheduleSyncPush === 'function') scheduleSyncPush();
 }
 
 async function handleSyncConnect() {

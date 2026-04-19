@@ -15,3 +15,6 @@ desktop.ini
 # Backups created by the app's auto-backup feature
 *.backup.html
 *.bak
+
+# Local verification harnesses (kept out of the deployed site)
+verify_*.html
