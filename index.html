@@ -1049,7 +1049,8 @@
         <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--accent);margin-bottom:4px;" onclick="openSyncSettings()">☁ Sync to GitHub Gist…</button>
         <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--accent);margin-bottom:4px;" onclick="openCalendarSettings()">📅 Calendar Reminders…</button>
         <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--accent);margin-bottom:4px;" onclick="openMedicalSummary()">🩺 Medical Summary (PDF)…</button>
-        <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--accent);" onclick="openAppLockSettings()">🔒 App Lock…</button>
+        <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--accent);margin-bottom:4px;" onclick="openAppLockSettings()">🔒 App Lock…</button>
+        <button class="btn btn-ghost" id="encryptionToggleBtn" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--accent);" onclick="toggleEncryptionMode(); renderEncryptionToggleLabel();">🔐 Encrypt backups…</button>
       </div>
     </div>
   </div>
@@ -2076,7 +2077,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.21.0';
+const VERSION = '2.22.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -3710,6 +3711,7 @@ function toggleBackupMenu(e) {
   e?.stopPropagation();
   const menu = document.getElementById('backupMenu');
   menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+  if (menu.style.display === 'block' && typeof renderEncryptionToggleLabel === 'function') renderEncryptionToggleLabel();
 }
 document.addEventListener('click', e => {
   const menu = document.getElementById('backupMenu');
@@ -3873,7 +3875,101 @@ async function restoreBackupHandle() {
   }
 }
 
-function exportData() {
+// =========================================================
+// LOCAL ENCRYPTION MODE (v2.22.0)
+// -------------------------------------------------------
+// AES-GCM-256 envelope for backup files, keyed by a user passphrase
+// (PBKDF2-SHA256, 250k iterations, 16-byte salt, 12-byte IV). When
+// encryption is enabled in settings, exportData wraps the payload in
+// an "encrypted envelope" before download; importData detects the
+// envelope and prompts for the passphrase before running the Safe
+// Import Preview.
+//
+// Envelope schema:
+//   { encrypted:true, v:1, kdf:'PBKDF2-SHA256', iter:250000,
+//     cipher:'AES-GCM-256', salt:b64, iv:b64, ct:b64, hint?:string }
+//
+// The salt+iv are fresh per export (never reused), so the same
+// passphrase + same data still produces distinct ciphertexts.
+// =========================================================
+const _ENC_SETTING_KEY = 'tp_encryption';  // { enabled, hint }
+const _ENC_ITER = 250000;
+
+function loadEncryptionSettings() {
+  try { return JSON.parse(localStorage.getItem(_ENC_SETTING_KEY) || '{}'); } catch { return {}; }
+}
+function saveEncryptionSettings(s) {
+  localStorage.setItem(_ENC_SETTING_KEY, JSON.stringify(s || {}));
+}
+
+function _b64FromBytes(bytes) {
+  let s = '';
+  const arr = new Uint8Array(bytes);
+  for (let i = 0; i < arr.length; i++) s += String.fromCharCode(arr[i]);
+  return btoa(s);
+}
+function _bytesFromB64(b64) {
+  const s = atob(b64);
+  const arr = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) arr[i] = s.charCodeAt(i);
+  return arr;
+}
+
+async function _deriveKey(passphrase, salt, iter) {
+  const enc = new TextEncoder();
+  const base = await crypto.subtle.importKey('raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: iter || _ENC_ITER, hash: 'SHA-256' },
+    base,
+    { name: 'AES-GCM', length: 256 },
+    false, ['encrypt', 'decrypt']
+  );
+}
+
+async function encryptPayload(obj, passphrase, opts) {
+  opts = opts || {};
+  if (!passphrase) throw new Error('passphrase required');
+  const iter = (typeof opts.iter === 'number' && opts.iter > 0) ? opts.iter : _ENC_ITER;
+  const json = JSON.stringify(obj);
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const key  = await _deriveKey(passphrase, salt, iter);
+  const ct   = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(json));
+  return {
+    encrypted: true,
+    v: 1,
+    kdf: 'PBKDF2-SHA256',
+    iter,
+    cipher: 'AES-GCM-256',
+    salt: _b64FromBytes(salt),
+    iv:   _b64FromBytes(iv),
+    ct:   _b64FromBytes(ct),
+    hint: opts.hint || '',
+    exportedAt: new Date().toISOString(),
+  };
+}
+
+async function decryptPayload(envelope, passphrase) {
+  if (!envelope || envelope.encrypted !== true) throw new Error('not an encrypted envelope');
+  if (envelope.cipher !== 'AES-GCM-256' || envelope.kdf !== 'PBKDF2-SHA256') throw new Error('unsupported cipher/kdf');
+  const salt = _bytesFromB64(envelope.salt);
+  const iv   = _bytesFromB64(envelope.iv);
+  const ct   = _bytesFromB64(envelope.ct);
+  const key  = await _deriveKey(passphrase, salt, envelope.iter || _ENC_ITER);
+  let plain;
+  try {
+    plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
+  } catch {
+    throw new Error('Incorrect passphrase or corrupted backup');
+  }
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+function isEncryptedEnvelope(obj) {
+  return !!(obj && obj.encrypted === true && typeof obj.salt === 'string' && typeof obj.iv === 'string' && typeof obj.ct === 'string');
+}
+
+async function exportData() {
   const dump = {};
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
@@ -3881,15 +3977,40 @@ function exportData() {
   }
   const ts = new Date().toISOString();
   const payload = { exportedAt: ts, appVersion: VERSION, schemaVersion: 1, data: dump };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+
+  // v2.22.0 — optional passphrase encryption
+  const enc = loadEncryptionSettings();
+  let outPayload = payload;
+  let suffix = '';
+  if (enc && enc.enabled) {
+    const prompted = prompt('Backup passphrase (this CAN NOT be recovered — write it down):' + (enc.hint ? '\n\nHint: ' + enc.hint : ''));
+    if (prompted == null) {
+      showToast('Export cancelled');
+      return;
+    }
+    if (!prompted || prompted.length < 6) {
+      alert('Passphrase must be at least 6 characters. Export cancelled.');
+      return;
+    }
+    try {
+      outPayload = await encryptPayload(payload, prompted, { hint: enc.hint || '' });
+      suffix = '.enc';
+    } catch (e) {
+      alert('Encryption failed: ' + e.message);
+      return;
+    }
+  }
+
+  const blob = new Blob([JSON.stringify(outPayload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `transformation-backup-v${VERSION}-${ts.slice(0,10)}.json`;
+  a.download = `transformation-backup-v${VERSION}-${ts.slice(0,10)}${suffix}.json`;
   a.click();
   URL.revokeObjectURL(url);
   markExported(ts);
-  document.getElementById('backupMenu').style.display = 'none';
+  const menu = document.getElementById('backupMenu');
+  if (menu) menu.style.display = 'none';
 }
 
 function renderBackupStatus() {
@@ -3984,10 +4105,19 @@ function importData(event) {
   const file = event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     try {
       const raw = e.target.result;
-      const parsed = JSON.parse(raw);
+      let parsed = JSON.parse(raw);
+
+      // v2.22.0 — encrypted envelope detection + decrypt
+      if (isEncryptedEnvelope(parsed)) {
+        const hintLine = parsed.hint ? '\n\nHint: ' + parsed.hint : '';
+        const pass = prompt('This backup is encrypted. Enter passphrase to decrypt:' + hintLine);
+        if (pass == null) { event.target.value = ''; return; }
+        parsed = await decryptPayload(parsed, pass);
+      }
+
       const data = parsed.data || parsed;
       if (!data || typeof data !== 'object') throw new Error('Invalid backup file (not an object)');
       const count = Object.keys(data).filter(k => k.startsWith('tp_')).length;
@@ -11448,6 +11578,45 @@ if (typeof window !== 'undefined') {
   window.computeGuardrails = computeGuardrails;
   window.renderGuardrailCenter = renderGuardrailCenter;
 }
+
+// v2.22.0 — expose encryption primitives + settings helper
+if (typeof window !== 'undefined') {
+  window.encryptPayload = encryptPayload;
+  window.decryptPayload = decryptPayload;
+  window.isEncryptedEnvelope = isEncryptedEnvelope;
+  window.loadEncryptionSettings = loadEncryptionSettings;
+  window.saveEncryptionSettings = saveEncryptionSettings;
+  // Read-only expose of the default iteration strength (so tests/diagnostics
+  // can assert the production default without running a 250k-round PBKDF2).
+  try {
+    Object.defineProperty(window, '_ENC_ITER_DEFAULT', { value: _ENC_ITER, writable: false, configurable: false });
+  } catch { /* ignore redefinition */ }
+}
+
+// Simple toggle you can call from the settings / backup menu.
+// Prompts for a hint (never the passphrase itself — passphrases are
+// prompted at export time so they never touch localStorage).
+function toggleEncryptionMode() {
+  const cur = loadEncryptionSettings();
+  if (cur.enabled) {
+    if (!confirm('Disable encryption for future backups? Existing encrypted backups will still require their original passphrase to import.')) return;
+    saveEncryptionSettings({ enabled: false, hint: '' });
+    showToast('Encryption disabled for future backups');
+    return;
+  }
+  const hint = prompt('Optional passphrase hint (shown when importing — do NOT put the passphrase itself here). Leave blank for no hint:') || '';
+  saveEncryptionSettings({ enabled: true, hint: hint.slice(0, 80) });
+  showToast('✓ Backup encryption enabled. Next export will prompt for a passphrase.');
+}
+if (typeof window !== 'undefined') window.toggleEncryptionMode = toggleEncryptionMode;
+
+function renderEncryptionToggleLabel() {
+  const btn = document.getElementById('encryptionToggleBtn');
+  if (!btn) return;
+  const s = loadEncryptionSettings();
+  btn.textContent = s.enabled ? '🔐 Encryption: ON (click to disable)' : '🔐 Encrypt backups…';
+}
+if (typeof window !== 'undefined') window.renderEncryptionToggleLabel = renderEncryptionToggleLabel;
 
 // =========================================================
 // PWA SHORTCUT HANDLER (v2.14.0)
