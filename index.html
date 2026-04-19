@@ -1769,8 +1769,12 @@
   <div class="card card-collapsible" id="labsCard">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
       <div class="card-title" style="margin-bottom:0">🧪 Lab Results</div>
-      <div style="display:flex;gap:6px;">
-        <span id="labsReminder" style="font-size:11px;color:var(--muted);"></span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <span id="labsReminder" style="font-size:11px;color:var(--muted);align-self:center;"></span>
+        <label class="btn btn-ghost" style="font-size:11px;padding:5px 12px;cursor:pointer;" title="Upload a PDF or photo of your lab report — Claude will extract the values for you to review.">
+          📄 Upload PDF
+          <input type="file" accept=".pdf,application/pdf,.jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp" onchange="handleLabPdfUpload(event)" style="display:none;">
+        </label>
         <button class="btn btn-primary" onclick="openLabModal()" style="font-size:11px;padding:5px 12px;">+ Add Result</button>
       </div>
     </div>
@@ -1806,6 +1810,23 @@
       <div class="form-actions" style="margin-top:16px;">
         <button class="btn btn-primary" onclick="saveLab()">Save</button>
         <button class="btn btn-ghost" onclick="closeLabModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LAB PDF EXTRACT MODAL (v2.28.0) -->
+  <div id="labExtractOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:330;align-items:center;justify-content:center;padding:16px;">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:720px;max-height:92vh;overflow:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div style="font-size:16px;font-weight:800;">📄 Extracted Lab Results</div>
+        <button onclick="closeLabExtract()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
+      </div>
+      <div id="labExtractStatus" style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;"></div>
+      <div id="labExtractBody"></div>
+      <div id="labExtractActions" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid var(--border);gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+        <span id="labExtractCount" style="font-size:11px;color:var(--muted);margin-right:auto;align-self:center;"></span>
+        <button class="btn btn-ghost" onclick="closeLabExtract()">Cancel</button>
+        <button class="btn btn-primary" id="labExtractApplyBtn" onclick="applyLabExtract()">Apply selected</button>
       </div>
     </div>
   </div>
@@ -2136,7 +2157,20 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.27.0';
+const VERSION = '2.28.0';
+const VERSION_CHANGES = [
+  {
+    version: '2.28.0',
+    date: '2026-04-19',
+    summary: 'Lab PDF extraction with review hardening',
+    details: [
+      'Added PDF/image lab report extraction with review-before-apply flow.',
+      'Escaped extracted and persisted lab text before HTML rendering.',
+      'Limited uploads to API-supported file types and a base64-safe size cap.',
+      'Preserved distinct custom lab tests during duplicate checks and trend rendering.',
+    ],
+  },
+];
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -2478,7 +2512,11 @@ function render() {
   // Topbar
   document.getElementById('topbarDate').textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   document.getElementById('topbarPhase').textContent = phase;
-  document.getElementById('versionTag').textContent = 'v' + VERSION;
+  const versionEl = document.getElementById('versionTag');
+  versionEl.textContent = 'v' + VERSION;
+  if (VERSION_CHANGES && VERSION_CHANGES[0]) {
+    versionEl.title = `Tap 5 times for diagnostics. v${VERSION_CHANGES[0].version}: ${VERSION_CHANGES[0].summary}`;
+  }
   renderBackupStatus();
 
   renderAlert(plateau, avg, cw, nextCp);
@@ -7183,7 +7221,430 @@ function deleteLab(ts) {
   renderLabs();
 }
 
+// =========================================================
+// LAB PDF EXTRACTION (v2.28.0)
+// Upload a PDF or photo of a lab report → Claude Vision extracts
+// structured rows → user reviews and applies.
+//
+// Security note: the file is sent directly to Anthropic's API
+// from the browser using the user's saved API key (tp_coach_settings).
+// Nothing is stored server-side by us. The file never leaves the
+// browser except to go straight to Anthropic.
+//
+// Cost note: PDFs are ~$0.03–0.10 per page with Claude Sonnet 4.
+// A typical lab report (2–4 pages) is pennies. Multi-page panels
+// up to ~100 pages / 32 MB are accepted by the API.
+// =========================================================
+const LAB_EXTRACT_MAX_MB = 22;
+// Anthropic review note: the API limit applies to the whole JSON request, and
+// base64 adds roughly 33%, so keep the raw file well below the 32 MB cap.
+const LAB_EXTRACT_MAX_BYTES = LAB_EXTRACT_MAX_MB * 1024 * 1024;
+const LAB_EXTRACT_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+const LAB_EXTRACT_IMAGE_EXT_MIMES = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  gif: 'image/gif',
+  webp: 'image/webp',
+};
+let _labExtractState = null;
+
+function _todayIsoDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function _normalizeLabIsoDate(value, fallback) {
+  const fallbackDate = fallback == null ? _todayIsoDate() : fallback;
+  const s = String(value || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return fallbackDate;
+  const d = new Date(s + 'T00:00:00Z');
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s ? s : fallbackDate;
+}
+
+function _supportedLabImageMime(file) {
+  const type = String(file?.type || '').toLowerCase();
+  if (LAB_EXTRACT_IMAGE_MIMES.has(type)) return type;
+  const ext = String(file?.name || '').toLowerCase().split('.').pop();
+  return LAB_EXTRACT_IMAGE_EXT_MIMES[ext] || '';
+}
+
+function _isCustomLabMarker(marker) {
+  return marker === 'custom' || String(marker || '').startsWith('custom:');
+}
+
+function _slugForLabMarker(value) {
+  return String(value || 'custom')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 48) || 'custom';
+}
+
+function _customLabMarkerKey(label, unit) {
+  const unitSlug = _slugForLabMarker(unit || '');
+  return `custom:${_slugForLabMarker(label || 'custom')}${unitSlug ? ':' + unitSlug : ''}`;
+}
+
+function _labStoredMarker(row) {
+  if (!row) return '';
+  if (row.customMarker) return row.customMarker;
+  if (_isCustomLabMarker(row.marker) && row.marker === 'custom') {
+    return _customLabMarkerKey(row.label, row.unit);
+  }
+  return row.marker || '';
+}
+
+function _sameLabResult(a, b) {
+  if (!a || !b) return false;
+  const aMarker = _labStoredMarker(a);
+  const bMarker = _labStoredMarker(b);
+  if (aMarker !== bMarker || a.date !== b.date) return false;
+  return Math.abs((+a.value) - (+b.value)) < 0.0001;
+}
+
+function openLabExtract() {
+  const o = document.getElementById('labExtractOverlay');
+  if (o) o.style.display = 'flex';
+}
+function closeLabExtract() {
+  const o = document.getElementById('labExtractOverlay');
+  if (o) o.style.display = 'none';
+  _labExtractState = null;
+  const fi = document.querySelector('#labsCard input[type=file]');
+  if (fi) fi.value = ''; // allow re-selecting the same file
+}
+
+async function handleLabPdfUpload(ev) {
+  const file = ev.target.files && ev.target.files[0];
+  if (!file) return;
+
+  // Basic validation
+  const isPdf = /\/pdf$/i.test(file.type) || /\.pdf$/i.test(file.name);
+  // Anthropic review note: Messages image blocks support JPEG, PNG, GIF, and WebP.
+  // Reject HEIC/TIFF/SVG/etc. before reading and uploading a file that the API will refuse.
+  const imageMime = _supportedLabImageMime(file);
+  const isImg = !!imageMime;
+  if (!isPdf && !isImg) {
+    showToast('Unsupported file type. Use PDF, JPG, PNG, GIF, or WebP.', 3500);
+    return;
+  }
+  if (file.size > LAB_EXTRACT_MAX_BYTES) {
+    showToast(`File too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Max ${LAB_EXTRACT_MAX_MB} MB.`, 4000);
+    return;
+  }
+
+  // Must have an Anthropic API key configured (same key as AI Coach)
+  const settings = loadCoachSettings();
+  if (!settings.apiKey) {
+    openLabExtract();
+    document.getElementById('labExtractStatus').innerHTML = `
+      <div style="padding:14px;background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.25);border-radius:8px;color:#eab308;line-height:1.55;">
+        <div style="font-weight:700;margin-bottom:6px;">⚠ AI Coach API key required</div>
+        <div style="font-size:11px;">PDF extraction sends the file directly to Anthropic for OCR + structured parsing. Add your API key in the AI Coach card's ⚙ Settings (above), then try again. Free workflow: use "+ Add Result" to enter values manually.</div>
+      </div>`;
+    document.getElementById('labExtractBody').innerHTML = '';
+    document.getElementById('labExtractActions').style.display = 'none';
+    return;
+  }
+
+  openLabExtract();
+  document.getElementById('labExtractStatus').innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="spinner" style="width:16px;height:16px;border:2px solid var(--muted);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+      <span>Reading <strong>${escapeHtml(file.name || 'file')}</strong> (${(file.size/1024).toFixed(0)} KB)… this usually takes 10–30 seconds.</span>
+    </div>
+    <style>@keyframes spin { to { transform: rotate(360deg); } }</style>`;
+  document.getElementById('labExtractBody').innerHTML = '';
+  document.getElementById('labExtractActions').style.display = 'none';
+
+  try {
+    const base64 = await _fileToBase64(file);
+    const mediaType = isPdf ? 'application/pdf' : imageMime;
+    const contentBlock = isPdf
+      ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }
+      : { type: 'image',    source: { type: 'base64', media_type: mediaType, data: base64 } };
+
+    const markersDesc = LAB_MARKERS
+      .filter(m => m.key !== 'custom')
+      .map(m => `  - "${m.key}" (${m.label}${m.unit ? ', ' + m.unit : ''})`)
+      .join('\n');
+
+    const system = `You are a medical-lab report parser. Extract every numeric lab result from the uploaded document and return them as structured JSON.
+
+Known markers (use these keys where possible — map common synonyms, e.g. "HgbA1c"→"hba1c", "ALT (SGPT)"→"alt", "Total Testosterone"→"testosterone"):
+${markersDesc}
+
+If a result doesn't clearly match one of those, use marker "custom" and put the original test name in the "label" field.
+
+Rules:
+- Return ONLY valid JSON, no commentary, no markdown fences.
+- Shape: { "collectionDate": "YYYY-MM-DD" or null, "reportDate": "YYYY-MM-DD" or null, "results": [ { marker, label, value, unit, refRange, flag, notes } ] }
+- "value" must be a number (not a string). If the result is qualitative (e.g. "Negative"), skip it.
+- "flag" is "H" (high), "L" (low), or null.
+- Prefer the collection date for each result's date; fall back to report date.
+- Skip headers, patient demographics, insurance info, lab metadata, disclaimers.
+- If you can't find ANY numeric results, return { "results": [] }.`;
+
+    const userText = `Extract all lab results from this report. Return JSON only.`;
+
+    const resp = await anthropicCall({
+      apiKey: settings.apiKey,
+      model: settings.model || 'claude-sonnet-4-6',
+      maxTokens: 4096,
+      system,
+      messages: [{
+        role: 'user',
+        content: [contentBlock, { type: 'text', text: userText }],
+      }],
+    });
+
+    // Anthropic returns { content: [{type:'text', text:'...'}, ...], usage: {...} }
+    const rawText = (resp.content || []).filter(c => c.type === 'text').map(c => c.text).join('').trim();
+    const parsed = _extractJson(rawText);
+    if (!parsed || !Array.isArray(parsed.results)) {
+      throw new Error('Claude returned unexpected output. See browser console for details.');
+    }
+    console.log('[labExtract] raw:', rawText);
+    console.log('[labExtract] parsed:', parsed);
+
+    _renderLabExtractPreview(parsed, resp.usage);
+  } catch (e) {
+    document.getElementById('labExtractStatus').innerHTML = `
+      <div style="padding:14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#ef4444;line-height:1.55;">
+        <div style="font-weight:700;margin-bottom:4px;">✗ Extraction failed</div>
+        <div style="font-size:12px;">${escapeHtml(e && e.message || 'Unknown error')}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">If this keeps happening, try uploading a clearer scan, a single-page PDF, or entering the values manually with "+ Add Result".</div>
+      </div>`;
+    document.getElementById('labExtractBody').innerHTML = '';
+    document.getElementById('labExtractActions').style.display = 'none';
+  }
+}
+
+function _fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const s = String(r.result || '');
+      const i = s.indexOf(',');
+      resolve(i >= 0 ? s.slice(i + 1) : s);
+    };
+    r.onerror = () => reject(new Error('Failed to read file'));
+    r.readAsDataURL(file);
+  });
+}
+
+function _guessImageMime(name) {
+  const ext = (name || '').toLowerCase().split('.').pop();
+  return LAB_EXTRACT_IMAGE_EXT_MIMES[ext] || '';
+}
+
+// Claude sometimes wraps JSON in ```json fences despite instructions. Be lenient.
+function _extractJson(text) {
+  if (!text) return null;
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const candidate = fenced ? fenced[1] : text;
+  try { return JSON.parse(candidate); } catch {}
+  // Last resort — slice from first { to last }
+  const first = candidate.indexOf('{');
+  const last  = candidate.lastIndexOf('}');
+  if (first >= 0 && last > first) {
+    try { return JSON.parse(candidate.slice(first, last + 1)); } catch {}
+  }
+  return null;
+}
+
+// Normalize Claude's output into our schema, mapping unknown markers to "custom".
+function _normalizeExtractedRow(row, fallbackDate) {
+  const knownKeys = new Set(LAB_MARKERS.map(m => m.key));
+  let markerKey = (row.marker || '').toLowerCase().trim();
+  if (!knownKeys.has(markerKey)) markerKey = 'custom';
+  const mdef = LAB_MARKERS.find(m => m.key === markerKey);
+  const label = (row.label && String(row.label).trim()) || mdef?.label || markerKey;
+  const unit  = (row.unit  && String(row.unit).trim())  || mdef?.unit  || '';
+  const value = typeof row.value === 'number'
+    ? row.value
+    : Number(String(row.value ?? '').replace(/,/g, '').trim());
+  if (!isFinite(value)) return null;
+  const date  = _normalizeLabIsoDate(row.date, fallbackDate || _todayIsoDate());
+  const notes = [row.refRange, row.flag && ('flag: ' + row.flag), row.notes]
+    .filter(Boolean).join(' · ');
+  return {
+    date,
+    marker: markerKey,
+    customMarker: markerKey === 'custom' ? _customLabMarkerKey(label, unit) : '',
+    label,
+    value,
+    unit,
+    notes,
+  };
+}
+
+function _renderLabExtractPreview(parsed, usage) {
+  const fallbackDate = _normalizeLabIsoDate(parsed.collectionDate || parsed.reportDate, _todayIsoDate());
+  const rows = (parsed.results || [])
+    .map(r => _normalizeExtractedRow({ ...r, date: r.date || fallbackDate }, fallbackDate))
+    .filter(Boolean);
+
+  _labExtractState = { rows, fallbackDate };
+
+  const statusEl = document.getElementById('labExtractStatus');
+  const bodyEl = document.getElementById('labExtractBody');
+  const actionsEl = document.getElementById('labExtractActions');
+
+  if (!rows.length) {
+    statusEl.innerHTML = `
+      <div style="padding:14px;background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.25);border-radius:8px;color:#eab308;line-height:1.55;">
+        <div style="font-weight:700;margin-bottom:4px;">No lab values detected</div>
+        <div style="font-size:12px;">Claude read the document but didn't find any numeric lab results to extract. Try a clearer scan, a different page, or enter manually with "+ Add Result".</div>
+      </div>`;
+    bodyEl.innerHTML = '';
+    actionsEl.style.display = 'none';
+    return;
+  }
+
+  // Anthropic review note: duplicate checks use the same stored marker that apply
+  // will write, so two custom tests with the same value do not collapse together.
+  const existing = loadLabs();
+  const isDup = (r) => existing.some(e => _sameLabResult(r, e));
+
+  const costNote = usage
+    ? `· ${(usage.input_tokens || 0).toLocaleString()}+${(usage.output_tokens || 0).toLocaleString()} tokens`
+    : '';
+  statusEl.innerHTML = `
+    <div style="line-height:1.55;">
+      Review the extracted rows below. <strong>Uncheck anything that looks wrong</strong>, edit values inline,
+      and click Apply. Collection date detected: <strong>${escapeHtml(fallbackDate)}</strong>. ${costNote}
+    </div>`;
+
+  const markerOptions = LAB_MARKERS.map(m =>
+    `<option value="${escapeHtml(m.key)}">${escapeHtml(m.label)}${m.unit ? ' (' + escapeHtml(m.unit) + ')' : ''}</option>`
+  ).join('');
+
+  // Anthropic review note: every row value below can originate from the
+  // uploaded document/model response, so escape before writing into innerHTML.
+  bodyEl.innerHTML = `
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr style="text-align:left;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;">
+            <th style="padding:6px 8px;border-bottom:1px solid var(--border);"><input type="checkbox" id="labExtractAll" checked onchange="_toggleAllLabExtract(this.checked)" title="Select all"></th>
+            <th style="padding:6px 8px;border-bottom:1px solid var(--border);">Marker</th>
+            <th style="padding:6px 8px;border-bottom:1px solid var(--border);">Value</th>
+            <th style="padding:6px 8px;border-bottom:1px solid var(--border);">Unit</th>
+            <th style="padding:6px 8px;border-bottom:1px solid var(--border);">Date</th>
+            <th style="padding:6px 8px;border-bottom:1px solid var(--border);"></th>
+          </tr>
+        </thead>
+        <tbody id="labExtractRows">
+          ${rows.map((r, i) => {
+            const dup = isDup(r);
+            const labelStyle = r.marker === 'custom' ? 'display:block;' : 'display:none;';
+            return `<tr data-idx="${i}" style="border-bottom:1px solid var(--border);${dup?'opacity:0.6;':''}">
+              <td style="padding:6px 8px;"><input type="checkbox" class="lx-chk" data-idx="${i}" ${dup ? '' : 'checked'} onchange="_updateLabExtractCount()"></td>
+              <td style="padding:6px 8px;">
+                <select class="lx-marker" data-idx="${i}" style="background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:4px 6px;font-size:12px;max-width:160px;">
+                  ${markerOptions}
+                </select>
+                <input class="lx-label" data-idx="${i}" type="text" value="${escapeHtml(r.label || '')}" placeholder="Custom test name" style="margin-top:4px;${labelStyle}background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:4px 6px;font-size:11px;width:100%;max-width:160px;">
+              </td>
+              <td style="padding:6px 8px;"><input class="lx-value" data-idx="${i}" type="number" step="0.0001" value="${escapeHtml(String(r.value))}" style="background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:4px 6px;font-size:12px;width:90px;"></td>
+              <td style="padding:6px 8px;"><input class="lx-unit" data-idx="${i}" type="text" value="${escapeHtml(r.unit || '')}" style="background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:4px 6px;font-size:12px;width:80px;"></td>
+              <td style="padding:6px 8px;"><input class="lx-date" data-idx="${i}" type="date" value="${escapeHtml(r.date)}" style="background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:4px 6px;font-size:12px;width:130px;"></td>
+              <td style="padding:6px 8px;font-size:10px;color:var(--muted);">${dup ? '<span title="Already in your logs">⏺ duplicate</span>' : (r.notes ? `<span title="${escapeHtml(r.notes)}">ℹ</span>` : '')}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+
+  // Set each row's <select> to its extracted marker (can't embed selected in template map cleanly)
+  rows.forEach((r, i) => {
+    const sel = bodyEl.querySelector(`select.lx-marker[data-idx="${i}"]`);
+    if (sel) {
+      sel.value = r.marker;
+      sel.addEventListener('change', () => _onLabExtractMarkerChange(i));
+    }
+  });
+
+  actionsEl.style.display = 'flex';
+  _updateLabExtractCount();
+}
+
+function _onLabExtractMarkerChange(i) {
+  const row = document.querySelector(`#labExtractRows tr[data-idx="${i}"]`);
+  const marker = row?.querySelector('.lx-marker')?.value || '';
+  const label = row?.querySelector('.lx-label');
+  if (label) label.style.display = marker === 'custom' ? 'block' : 'none';
+  _updateLabExtractCount();
+}
+
+function _toggleAllLabExtract(checked) {
+  document.querySelectorAll('#labExtractRows .lx-chk').forEach(c => c.checked = checked);
+  _updateLabExtractCount();
+}
+
+function _updateLabExtractCount() {
+  const checked = document.querySelectorAll('#labExtractRows .lx-chk:checked').length;
+  const total = document.querySelectorAll('#labExtractRows .lx-chk').length;
+  const el = document.getElementById('labExtractCount');
+  if (el) el.textContent = `${checked} of ${total} selected`;
+  const btn = document.getElementById('labExtractApplyBtn');
+  if (btn) btn.disabled = checked === 0;
+}
+
+function applyLabExtract() {
+  const rowEls = document.querySelectorAll('#labExtractRows tr[data-idx]');
+  const arr = loadLabs();
+  let added = 0, skipped = 0;
+  rowEls.forEach(tr => {
+    const idx = tr.getAttribute('data-idx');
+    const chk = tr.querySelector('.lx-chk');
+    if (!chk || !chk.checked) return;
+    const markerEl = tr.querySelector('.lx-marker');
+    const valEl    = tr.querySelector('.lx-value');
+    const unitEl   = tr.querySelector('.lx-unit');
+    const dateEl   = tr.querySelector('.lx-date');
+    const labelEl  = tr.querySelector('.lx-label');
+    const marker = (markerEl?.value || 'custom').trim();
+    const value  = Number(String(valEl?.value || '').replace(/,/g, '').trim());
+    const unit   = (unitEl?.value || '').trim();
+    const date   = _normalizeLabIsoDate(dateEl?.value, '');
+    if (!isFinite(value) || !date) { skipped++; return; }
+    const m = LAB_MARKERS.find(x => x.key === marker);
+    const label = marker === 'custom'
+      ? ((labelEl?.value || '').trim() || 'Custom')
+      : (m?.label || marker);
+    const storedMarker = marker === 'custom' ? _customLabMarkerKey(label, unit) : marker;
+    const candidate = { date, marker: storedMarker, label, value, unit };
+    // Dedup against already-applied rows using the final storage identity.
+    const dup = arr.some(e => _sameLabResult(candidate, e));
+    if (dup) { skipped++; return; }
+    arr.push({
+      date, marker: storedMarker, label, value, unit,
+      notes: _labExtractState?.rows?.[+idx]?.notes || '',
+      ts: new Date().toISOString(),
+      source: 'pdf-extract',
+    });
+    added++;
+  });
+  arr.sort((a, b) => a.date.localeCompare(b.date));
+  saveLabs(arr);
+  closeLabExtract();
+  renderLabs();
+  showToast(`✓ Added ${added} lab result${added === 1 ? '' : 's'}${skipped ? ` · skipped ${skipped}` : ''}`, 3500);
+}
+
 let labsTrendChartInst = null;
+function _labMarkerLabel(marker, arr) {
+  const m = LAB_MARKERS.find(x => x.key === marker);
+  if (m) return m.label;
+  const row = (arr || []).find(l => l && l.marker === marker && l.label);
+  return row?.label || marker || '';
+}
+function _labMarkerHigherBad(marker) {
+  const m = LAB_MARKERS.find(x => x.key === marker);
+  return m ? !!m.higherBad : true;
+}
 function renderLabs() {
   const arr = loadLabs();
   const grid = document.getElementById('labsGrid');
@@ -7213,7 +7674,6 @@ function renderLabs() {
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 8)
     .map(l => {
-      const m = LAB_MARKERS.find(x => x.key === l.marker);
       const prev = arr
         .filter(x => x.marker === l.marker && x.date < l.date)
         .sort((a, b) => b.date.localeCompare(a.date))[0];
@@ -7221,15 +7681,15 @@ function renderLabs() {
       let deltaStr = '';
       if (delta !== null) {
         const arrow = delta > 0 ? '▲' : delta < 0 ? '▼' : '•';
-        const good = m?.higherBad ? delta < 0 : delta > 0;
+        const good = _labMarkerHigherBad(l.marker) ? delta < 0 : delta > 0;
         const color = delta === 0 ? 'var(--muted)' : good ? 'var(--green)' : '#ef4444';
         deltaStr = `<div class="meas-stat-delta" style="color:${color};">${arrow} ${Math.abs(delta).toFixed(2)}</div>`;
       }
-      return `<div class="meas-stat" onclick="setLabsTrendMarker('${l.marker}')" style="cursor:pointer;">
-        <div class="meas-stat-label">${l.label}</div>
-        <div class="meas-stat-val" style="color:var(--accent);font-size:17px;">${l.value}<span style="font-size:10px;color:var(--muted);font-weight:600;"> ${l.unit||''}</span></div>
+      return `<div class="meas-stat" onclick="setLabsTrendMarker(${escapeHtml(JSON.stringify(l.marker || ''))})" style="cursor:pointer;">
+        <div class="meas-stat-label">${escapeHtml(l.label || _labMarkerLabel(l.marker, arr))}</div>
+        <div class="meas-stat-val" style="color:var(--accent);font-size:17px;">${escapeHtml(l.value ?? '')}<span style="font-size:10px;color:var(--muted);font-weight:600;"> ${escapeHtml(l.unit||'')}</span></div>
         ${deltaStr}
-        <div style="font-size:9px;color:var(--muted);margin-top:2px;">${l.date}</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:2px;">${escapeHtml(l.date || '')}</div>
       </div>`;
     }).join('');
 
@@ -7249,8 +7709,8 @@ function renderLabs() {
     trendWrap.style.display = 'block';
     const prev = sel.value;
     sel.innerHTML = trendable.map(k => {
-      const label = LAB_MARKERS.find(x => x.key === k)?.label || k;
-      return `<option value="${k}">${label}</option>`;
+      const label = _labMarkerLabel(k, arr);
+      return `<option value="${escapeHtml(k)}">${escapeHtml(label)}</option>`;
     }).join('');
     if (trendable.includes(prev)) sel.value = prev;
     renderLabsTrend();
@@ -7258,14 +7718,16 @@ function renderLabs() {
     trendWrap.style.display = 'none';
   }
 
+  // Anthropic review note: stored labs may include extracted/imported text, so
+  // render persisted labels, units, notes, dates, and ids as escaped text.
   // Full table
   const rows = [...arr].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 40).map(l => `
     <tr style="border-bottom:1px solid var(--border);">
-      <td style="padding:6px 8px;font-size:11px;color:var(--muted);">${l.date}</td>
-      <td style="padding:6px 8px;font-size:12px;">${l.label}</td>
-      <td style="padding:6px 8px;font-size:12px;text-align:right;font-weight:700;">${l.value} <span style="color:var(--muted);font-size:10px;">${l.unit||''}</span></td>
-      <td style="padding:6px 8px;font-size:11px;color:var(--muted);">${l.notes || ''}</td>
-      <td style="padding:6px 8px;text-align:right;"><button onclick="deleteLab('${l.ts}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;">✕</button></td>
+      <td style="padding:6px 8px;font-size:11px;color:var(--muted);">${escapeHtml(l.date || '')}</td>
+      <td style="padding:6px 8px;font-size:12px;">${escapeHtml(l.label || _labMarkerLabel(l.marker, arr))}</td>
+      <td style="padding:6px 8px;font-size:12px;text-align:right;font-weight:700;">${escapeHtml(l.value ?? '')} <span style="color:var(--muted);font-size:10px;">${escapeHtml(l.unit||'')}</span></td>
+      <td style="padding:6px 8px;font-size:11px;color:var(--muted);">${escapeHtml(l.notes || '')}</td>
+      <td style="padding:6px 8px;text-align:right;"><button onclick="deleteLab(${escapeHtml(JSON.stringify(l.ts || ''))})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;">✕</button></td>
     </tr>`).join('');
   tableEl.innerHTML = `<div class="scroll-x"><table style="width:100%;border-collapse:collapse;min-width:420px;"><tbody>${rows}</tbody></table></div>`;
 }
@@ -12579,6 +13041,7 @@ if (typeof window !== 'undefined') {
 function buildDiagnosticsReport() {
   const report = {
     version: (typeof VERSION !== 'undefined') ? VERSION : 'unknown',
+    versionChanges: (typeof VERSION_CHANGES !== 'undefined') ? VERSION_CHANGES : [],
     generatedAt: new Date().toISOString(),
     userAgent: (typeof navigator !== 'undefined' ? navigator.userAgent : ''),
     screen: (typeof window !== 'undefined' && window.screen)
