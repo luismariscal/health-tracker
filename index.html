@@ -1189,6 +1189,9 @@
   <!-- OUTLIER DETECTION (v2.24.0) -->
   <div id="outlierDetection" style="display:none;"></div>
 
+  <!-- TODAY IS DONE MODE (v2.25.0) -->
+  <div id="todayCloseout" style="display:none;"></div>
+
   <!-- TODAY'S PLAN (daily auto-generated checklist) -->
   <div class="card tp-card" id="todaysPlanCard">
     <div class="tp-top">
@@ -2083,7 +2086,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.24.0';
+const VERSION = '2.25.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -2377,6 +2380,7 @@ function render() {
   if (typeof renderGuardrailCenter === 'function') renderGuardrailCenter(entries);
   if (typeof renderWeeklyReviewDiff === 'function') renderWeeklyReviewDiff(entries);
   if (typeof renderOutlierDetection === 'function') renderOutlierDetection(entries);
+  if (typeof renderTodayCloseout === 'function') renderTodayCloseout(entries);
   if (typeof renderInventory === 'function') renderInventory();
   renderTodaysPlan(entries, cw, avg, plateau);
   renderCommandCenter(entries, cw, avg, plateau, nextCp);
@@ -12026,6 +12030,210 @@ function renderOutlierDetection(entries) {
 if (typeof window !== 'undefined') {
   window.detectOutliers = detectOutliers;
   window.renderOutlierDetection = renderOutlierDetection;
+}
+
+// =========================================================
+// TODAY IS DONE MODE (v2.25.0)
+// -------------------------------------------------------
+// Daily closeout ritual. When the user has logged everything
+// that matters for the day (weight + macros + water + any
+// injection they owed), they can tap "Today is done" and the
+// app freezes a summary of the day. The closeout timestamp is
+// stored in localStorage under tp_day_closed_YYYY-MM-DD so
+// other cards (morning nudge, today's plan) can respect it.
+//
+// The user can always "Reopen today" — nothing is locked at
+// the data level, only UI state.
+// =========================================================
+const _CLOSEOUT_KEY_PREFIX = 'tp_day_closed_';
+
+function _closeoutKey(dateStr) {
+  return _CLOSEOUT_KEY_PREFIX + (dateStr || (new Date().toISOString().slice(0, 10)));
+}
+
+function isTodayClosed(dateStr) {
+  try { return !!JSON.parse(localStorage.getItem(_closeoutKey(dateStr)) || 'null'); }
+  catch { return false; }
+}
+
+function loadTodayCloseout(dateStr) {
+  try { return JSON.parse(localStorage.getItem(_closeoutKey(dateStr)) || 'null'); }
+  catch { return null; }
+}
+
+function computeTodayCloseoutStatus(opts) {
+  opts = opts || {};
+  const entries = opts.entries || loadEntries();
+  const dateStr = opts.date || new Date().toISOString().slice(0, 10);
+
+  // Find today's entry
+  const todayEntry = entries.find(e => e && e.date === dateStr);
+
+  // Protein target — use computeTodaysPlan if available, else 180g default
+  let proteinTarget = 180;
+  try {
+    if (typeof computeTodaysPlan === 'function') {
+      const plan = computeTodaysPlan(entries, null, null, null);
+      if (plan && typeof plan.proteinTarget === 'number' && plan.proteinTarget > 0) {
+        proteinTarget = plan.proteinTarget;
+      }
+    }
+  } catch { /* fall back to default */ }
+
+  // Water target from water settings
+  let waterTarget = 100;
+  try {
+    if (typeof loadWaterSettings === 'function') {
+      const ws = loadWaterSettings();
+      if (ws && typeof ws.goalOz === 'number' && ws.goalOz > 0) waterTarget = ws.goalOz;
+    }
+  } catch { /* fall back */ }
+
+  // Injections today
+  let injections = [];
+  try { injections = JSON.parse(localStorage.getItem('tp_injections') || '[]'); } catch {}
+  const injToday = injections.filter(i => i && i.date === dateStr);
+
+  const weight = todayEntry && +todayEntry.weight > 0 ? +todayEntry.weight : null;
+  const protein = todayEntry && +todayEntry.protein >= 0 ? +todayEntry.protein : null;
+  const water = todayEntry && +todayEntry.water >= 0 ? +todayEntry.water : null;
+
+  // Thresholds for "hit" = >= 80% of target
+  const proteinHit = protein != null && protein >= 0.8 * proteinTarget;
+  const waterHit   = water   != null && water   >= 0.8 * waterTarget;
+
+  const checks = [
+    { key: 'weight',    label: 'Weight logged',    ok: weight != null,  detail: weight != null ? weight.toFixed(1) + ' lb' : 'not logged' },
+    { key: 'protein',   label: 'Protein target',   ok: proteinHit,      detail: protein != null ? Math.round(protein) + '/' + proteinTarget + 'g' : 'not logged' },
+    { key: 'water',     label: 'Water target',     ok: waterHit,        detail: water != null ? Math.round(water) + '/' + waterTarget + 'oz' : 'not logged' },
+    { key: 'injection', label: 'Injection',        ok: injToday.length > 0, detail: injToday.length > 0 ? injToday.length + ' logged' : 'none today', optional: true },
+  ];
+
+  // Required-check readiness — injection is optional (not every day needs one)
+  const ready = checks.filter(c => !c.optional).every(c => c.ok);
+  const okCount = checks.filter(c => c.ok).length;
+
+  return {
+    date: dateStr,
+    checks,
+    ready,
+    okCount,
+    total: checks.length,
+    closed: isTodayClosed(dateStr),
+    closeout: loadTodayCloseout(dateStr),
+    snapshot: { weight, protein, water, proteinTarget, waterTarget, injections: injToday.length },
+  };
+}
+
+function closeToday(opts) {
+  opts = opts || {};
+  const dateStr = opts.date || new Date().toISOString().slice(0, 10);
+  const status = computeTodayCloseoutStatus({ date: dateStr, entries: opts.entries });
+  const record = {
+    closedAt: new Date().toISOString(),
+    date: dateStr,
+    snapshot: status.snapshot,
+    note: (opts.note || '').toString().slice(0, 500),
+  };
+  localStorage.setItem(_closeoutKey(dateStr), JSON.stringify(record));
+  return record;
+}
+
+function reopenToday(dateStr) {
+  localStorage.removeItem(_closeoutKey(dateStr));
+}
+
+function _promptCloseToday() {
+  const s = computeTodayCloseoutStatus();
+  if (!s.ready) {
+    const missing = s.checks.filter(c => !c.optional && !c.ok).map(c => c.label).join(', ');
+    if (!confirm('Not everything is logged yet (' + missing + '). Close today anyway?')) return;
+  }
+  let note = '';
+  try { note = prompt('Optional note for today (max 500 chars):', '') || ''; } catch {}
+  closeToday({ note });
+  if (typeof render === 'function') render();
+  if (typeof showToast === 'function') showToast('Today marked as done ✓');
+}
+
+function _promptReopenToday() {
+  if (!confirm('Reopen today? The closeout summary will be cleared.')) return;
+  reopenToday();
+  if (typeof render === 'function') render();
+  if (typeof showToast === 'function') showToast('Today reopened');
+}
+
+function renderTodayCloseout(entries) {
+  const el = document.getElementById('todayCloseout');
+  if (!el) return;
+  const ent = entries || loadEntries();
+  const s = computeTodayCloseoutStatus({ entries: ent });
+
+  if (s.closed) {
+    const closedAt = s.closeout && s.closeout.closedAt ? new Date(s.closeout.closedAt) : null;
+    const timeStr = closedAt ? closedAt.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' }) : '';
+    const snap = (s.closeout && s.closeout.snapshot) || s.snapshot;
+    const noteStr = s.closeout && s.closeout.note
+      ? `<div style="font-size:11px;color:var(--muted);margin-top:6px;padding:6px 8px;background:var(--surface2);border-radius:6px;line-height:1.5;">${_escHtml(s.closeout.note)}</div>`
+      : '';
+    el.innerHTML = `
+      <div style="background:linear-gradient(135deg,rgba(52,211,153,0.15),rgba(52,211,153,0.05));border:1px solid rgba(52,211,153,0.55);border-radius:12px;padding:14px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="font-size:28px;flex:none;">🌙</div>
+          <div style="flex:1;min-width:160px;">
+            <div style="font-size:14px;font-weight:800;color:#34d399;">Today is done ✓</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">Closed at ${_escHtml(timeStr)} · ${_escHtml(s.date)}</div>
+          </div>
+          <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="_promptReopenToday()" title="Reopen today">Reopen</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:10px;">
+          ${snap.weight != null ? `<div style="background:var(--surface2);padding:8px;border-radius:6px;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Weight</div><div style="font-size:14px;font-weight:700;color:var(--text);">${snap.weight.toFixed(1)} lb</div></div>` : ''}
+          ${snap.protein != null ? `<div style="background:var(--surface2);padding:8px;border-radius:6px;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Protein</div><div style="font-size:14px;font-weight:700;color:var(--text);">${Math.round(snap.protein)}g</div></div>` : ''}
+          ${snap.water != null ? `<div style="background:var(--surface2);padding:8px;border-radius:6px;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Water</div><div style="font-size:14px;font-weight:700;color:var(--text);">${Math.round(snap.water)}oz</div></div>` : ''}
+          ${snap.injections > 0 ? `<div style="background:var(--surface2);padding:8px;border-radius:6px;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Injections</div><div style="font-size:14px;font-weight:700;color:var(--text);">${snap.injections}</div></div>` : ''}
+        </div>
+        ${noteStr}
+      </div>`;
+    el.style.display = 'block';
+    return;
+  }
+
+  // Not closed — show readiness checklist + close button
+  const rowsHtml = s.checks.map(c => `
+    <div style="display:flex;align-items:center;gap:8px;padding:5px 0;">
+      <div style="font-size:14px;width:18px;flex:none;color:${c.ok ? '#34d399' : 'var(--muted)'};">${c.ok ? '✓' : '○'}</div>
+      <div style="flex:1;font-size:12px;color:var(--text);">${_escHtml(c.label)}${c.optional ? ' <span style="color:var(--muted);font-size:10px;">(optional)</span>' : ''}</div>
+      <div style="font-size:11px;color:var(--muted);text-align:right;">${_escHtml(c.detail)}</div>
+    </div>`).join('');
+
+  const accent = s.ready ? 'rgba(52,211,153,0.45)' : 'var(--border)';
+  const btnBg  = s.ready ? 'rgba(52,211,153,0.18)' : 'var(--surface2)';
+  const btnColor = s.ready ? '#34d399' : 'var(--muted)';
+
+  el.innerHTML = `
+    <div style="background:var(--card);border:1px solid ${accent};border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="font-size:22px;flex:none;">🏁</div>
+        <div style="flex:1;min-width:160px;">
+          <div style="font-size:13px;font-weight:800;color:var(--text);">Daily closeout</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">${s.okCount}/${s.total} logged · ${s.ready ? 'ready to close' : 'still logging'}</div>
+        </div>
+      </div>
+      <div style="margin-top:8px;">${rowsHtml}</div>
+      <button onclick="_promptCloseToday()" style="margin-top:10px;width:100%;padding:10px;background:${btnBg};color:${btnColor};border:1px solid ${accent};border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
+        ${s.ready ? 'Today is done ✓' : 'Close today anyway'}
+      </button>
+    </div>`;
+  el.style.display = 'block';
+}
+
+if (typeof window !== 'undefined') {
+  window.isTodayClosed = isTodayClosed;
+  window.loadTodayCloseout = loadTodayCloseout;
+  window.computeTodayCloseoutStatus = computeTodayCloseoutStatus;
+  window.closeToday = closeToday;
+  window.reopenToday = reopenToday;
+  window.renderTodayCloseout = renderTodayCloseout;
 }
 
 // v2.22.0 — expose encryption primitives + settings helper
