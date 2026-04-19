@@ -1186,6 +1186,9 @@
   <!-- WEEKLY REVIEW DIFF (v2.23.0) -->
   <div id="weeklyReviewDiff" style="display:none;"></div>
 
+  <!-- OUTLIER DETECTION (v2.24.0) -->
+  <div id="outlierDetection" style="display:none;"></div>
+
   <!-- TODAY'S PLAN (daily auto-generated checklist) -->
   <div class="card tp-card" id="todaysPlanCard">
     <div class="tp-top">
@@ -2080,7 +2083,7 @@
 // =========================================================
 // DATA
 // =========================================================
-const VERSION = '2.23.0';
+const VERSION = '2.24.0';
 const INJ_SITES = [
   { key: 'abd_ul', label: 'Upper-L Abd' },
   { key: 'abd_ur', label: 'Upper-R Abd' },
@@ -2373,6 +2376,7 @@ function render() {
   if (typeof renderDataQualityScore === 'function') renderDataQualityScore(entries);
   if (typeof renderGuardrailCenter === 'function') renderGuardrailCenter(entries);
   if (typeof renderWeeklyReviewDiff === 'function') renderWeeklyReviewDiff(entries);
+  if (typeof renderOutlierDetection === 'function') renderOutlierDetection(entries);
   if (typeof renderInventory === 'function') renderInventory();
   renderTodaysPlan(entries, cw, avg, plateau);
   renderCommandCenter(entries, cw, avg, plateau, nextCp);
@@ -11805,6 +11809,223 @@ function renderWeeklyReviewDiff(entries) {
 if (typeof window !== 'undefined') {
   window.computeWeeklyDiff = computeWeeklyDiff;
   window.renderWeeklyReviewDiff = renderWeeklyReviewDiff;
+}
+
+// =========================================================
+// OUTLIER DETECTION (v2.24.0)
+// -------------------------------------------------------
+// Scans the entries log for values that are almost certainly
+// data-entry errors, ranked by severity. Three categories:
+//
+//   IMPOSSIBLE  — physically/logically out-of-bounds
+//                 (weight 30 or 900, water 9999, hunger 12,
+//                  future dated, duplicate date)
+//   IMPLAUSIBLE — sharp day-over-day jumps that exceed the
+//                 body's real kinetic ceiling (> 8 lb overnight)
+//   STATISTICAL — value > 3 σ from trailing-14-day median for
+//                 that metric
+//
+// The card only appears when at least one outlier is flagged,
+// and can be dismissed per-session via the close button.
+// =========================================================
+function detectOutliers(opts) {
+  opts = opts || {};
+  const entries = (opts.entries || loadEntries()).slice().sort((a, b) => a.date.localeCompare(b.date));
+  const outliers = [];
+  const todayStr = (opts.today || new Date().toISOString().slice(0,10));
+
+  // ---- 1. Impossible / bounds + duplicate + future
+  const BOUNDS = {
+    weight:   { min:  80, max: 500, label: 'Weight (lb)' },
+    protein:  { min:   0, max: 500, label: 'Protein (g)' },
+    water:    { min:   0, max: 400, label: 'Water (oz)'  },
+    calories: { min:   0, max: 8000, label: 'Calories'   },
+    energy:   { min:   1, max:   5, label: 'Energy'      },
+    hunger:   { min:   1, max:   5, label: 'Hunger'      },
+    recovery: { min:   1, max:   5, label: 'Recovery'    },
+  };
+  const seenDates = new Map();
+  for (const e of entries) {
+    if (!e || !e.date) continue;
+    // Future date
+    if (e.date > todayStr) {
+      outliers.push({
+        date: e.date, field: 'date', value: e.date,
+        severity: 'impossible',
+        reason: 'Dated in the future (today is ' + todayStr + ')',
+      });
+    }
+    // Duplicate date
+    if (seenDates.has(e.date)) {
+      outliers.push({
+        date: e.date, field: 'date', value: e.date,
+        severity: 'impossible',
+        reason: 'Duplicate entry for this date',
+      });
+    } else {
+      seenDates.set(e.date, e);
+    }
+    // Per-field bounds
+    for (const key in BOUNDS) {
+      const v = e[key];
+      if (v == null || v === '' || !isFinite(+v)) continue;
+      const n = +v;
+      const b = BOUNDS[key];
+      if (n < b.min || n > b.max) {
+        outliers.push({
+          date: e.date, field: key, value: n,
+          severity: 'impossible',
+          reason: b.label + ' ' + n + ' is outside plausible range (' + b.min + '-' + b.max + ')',
+        });
+      }
+    }
+  }
+
+  // ---- 2. Implausible day-over-day jumps (weight only — protein/water swings are real)
+  for (let i = 1; i < entries.length; i++) {
+    const a = entries[i - 1], b = entries[i];
+    if (!a || !b || a.weight == null || b.weight == null) continue;
+    const wa = +a.weight, wb = +b.weight;
+    if (!isFinite(wa) || !isFinite(wb)) continue;
+    const daysApart = Math.round((new Date(b.date + 'T00:00:00') - new Date(a.date + 'T00:00:00')) / 86400000);
+    if (daysApart < 1 || daysApart > 3) continue;  // only adjacent-ish days
+    const dw = Math.abs(wb - wa);
+    if (dw > 8) {
+      outliers.push({
+        date: b.date, field: 'weight', value: wb,
+        severity: 'implausible',
+        reason: 'Weight changed ' + dw.toFixed(1) + ' lb from ' + a.date + ' (' + wa.toFixed(1) + '→' + wb.toFixed(1) + ') in ' + daysApart + 'd',
+      });
+    }
+  }
+
+  // ---- 3. Statistical — value > 3 σ from trailing-14-day median
+  function median(arr) {
+    const s = arr.slice().sort((x,y)=>x-y);
+    const n = s.length;
+    if (n === 0) return null;
+    return n % 2 ? s[(n-1)/2] : (s[n/2 - 1] + s[n/2]) / 2;
+  }
+  function mad(arr, med) {
+    if (arr.length < 3) return null;
+    const devs = arr.map(v => Math.abs(v - med));
+    const m = median(devs);
+    if (m != null && m > 0) return m * 1.4826;  // robust ~σ
+    // MAD=0 means every value in the window is identical. Fall back to SD;
+    // if SD is also zero (truly flat), impose a 2%-of-median measurement-noise
+    // floor so a large deviation from a constant baseline can still register.
+    const mean = arr.reduce((a,b)=>a+b,0) / arr.length;
+    const variance = arr.reduce((s,v)=>s+(v-mean)*(v-mean),0) / arr.length;
+    const sd = Math.sqrt(variance);
+    if (sd > 0) return sd;
+    return Math.max(0.02 * Math.abs(med), 0.1);
+  }
+  const metricsToScan = ['weight', 'protein', 'water', 'calories'];
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    if (!e || !e.date) continue;
+    for (const key of metricsToScan) {
+      const v = +e[key];
+      if (!isFinite(v) || v <= 0) continue;
+      // Build trailing 14-day window (excluding self)
+      const win = [];
+      for (let j = Math.max(0, i - 14); j < i; j++) {
+        const w = +entries[j][key];
+        if (isFinite(w) && w > 0) win.push(w);
+      }
+      if (win.length < 5) continue;
+      const med = median(win);
+      const sigma = mad(win, med);
+      if (sigma == null || sigma < 0.1) continue;
+      const z = Math.abs(v - med) / sigma;
+      if (z > 4) {  // 4σ — very conservative so we don't flag normal variation
+        // Skip if already flagged as impossible or implausible for this date/field
+        const dupe = outliers.some(o => o.date === e.date && o.field === key);
+        if (dupe) continue;
+        outliers.push({
+          date: e.date, field: key, value: v,
+          severity: 'statistical',
+          reason: key.charAt(0).toUpperCase() + key.slice(1) + ' ' + v + ' is ' + z.toFixed(1) + 'σ from recent median (' + med.toFixed(1) + ')',
+        });
+      }
+    }
+  }
+
+  // Sort: impossible first, then implausible, then statistical; within each, by date desc
+  const sevRank = { impossible: 0, implausible: 1, statistical: 2 };
+  outliers.sort((a, b) => (sevRank[a.severity] - sevRank[b.severity]) || b.date.localeCompare(a.date));
+
+  const counts = {
+    impossible: outliers.filter(o => o.severity === 'impossible').length,
+    implausible: outliers.filter(o => o.severity === 'implausible').length,
+    statistical: outliers.filter(o => o.severity === 'statistical').length,
+  };
+
+  return { outliers, count: outliers.length, counts };
+}
+
+function renderOutlierDetection(entries) {
+  const el = document.getElementById('outlierDetection');
+  if (!el) return;
+  const ent = entries || loadEntries();
+  if (!ent || ent.length < 3) { el.style.display = 'none'; return; }
+
+  const report = detectOutliers({ entries: ent });
+  if (report.count === 0) { el.style.display = 'none'; return; }
+
+  // Card color = worst severity present
+  let accent = 'rgba(234,179,8,0.45)';
+  let icon = '⚠️';
+  if (report.counts.impossible > 0) { accent = 'rgba(239,68,68,0.55)'; icon = '🚨'; }
+
+  const sevBadge = s =>
+    s === 'impossible' ? '<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;">IMPOSSIBLE</span>' :
+    s === 'implausible' ? '<span style="background:rgba(234,179,8,0.15);color:#eab308;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;">SUSPECT</span>' :
+    '<span style="background:rgba(148,163,184,0.15);color:var(--muted);padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;">UNUSUAL</span>';
+
+  const rowsHtml = report.outliers.slice(0, 15).map(o => `
+    <div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:flex-start;">
+      <div style="flex:none;">${sevBadge(o.severity)}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;color:var(--text);font-weight:600;">${_escHtml(o.date)} · ${_escHtml(o.field)}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;line-height:1.45;">${_escHtml(o.reason)}</div>
+      </div>
+    </div>`).join('');
+
+  const moreLine = report.count > 15
+    ? `<div style="font-size:11px;color:var(--muted);padding:6px 0 0 0;">+${report.count - 15} more not shown</div>`
+    : '';
+
+  const summary = [
+    report.counts.impossible ? `<span style="color:#ef4444;font-weight:700;">${report.counts.impossible} impossible</span>` : null,
+    report.counts.implausible ? `<span style="color:#eab308;font-weight:700;">${report.counts.implausible} suspect</span>` : null,
+    report.counts.statistical ? `<span style="color:var(--muted);">${report.counts.statistical} unusual</span>` : null,
+  ].filter(Boolean).join(' · ');
+
+  el.innerHTML = `
+    <div style="background:var(--card);border:1px solid ${accent};border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div style="font-size:22px;flex:none;">${icon}</div>
+        <div style="flex:1;min-width:160px;">
+          <div style="font-size:13px;font-weight:800;color:var(--text);">Check these entries</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">${summary}</div>
+        </div>
+        <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;color:var(--muted);" onclick="document.getElementById('outlierDetection').style.display='none'" title="Hide">✕</button>
+      </div>
+      <div style="margin-top:8px;">
+        ${rowsHtml}
+        ${moreLine}
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.45;">
+        Edit or delete suspicious entries in the History section below. This list is recomputed each render.
+      </div>
+    </div>`;
+  el.style.display = 'block';
+}
+
+if (typeof window !== 'undefined') {
+  window.detectOutliers = detectOutliers;
+  window.renderOutlierDetection = renderOutlierDetection;
 }
 
 // v2.22.0 — expose encryption primitives + settings helper
