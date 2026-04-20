@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.31.7" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.31.8" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -9388,8 +9388,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.31.7";
+            const VERSION = "2.31.8";
             const VERSION_CHANGES = [
+                {
+                    version: "2.31.8",
+                    date: "2026-04-20",
+                    summary: "Fix ChatGPT quick update parsing",
+                    details: [
+                        "Switched AI Quick Update ChatGPT calls to structured JSON output so stack and meal previews parse reliably.",
+                        "Added a JSON-mode fallback for models that do not accept strict schema formatting.",
+                        "Hardened JSON extraction for double-encoded provider output, fenced JSON, and array-shaped responses.",
+                    ],
+                },
                 {
                     version: "2.31.7",
                     date: "2026-04-20",
@@ -16829,6 +16839,145 @@ Note: Educational research monitoring only. Do not change medications, doses, la
 
             const AI_STACK_UPDATE_SYSTEM = `You convert the user's own stack change request into strict JSON for a local health tracker. Do not recommend, invent, optimize, or change doses. Only extract additions, removals, pauses, or edits the user explicitly requested. If the user asks what they should do instead of stating a change, return no actions and put the clarification in questions. Return only JSON: {"actions":[{"action":"add|remove|pause|update","name":"compound name","matchName":"existing name if editing/removing","dose":"as stated or empty","timing":"as stated or empty","status":"active|weekly|planned|paused|held","start":"YYYY-MM-DD or empty","note":"short user-stated note or empty","confidence":0.0}],"questions":["..."]}.`;
             const AI_MEAL_MACRO_SYSTEM = `You estimate meal macros for a local health tracker. Return only JSON. Use common nutrition estimates when exact labels are not provided, include assumptions, and keep numbers realistic. Do not provide medical advice. JSON shape: {"date":"YYYY-MM-DD or empty","mealName":"short label","slot":"Meal 1|Meal 2|Meal 3|Meal 4|Meal 5 or empty","items":[{"name":"food","quantity":"amount","calories":0,"protein":0,"carbs":0,"fat":0}],"totals":{"calories":0,"protein":0,"carbs":0,"fat":0},"confidence":"low|medium|high","assumptions":["..."]}.`;
+            const AI_STACK_UPDATE_SCHEMA = {
+                name: "ai_stack_update",
+                schema: {
+                    type: "object",
+                    additionalProperties: false,
+                    properties: {
+                        actions: {
+                            type: "array",
+                            items: {
+                                type: "object",
+                                additionalProperties: false,
+                                properties: {
+                                    action: {
+                                        type: "string",
+                                        enum: [
+                                            "add",
+                                            "remove",
+                                            "pause",
+                                            "update",
+                                        ],
+                                    },
+                                    name: { type: "string" },
+                                    matchName: { type: "string" },
+                                    dose: { type: "string" },
+                                    timing: { type: "string" },
+                                    status: {
+                                        type: "string",
+                                        enum: [
+                                            "",
+                                            "active",
+                                            "weekly",
+                                            "planned",
+                                            "paused",
+                                            "held",
+                                        ],
+                                    },
+                                    start: { type: "string" },
+                                    note: { type: "string" },
+                                    confidence: { type: "number" },
+                                },
+                                required: [
+                                    "action",
+                                    "name",
+                                    "matchName",
+                                    "dose",
+                                    "timing",
+                                    "status",
+                                    "start",
+                                    "note",
+                                    "confidence",
+                                ],
+                            },
+                        },
+                        questions: {
+                            type: "array",
+                            items: { type: "string" },
+                        },
+                    },
+                    required: ["actions", "questions"],
+                },
+            };
+            const AI_MEAL_MACRO_SCHEMA = {
+                name: "ai_meal_macro_estimate",
+                schema: {
+                    type: "object",
+                    additionalProperties: false,
+                    properties: {
+                        date: { type: "string" },
+                        mealName: { type: "string" },
+                        slot: {
+                            type: "string",
+                            enum: [
+                                "",
+                                "Meal 1",
+                                "Meal 2",
+                                "Meal 3",
+                                "Meal 4",
+                                "Meal 5",
+                            ],
+                        },
+                        items: {
+                            type: "array",
+                            items: {
+                                type: "object",
+                                additionalProperties: false,
+                                properties: {
+                                    name: { type: "string" },
+                                    quantity: { type: "string" },
+                                    calories: { type: "number" },
+                                    protein: { type: "number" },
+                                    carbs: { type: "number" },
+                                    fat: { type: "number" },
+                                },
+                                required: [
+                                    "name",
+                                    "quantity",
+                                    "calories",
+                                    "protein",
+                                    "carbs",
+                                    "fat",
+                                ],
+                            },
+                        },
+                        totals: {
+                            type: "object",
+                            additionalProperties: false,
+                            properties: {
+                                calories: { type: "number" },
+                                protein: { type: "number" },
+                                carbs: { type: "number" },
+                                fat: { type: "number" },
+                            },
+                            required: [
+                                "calories",
+                                "protein",
+                                "carbs",
+                                "fat",
+                            ],
+                        },
+                        confidence: {
+                            type: "string",
+                            enum: ["low", "medium", "high"],
+                        },
+                        assumptions: {
+                            type: "array",
+                            items: { type: "string" },
+                        },
+                    },
+                    required: [
+                        "date",
+                        "mealName",
+                        "slot",
+                        "items",
+                        "totals",
+                        "confidence",
+                        "assumptions",
+                    ],
+                },
+            };
             let pendingAiStackUpdate = null;
             let pendingAiMealUpdate = null;
 
@@ -16929,7 +17078,12 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                     : "(no stack entries)";
             }
 
-            async function _coachJsonRequest({ system, prompt, maxTokens = 1200 }) {
+            async function _coachJsonRequest({
+                system,
+                prompt,
+                maxTokens = 1200,
+                jsonSchema = null,
+            }) {
                 const settings = loadCoachSettings();
                 const provider = getCoachProvider(settings);
                 const providerLabel = getCoachProviderLabel(provider);
@@ -16949,7 +17103,7 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                 let text = "";
                 let usage = null;
                 if (provider === "openai") {
-                    const resp = await openaiCall({
+                    const request = {
                         apiKey,
                         model,
                         maxTokens,
@@ -16961,7 +17115,36 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                             },
                         ],
                         reasoning: { effort: "low" },
-                    });
+                        // Review note: ChatGPT sometimes adds prose around JSON.
+                        // Responses structured output keeps the preview object parseable
+                        // before any local stack or meal data can be changed.
+                        text: jsonSchema
+                            ? {
+                                  format: {
+                                      type: "json_schema",
+                                      name: jsonSchema.name,
+                                      schema: jsonSchema.schema,
+                                      strict: true,
+                                  },
+                              }
+                            : { format: { type: "json_object" } },
+                    };
+                    let resp;
+                    try {
+                        resp = await openaiCall(request);
+                    } catch (e) {
+                        if (
+                            !jsonSchema ||
+                            !/json_schema|schema|text\.format|format|unsupported|invalid/i.test(
+                                e.message || "",
+                            )
+                        )
+                            throw e;
+                        resp = await openaiCall({
+                            ...request,
+                            text: { format: { type: "json_object" } },
+                        });
+                    }
                     text = openaiResponseText(resp);
                     usage = normalizeOpenaiUsage(resp);
                 } else {
@@ -16991,9 +17174,11 @@ Note: Educational research monitoring only. Do not change medications, doses, la
             }
 
             function _normalizeAiStackActions(parsed) {
-                const actions = Array.isArray(parsed?.actions)
-                    ? parsed.actions
-                    : [];
+                const actions = Array.isArray(parsed)
+                    ? parsed
+                    : Array.isArray(parsed?.actions)
+                      ? parsed.actions
+                      : [];
                 return actions
                     .map((raw) => {
                         const rawAction = _aiCleanText(
@@ -17166,6 +17351,7 @@ Return JSON only. Use "add" only when the user names a new item. Use "remove" on
                         system: AI_STACK_UPDATE_SYSTEM,
                         prompt: _buildAiStackPrompt(text),
                         maxTokens: 1200,
+                        jsonSchema: AI_STACK_UPDATE_SCHEMA,
                     });
                     pendingAiStackUpdate = {
                         input: text,
@@ -17418,6 +17604,7 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                         system: AI_MEAL_MACRO_SYSTEM,
                         prompt: _buildAiMealPrompt(text),
                         maxTokens: 1400,
+                        jsonSchema: AI_MEAL_MACRO_SCHEMA,
                     });
                     pendingAiMealUpdate = {
                         input: text,
@@ -20176,18 +20363,37 @@ Rules:
             // Models sometimes wrap JSON in ```json fences despite instructions. Be lenient.
             function _extractJson(text) {
                 if (!text) return null;
-                const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-                const candidate = fenced ? fenced[1] : text;
-                try {
-                    return JSON.parse(candidate);
-                } catch {}
-                // Last resort — slice from first { to last }
+                const raw = String(text).trim();
+                const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+                const candidate = (fenced ? fenced[1] : raw).trim();
+                const parseCandidate = (src) => {
+                    try {
+                        const parsed = JSON.parse(src);
+                        // Review note: some providers double-encode JSON as a
+                        // JSON string. Re-run extraction once instead of failing.
+                        if (typeof parsed === "string" && parsed !== src)
+                            return _extractJson(parsed);
+                        return parsed;
+                    } catch {
+                        return null;
+                    }
+                };
+                const direct = parseCandidate(candidate);
+                if (direct !== null) return direct;
+                // Last resort: slice from first object/array fence to its last mate.
                 const first = candidate.indexOf("{");
                 const last = candidate.lastIndexOf("}");
                 if (first >= 0 && last > first) {
-                    try {
-                        return JSON.parse(candidate.slice(first, last + 1));
-                    } catch {}
+                    const obj = parseCandidate(candidate.slice(first, last + 1));
+                    if (obj !== null) return obj;
+                }
+                const firstArr = candidate.indexOf("[");
+                const lastArr = candidate.lastIndexOf("]");
+                if (firstArr >= 0 && lastArr > firstArr) {
+                    const arr = parseCandidate(
+                        candidate.slice(firstArr, lastArr + 1),
+                    );
+                    if (arr !== null) return arr;
                 }
                 return null;
             }
