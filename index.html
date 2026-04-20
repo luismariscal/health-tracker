@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.31.4" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.31.5" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -5958,6 +5958,99 @@
                         margin-bottom: 10px;
                     "
                 ></div>
+                <div
+                    id="researchWatchPanel"
+                    style="
+                        background: rgba(0, 212, 255, 0.05);
+                        border: 1px solid rgba(0, 212, 255, 0.18);
+                        border-radius: 8px;
+                        padding: 12px;
+                        margin-bottom: 12px;
+                    "
+                >
+                    <div
+                        style="
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                            gap: 10px;
+                            flex-wrap: wrap;
+                            margin-bottom: 8px;
+                        "
+                    >
+                        <div>
+                            <div
+                                style="
+                                    font-size: 12px;
+                                    font-weight: 800;
+                                    color: var(--accent);
+                                "
+                            >
+                                Research Watch
+                            </div>
+                            <div
+                                id="researchWatchMeta"
+                                style="
+                                    font-size: 10px;
+                                    color: var(--muted);
+                                    margin-top: 2px;
+                                "
+                            >
+                                New research, safety alerts, and source-cited news.
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap">
+                            <button
+                                class="btn btn-primary"
+                                onclick="runResearchWatch()"
+                                style="font-size: 11px; padding: 6px 10px"
+                            >
+                                Refresh with web
+                            </button>
+                            <button
+                                class="btn btn-ghost"
+                                onclick="copyResearchWatchPrompt()"
+                                style="font-size: 11px; padding: 6px 10px"
+                            >
+                                Copy prompt
+                            </button>
+                            <button
+                                class="btn btn-ghost"
+                                onclick="clearResearchWatch()"
+                                style="font-size: 11px; padding: 6px 10px"
+                            >
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+                    <div
+                        style="
+                            font-size: 11px;
+                            color: var(--muted);
+                            line-height: 1.5;
+                            margin-bottom: 8px;
+                        "
+                    >
+                        Looks for important updates on your active peptides,
+                        compounds, and supplements. Educational only: verify with
+                        a clinician before changing medications, doses, or labs.
+                    </div>
+                    <div
+                        id="researchWatchBody"
+                        style="
+                            display: none;
+                            background: var(--surface2);
+                            border: 1px solid var(--border);
+                            border-radius: 8px;
+                            padding: 12px;
+                            font-size: 12px;
+                            line-height: 1.6;
+                            color: var(--text);
+                            max-height: 360px;
+                            overflow: auto;
+                        "
+                    ></div>
+                </div>
                 <div style="display: flex; gap: 8px; margin-bottom: 10px">
                     <input
                         type="text"
@@ -9117,8 +9210,19 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.31.4";
+            const VERSION = "2.31.5";
             const VERSION_CHANGES = [
+                {
+                    version: "2.31.5",
+                    date: "2026-04-20",
+                    summary: "AI Coach research watch briefing",
+                    details: [
+                        "Added a Research Watch briefing inside AI Coach for current peptide, compound, and supplement research/news.",
+                        "Used provider web-search tools with source-focused prompts so research watch can cite recent primary sources and safety alerts.",
+                        "Added a copy-prompt fallback for no-key or quota-limited workflows.",
+                        "Stored the latest research watch locally with reviewed sources and refresh metadata.",
+                    ],
+                },
                 {
                     version: "2.31.4",
                     date: "2026-04-20",
@@ -10020,6 +10124,7 @@
                 renderLabs();
                 renderLibrary();
                 renderCoachPresets();
+                renderResearchWatch();
                 renderCoachPreview();
                 restoreCoachThread();
 
@@ -16051,6 +16156,357 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                 }).join("");
             }
 
+            const RESEARCH_WATCH_KEY = "tp_research_watch";
+            const RESEARCH_WATCH_DOMAINS = [
+                "pubmed.ncbi.nlm.nih.gov",
+                "clinicaltrials.gov",
+                "fda.gov",
+                "ema.europa.eu",
+                "nih.gov",
+                "ncbi.nlm.nih.gov",
+                "ods.od.nih.gov",
+                "nccih.nih.gov",
+                "cdc.gov",
+                "who.int",
+                "nejm.org",
+                "jamanetwork.com",
+                "thelancet.com",
+                "bmj.com",
+                "nature.com",
+                "science.org",
+                "medrxiv.org",
+                "biorxiv.org",
+            ];
+            const RESEARCH_WATCH_SYSTEM = `You are a cautious medical research monitor for a personal health dashboard. Use current web sources. Focus on clinically meaningful updates, safety signals, regulatory alerts, trial results, recalls/adulteration, and high-quality reviews. Do not recommend medication or dose changes. Clearly separate evidence from speculation, cite sources with links, and say when there is no important new update.`;
+
+            function loadResearchWatch() {
+                try {
+                    return JSON.parse(
+                        localStorage.getItem(RESEARCH_WATCH_KEY) || "null",
+                    );
+                } catch {
+                    return null;
+                }
+            }
+            function saveResearchWatch(record) {
+                if (record)
+                    localStorage.setItem(
+                        RESEARCH_WATCH_KEY,
+                        JSON.stringify(record),
+                    );
+                else localStorage.removeItem(RESEARCH_WATCH_KEY);
+            }
+
+            function activeResearchSubjects() {
+                const found = new Map();
+                const add = (name, detail = "") => {
+                    const clean = String(name || "").trim();
+                    if (!clean) return;
+                    const key = clean.toLowerCase();
+                    if (!found.has(key)) found.set(key, { name: clean, detail });
+                    else if (detail && !found.get(key).detail)
+                        found.get(key).detail = detail;
+                };
+
+                try {
+                    (loadStack() || []).forEach((item) => {
+                        if (!item || item.active === false) return;
+                        if (["paused", "held"].includes(item.status)) return;
+                        add(
+                            item.name,
+                            [item.dose, item.timing, item.status, item.note]
+                                .filter(Boolean)
+                                .join(" | "),
+                        );
+                    });
+                } catch {}
+                try {
+                    (INJ_COMPOUNDS || []).forEach((compound) => {
+                        add(
+                            compound.name,
+                            [compound.dose, "injection tracker"].filter(Boolean).join(" | "),
+                        );
+                    });
+                } catch {}
+                return [...found.values()].sort((a, b) =>
+                    a.name.localeCompare(b.name),
+                );
+            }
+
+            function buildResearchWatchPrompt() {
+                const today = new Date().toISOString().slice(0, 10);
+                const subjects = activeResearchSubjects();
+                const rows = subjects.length
+                    ? subjects
+                          .map(
+                              (s) =>
+                                  `- ${s.name}${s.detail ? ` (${s.detail})` : ""}`,
+                          )
+                          .join("\n")
+                    : "- No active stack entries found; scan common peptide/supplement safety updates relevant to GLP-1/body-recomposition protocols.";
+                return `Research Watch request generated ${today} from Health Tracker v${VERSION}.
+
+Track important new research/news for the user's current stack. Search current sources and focus on updates from the last 90 days, but include older landmark items only if they materially change safety interpretation.
+
+Current active compounds / peptides / supplements:
+${rows}
+
+Return a concise source-cited briefing:
+1. **Urgent safety/regulatory alerts** - FDA/EMA/NIH/CDC/WHO, recalls, counterfeit/adulteration, trial halts, black-box or labeling changes.
+2. **Clinically important new evidence** - human RCTs, meta-analyses, clinical trials, high-signal preprints clearly labeled as preprint.
+3. **Practical relevance to this stack** - what to watch in labs/symptoms, without telling the user to change dose or medication.
+4. **No-news list** - items searched where nothing important was found.
+5. **Sources** - clickable markdown links, source type, and date/recency when available.
+
+Rules:
+- Do not make treatment decisions, dosing recommendations, or diagnose.
+- Prefer primary sources: PubMed, ClinicalTrials.gov, FDA, EMA, NIH/ODS/NCCIH, CDC/WHO, and major journals.
+- If a source is animal-only, observational, small, paywalled abstract-only, or preprint, label that limitation.
+- If web search is unavailable, say that this briefing is not current and should not be treated as a research update.`;
+            }
+
+            function copyTextToClipboard(text, doneMessage) {
+                const fallback = () => {
+                    const ta = document.createElement("textarea");
+                    ta.value = text;
+                    ta.style.position = "fixed";
+                    ta.style.opacity = "0";
+                    document.body.appendChild(ta);
+                    ta.select();
+                    try {
+                        document.execCommand("copy");
+                    } finally {
+                        document.body.removeChild(ta);
+                    }
+                };
+                const done = () => showToast(doneMessage || "Copied");
+                if (navigator.clipboard?.writeText) {
+                    navigator.clipboard.writeText(text).then(done, () => {
+                        fallback();
+                        done();
+                    });
+                } else {
+                    fallback();
+                    done();
+                }
+            }
+
+            function copyCoachText(text) {
+                copyTextToClipboard(text, "Coach prompt copied");
+            }
+
+            function copyResearchWatchPrompt() {
+                const prompt = buildResearchWatchPrompt();
+                const preview = document.getElementById("coachPreview");
+                if (preview) preview.textContent = prompt;
+                copyTextToClipboard(
+                    prompt,
+                    `Research Watch prompt copied (${prompt.length.toLocaleString()} chars)`,
+                );
+            }
+
+            function _collectResearchSources(obj) {
+                const sources = [];
+                const seen = new Set();
+                const walk = (value) => {
+                    if (!value || typeof value !== "object") return;
+                    if (Array.isArray(value)) {
+                        value.forEach(walk);
+                        return;
+                    }
+                    const url =
+                        typeof value.url === "string"
+                            ? value.url
+                            : typeof value.uri === "string"
+                              ? value.uri
+                              : "";
+                    if (/^https?:\/\//i.test(url) && !seen.has(url)) {
+                        seen.add(url);
+                        sources.push({
+                            url,
+                            title:
+                                value.title ||
+                                value.name ||
+                                value.source ||
+                                new URL(url).hostname,
+                        });
+                    }
+                    Object.keys(value).forEach((k) => walk(value[k]));
+                };
+                try {
+                    walk(obj);
+                } catch {}
+                return sources.slice(0, 16);
+            }
+
+            function researchSourcesHtml(sources = []) {
+                if (!sources.length) return "";
+                return `<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;">
+      <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">Sources captured</div>
+      <ul style="margin:0 0 0 18px;padding:0;">${sources
+          .map((s) => {
+              const href = _safeMarkdownHref(s.url);
+              if (!href) return "";
+              return `<li style="margin:3px 0;"><a href="${href}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">${escapeHtml(s.title || s.url)}</a></li>`;
+          })
+          .join("")}</ul>
+    </div>`;
+            }
+
+            function renderResearchWatch() {
+                const body = document.getElementById("researchWatchBody");
+                const meta = document.getElementById("researchWatchMeta");
+                if (!body || !meta) return;
+                const record = loadResearchWatch();
+                if (!record) {
+                    body.style.display = "none";
+                    body.innerHTML = "";
+                    meta.textContent =
+                        "New research, safety alerts, and source-cited news.";
+                    return;
+                }
+                const generated = record.generatedAt
+                    ? new Date(record.generatedAt).toLocaleString()
+                    : "";
+                meta.textContent = record.loading
+                    ? `Refreshing with ${record.providerLabel || "AI"} web search...`
+                    : `${record.providerLabel || "AI"} research watch${generated ? " - " + generated : ""}`;
+                body.style.display = "block";
+                if (record.loading) {
+                    body.innerHTML = `<div style="display:flex;align-items:center;gap:10px;color:var(--muted);"><span class="coach-spinner"></span> Searching current research and safety sources...</div>`;
+                } else if (record.error) {
+                    body.innerHTML = `<div style="color:#ef4444;">${escapeHtml(record.error)}</div><div style="color:var(--muted);font-size:11px;margin-top:6px;">Use Copy prompt if the provider quota, model, or web-search tool is unavailable.</div>`;
+                } else {
+                    body.innerHTML =
+                        renderMarkdown(record.text || "") +
+                        researchSourcesHtml(record.sources);
+                }
+            }
+
+            async function runResearchWatch() {
+                const settings = loadCoachSettings();
+                const provider = getCoachProvider(settings);
+                const providerLabel = getCoachProviderLabel(provider);
+                const apiKey = getCoachKeyForProvider(settings, provider);
+                const model = getCoachModelForProvider(
+                    settings,
+                    provider,
+                    "coach",
+                );
+                const prompt = buildResearchWatchPrompt();
+                if (!coachKeyLooksValid(provider, apiKey)) {
+                    copyResearchWatchPrompt();
+                    openCoachSettings();
+                    return;
+                }
+
+                const baseRecord = {
+                    loading: true,
+                    generatedAt: new Date().toISOString(),
+                    provider,
+                    providerLabel,
+                    model,
+                    text: "",
+                    sources: [],
+                };
+                saveResearchWatch(baseRecord);
+                renderResearchWatch();
+
+                try {
+                    let text = "";
+                    let sources = [];
+                    if (provider === "openai") {
+                        const resp = await openaiCall({
+                            apiKey,
+                            model,
+                            maxTokens: Math.max(settings.maxTokens || 2200, 2600),
+                            instructions: RESEARCH_WATCH_SYSTEM,
+                            input: [
+                                {
+                                    role: "user",
+                                    content: [
+                                        { type: "input_text", text: prompt },
+                                    ],
+                                },
+                            ],
+                            // Review note: Research Watch only provides current
+                            // updates when provider web-search tools are enabled.
+                            tools: [
+                                {
+                                    type: "web_search",
+                                    filters: {
+                                        allowed_domains:
+                                            RESEARCH_WATCH_DOMAINS,
+                                    },
+                                    user_location: {
+                                        type: "approximate",
+                                        country: "US",
+                                        region: "California",
+                                        timezone: "America/Los_Angeles",
+                                    },
+                                },
+                            ],
+                            toolChoice: "auto",
+                            include: ["web_search_call.action.sources"],
+                            reasoning: { effort: "low" },
+                        });
+                        text = openaiResponseText(resp) || "(empty reply)";
+                        sources = _collectResearchSources(resp);
+                    } else {
+                        const resp = await anthropicCall({
+                            apiKey,
+                            model,
+                            maxTokens: Math.max(settings.maxTokens || 2200, 2600),
+                            system: RESEARCH_WATCH_SYSTEM,
+                            messages: [{ role: "user", content: prompt }],
+                            tools: [
+                                {
+                                    type: "web_search_20250305",
+                                    name: "web_search",
+                                    max_uses: 6,
+                                    allowed_domains:
+                                        RESEARCH_WATCH_DOMAINS,
+                                    user_location: {
+                                        type: "approximate",
+                                        country: "US",
+                                        region: "California",
+                                        timezone: "America/Los_Angeles",
+                                    },
+                                },
+                            ],
+                        });
+                        text = (resp.content || [])
+                            .filter((c) => c.type === "text")
+                            .map((c) => c.text || "")
+                            .join("\n")
+                            .trim();
+                        sources = _collectResearchSources(resp);
+                    }
+                    saveResearchWatch({
+                        ...baseRecord,
+                        loading: false,
+                        text:
+                            text ||
+                            "No text returned. Try Copy prompt or a different provider/model.",
+                        sources,
+                    });
+                    renderResearchWatch();
+                    showToast("Research Watch updated", 2500);
+                } catch (e) {
+                    saveResearchWatch({
+                        ...baseRecord,
+                        loading: false,
+                        error: e.message || String(e),
+                    });
+                    renderResearchWatch();
+                }
+            }
+
+            function clearResearchWatch() {
+                saveResearchWatch(null);
+                renderResearchWatch();
+            }
+
             function openCoachSettings() {
                 const s = loadCoachSettings();
                 document.getElementById("coachProvider").value =
@@ -16237,9 +16693,11 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                 maxTokens,
                 messages,
                 system,
+                tools,
             }) {
                 const body = { model, max_tokens: maxTokens, messages };
                 if (system) body.system = system;
+                if (tools) body.tools = tools;
                 const resp = await fetch(
                     "https://api.anthropic.com/v1/messages",
                     {
@@ -16272,6 +16730,9 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                 instructions,
                 text,
                 reasoning,
+                tools,
+                toolChoice,
+                include,
             }) {
                 const body = {
                     model,
@@ -16281,6 +16742,9 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                 if (instructions) body.instructions = instructions;
                 if (text) body.text = text;
                 if (reasoning) body.reasoning = reasoning;
+                if (tools) body.tools = tools;
+                if (toolChoice) body.tool_choice = toolChoice;
+                if (include) body.include = include;
                 const resp = await fetch(
                     "https://api.openai.com/v1/responses",
                     {
