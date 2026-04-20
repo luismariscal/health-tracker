@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.31.3" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.31.4" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -3583,7 +3583,8 @@
                 button,
                 #addBar,
                 .bottom-nav,
-                .floating-actions {
+                .floating-actions,
+                .scroll-top-fab {
                     display: none !important;
                 }
                 .card {
@@ -4069,6 +4070,56 @@
             }
 
             /* C — FLOATING ACTION BUTTON */
+            .scroll-top-fab {
+                position: fixed;
+                right: 20px;
+                bottom: 24px;
+                width: 54px;
+                min-height: 54px;
+                border-radius: 8px;
+                border: 1px solid rgba(0, 212, 255, 0.38);
+                background: rgba(22, 26, 34, 0.96);
+                color: var(--accent);
+                box-shadow:
+                    0 10px 24px rgba(0, 0, 0, 0.46),
+                    0 0 0 3px rgba(0, 212, 255, 0.08);
+                z-index: 94;
+                display: inline-flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 1px;
+                cursor: pointer;
+                font-size: 20px;
+                font-weight: 900;
+                line-height: 1;
+                opacity: 0;
+                transform: translateY(10px);
+                pointer-events: none;
+                transition:
+                    opacity 0.18s ease,
+                    transform 0.18s ease,
+                    border-color 0.18s ease;
+            }
+            .scroll-top-fab.is-visible {
+                opacity: 1;
+                transform: translateY(0);
+                pointer-events: auto;
+            }
+            .scroll-top-fab:hover {
+                border-color: var(--accent);
+            }
+            .scroll-top-fab:active {
+                transform: translateY(0) scale(0.94);
+            }
+            .scroll-top-fab[hidden] {
+                display: none !important;
+            }
+            .scroll-top-label {
+                font-size: 10px;
+                font-weight: 800;
+                color: var(--text);
+            }
             .fab {
                 display: none;
                 position: fixed;
@@ -4099,6 +4150,10 @@
             @media (max-width: 560px) {
                 .fab {
                     display: flex;
+                }
+                .scroll-top-fab {
+                    right: 16px;
+                    bottom: 146px;
                 }
             }
 
@@ -8289,6 +8344,19 @@
             </div>
         </div>
 
+        <!-- FLOATING SCROLL BUTTON (v2.31.4) -->
+        <button
+            id="scrollTopFab"
+            class="scroll-top-fab"
+            onclick="scrollToTop()"
+            aria-label="Scroll to top"
+            title="Back to top"
+            hidden
+        >
+            <span aria-hidden="true">&uarr;</span>
+            <span class="scroll-top-label">Top</span>
+        </button>
+
         <!-- FLOATING ACTION BUTTON (phone only) -->
         <button
             class="fab"
@@ -8325,7 +8393,7 @@
                 </button>
                 <button
                     class="bottom-nav-btn"
-                    onclick="window.scrollTo({ top: 0, behavior: 'smooth' })"
+                    onclick="scrollToTop()"
                 >
                     <span class="bn-icon">⬆</span>Top
                 </button>
@@ -9049,8 +9117,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.31.3";
+            const VERSION = "2.31.4";
             const VERSION_CHANGES = [
+                {
+                    version: "2.31.4",
+                    date: "2026-04-20",
+                    summary: "Floating back-to-top button",
+                    details: [
+                        "Added a floating right-side Top button that appears after scrolling down.",
+                        "Placed the button above the mobile quick-log and bottom navigation controls so it stays reachable without covering them.",
+                        "Added scroll-state handling so the button hides near the top and resets the mobile nav highlight after returning.",
+                    ],
+                },
                 {
                     version: "2.31.3",
                     date: "2026-04-20",
@@ -30557,6 +30635,48 @@ ${parts.join("\n")}
                     });
             }
 
+            function scrollToTop() {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+                document
+                    .querySelectorAll(".bottom-nav-btn")
+                    .forEach((b) => b.classList.remove("active"));
+                const todayBtn = document.querySelector(
+                    '.bottom-nav-btn[data-nav-target="todaysPlanCard"]',
+                );
+                if (todayBtn) todayBtn.classList.add("active");
+            }
+
+            function initFloatingScrollTopButton() {
+                const btn = document.getElementById("scrollTopFab");
+                if (!btn || btn.dataset.bound === "1") return;
+                btn.dataset.bound = "1";
+                let scheduled = false;
+
+                function update() {
+                    scheduled = false;
+                    const maxScroll =
+                        document.documentElement.scrollHeight -
+                        window.innerHeight;
+                    const show = window.pageYOffset > 420 && maxScroll > 900;
+                    // Review note: the floating Top button stays hidden until the
+                    // page is long enough and the user has scrolled far enough.
+                    btn.hidden = !show;
+                    btn.classList.toggle("is-visible", show);
+                }
+
+                window.addEventListener(
+                    "scroll",
+                    () => {
+                        if (scheduled) return;
+                        scheduled = true;
+                        requestAnimationFrame(update);
+                    },
+                    { passive: true },
+                );
+                window.addEventListener("resize", update, { passive: true });
+                update();
+            }
+
             function bottomNavJump(id, btn) {
                 const el = document.getElementById(id);
                 if (!el) return;
@@ -30627,6 +30747,7 @@ ${parts.join("\n")}
             startWaterPoll(); // poll every minute while app is open
             initCollapsibleCards();
             initBottomNavScrollSpy();
+            initFloatingScrollTopButton();
             setTimeout(() => checkAppVersionFreshness({ silent: true }), 1500);
             window.addEventListener("focus", () =>
                 checkAppVersionFreshness({ silent: true }),
