@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.32.0" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.32.1" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -6107,8 +6107,8 @@
                                 "
                             >
                                 Tell AI Coach what changed, review the preview,
-                                then apply it. No API call unless you tap an AI
-                                button.
+                                then apply it. These actions use the selected AI
+                                provider.
                             </div>
                         </div>
                     </div>
@@ -6164,21 +6164,13 @@
                                 "
                             >
                                 <button
-                                    id="aiStackUpdateBtn"
-                                    class="btn btn-primary"
-                                    onclick="previewAiStackUpdate()"
-                                    style="font-size: 11px; padding: 6px 10px"
-                                >
-                                    Preview stack update
-                                </button>
-                                <button
                                     id="aiStackUpdateAiBtn"
-                                    class="btn btn-ghost"
+                                    class="btn btn-primary"
                                     onclick="previewAiStackUpdateWithAi()"
                                     style="font-size: 11px; padding: 6px 10px"
-                                    title="Optional: spends provider tokens only when tapped."
+                                    title="Uses the selected AI provider to preview stack changes."
                                 >
-                                    Use AI
+                                    Preview with AI
                                 </button>
                             </div>
                         </div>
@@ -6224,21 +6216,13 @@
                                 "
                             >
                                 <button
-                                    id="aiMealBtn"
-                                    class="btn btn-primary"
-                                    onclick="previewAiMealMacros()"
-                                    style="font-size: 11px; padding: 6px 10px"
-                                >
-                                    Estimate locally
-                                </button>
-                                <button
                                     id="aiMealAiBtn"
-                                    class="btn btn-ghost"
+                                    class="btn btn-primary"
                                     onclick="previewAiMealMacrosWithAi()"
                                     style="font-size: 11px; padding: 6px 10px"
-                                    title="Optional: spends provider tokens only when tapped."
+                                    title="Uses the selected AI provider to estimate meal macros."
                                 >
-                                    Use AI
+                                    Estimate with AI
                                 </button>
                             </div>
                         </div>
@@ -9417,8 +9401,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.32.0";
+            const VERSION = "2.32.1";
             const VERSION_CHANGES = [
+                {
+                    version: "2.32.1",
+                    date: "2026-04-20",
+                    summary: "Simplify quick update buttons",
+                    details: [
+                        "Removed the visible local Preview stack update and Estimate locally buttons from AI Quick Update.",
+                        "Renamed the AI buttons to Preview with AI and Estimate with AI so the action is clear.",
+                        "Stopped the AI stack preview path from falling back to the local parser after provider errors.",
+                    ],
+                },
                 {
                     version: "2.32.0",
                     date: "2026-04-20",
@@ -18077,15 +18071,12 @@ Return JSON only. Use "add" only when the user names a new item. Use "remove" on
                     };
                     _renderAiStackUpdatePreview(pendingAiStackUpdate);
                 } catch (e) {
-                    if (!_showLocalStackFallback(text, e))
-                        _aiUpdateError(
-                            e.message || String(e),
-                            e.debugText ||
-                                localStorage.getItem(
-                                    "tp_ai_quick_update_debug",
-                                ) ||
-                                "",
-                        );
+                    _aiUpdateError(
+                        e.message || String(e),
+                        e.debugText ||
+                            localStorage.getItem("tp_ai_quick_update_debug") ||
+                            "",
+                    );
                 } finally {
                     _setAiButtonBusy("aiStackUpdateAiBtn", false);
                 }
@@ -18332,7 +18323,6 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                 }
                 pendingAiMealUpdate = null;
                 pendingAiStackUpdate = null;
-                _setAiButtonBusy("aiMealBtn", true, "Estimating...");
                 _setAiButtonBusy("aiMealAiBtn", true, "Using AI...");
                 _aiUpdateLoading("Using AI to estimate meal macros...");
                 try {
@@ -18357,7 +18347,6 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                             "",
                     );
                 } finally {
-                    _setAiButtonBusy("aiMealBtn", false);
                     _setAiButtonBusy("aiMealAiBtn", false);
                 }
             }
