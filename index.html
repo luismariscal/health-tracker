@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.31.9" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.32.0" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -6107,7 +6107,8 @@
                                 "
                             >
                                 Tell AI Coach what changed, review the preview,
-                                then apply it to the program.
+                                then apply it. No API call unless you tap an AI
+                                button.
                             </div>
                         </div>
                     </div>
@@ -6154,18 +6155,32 @@
                                     resize: vertical;
                                 "
                             ></textarea>
-                            <button
-                                id="aiStackUpdateBtn"
-                                class="btn btn-primary"
-                                onclick="previewAiStackUpdate()"
+                            <div
                                 style="
-                                    font-size: 11px;
-                                    padding: 6px 10px;
+                                    display: flex;
+                                    gap: 6px;
+                                    flex-wrap: wrap;
                                     margin-top: 8px;
                                 "
                             >
-                                Preview stack update
-                            </button>
+                                <button
+                                    id="aiStackUpdateBtn"
+                                    class="btn btn-primary"
+                                    onclick="previewAiStackUpdate()"
+                                    style="font-size: 11px; padding: 6px 10px"
+                                >
+                                    Preview stack update
+                                </button>
+                                <button
+                                    id="aiStackUpdateAiBtn"
+                                    class="btn btn-ghost"
+                                    onclick="previewAiStackUpdateWithAi()"
+                                    style="font-size: 11px; padding: 6px 10px"
+                                    title="Optional: spends provider tokens only when tapped."
+                                >
+                                    Use AI
+                                </button>
+                            </div>
                         </div>
                         <div
                             style="
@@ -6200,18 +6215,32 @@
                                     resize: vertical;
                                 "
                             ></textarea>
-                            <button
-                                id="aiMealBtn"
-                                class="btn btn-primary"
-                                onclick="previewAiMealMacros()"
+                            <div
                                 style="
-                                    font-size: 11px;
-                                    padding: 6px 10px;
+                                    display: flex;
+                                    gap: 6px;
+                                    flex-wrap: wrap;
                                     margin-top: 8px;
                                 "
                             >
-                                Estimate and preview meal
-                            </button>
+                                <button
+                                    id="aiMealBtn"
+                                    class="btn btn-primary"
+                                    onclick="previewAiMealMacros()"
+                                    style="font-size: 11px; padding: 6px 10px"
+                                >
+                                    Estimate locally
+                                </button>
+                                <button
+                                    id="aiMealAiBtn"
+                                    class="btn btn-ghost"
+                                    onclick="previewAiMealMacrosWithAi()"
+                                    style="font-size: 11px; padding: 6px 10px"
+                                    title="Optional: spends provider tokens only when tapped."
+                                >
+                                    Use AI
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div
@@ -9388,8 +9417,19 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.31.9";
+            const VERSION = "2.32.0";
             const VERSION_CHANGES = [
+                {
+                    version: "2.32.0",
+                    date: "2026-04-20",
+                    summary: "Make quick updates no-token by default",
+                    details: [
+                        "Changed stack quick updates to use the local parser first so routine add/remove/pause edits do not spend API tokens.",
+                        "Added a local macro estimate path for common meals and foods so daily progress can be updated without calling ChatGPT.",
+                        "Moved provider calls behind explicit Use AI buttons for stack refinement and meal estimates.",
+                        "Updated AI Coach copy to make token-spending actions clear before they run.",
+                    ],
+                },
                 {
                     version: "2.31.9",
                     date: "2026-04-20",
@@ -17416,6 +17456,426 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                 return true;
             }
 
+            function _showNoTokenStackPreview(inputText) {
+                const actions = _localStackActionsFromText(inputText);
+                if (!actions.length) {
+                    _setAiQuickUpdatePreview(`
+      <div style="font-weight:800;color:var(--text);margin-bottom:4px;">No stack change parsed</div>
+      <div style="color:var(--muted);">No tokens were used. Try wording like "Add creatine 5 g with first meal" or "Remove berberine". Use AI only if you want the provider to interpret a messy note.</div>
+      <button class="btn btn-ghost" onclick="previewAiStackUpdateWithAi()" style="font-size:11px;padding:6px 10px;margin-top:8px;">Use AI anyway</button>
+    `);
+                    return false;
+                }
+                pendingAiStackUpdate = {
+                    input: inputText,
+                    actions,
+                    questions: [],
+                    providerLabel: "No-token parser",
+                    model: "local-stack-parser",
+                };
+                _renderAiStackUpdatePreview(pendingAiStackUpdate);
+                const preview = document.getElementById("aiQuickUpdatePreview");
+                if (preview) {
+                    preview.insertAdjacentHTML(
+                        "afterbegin",
+                        `<div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.28);border-radius:8px;padding:8px;margin-bottom:8px;color:var(--green);font-size:11px;">No tokens used. This preview was parsed locally from your text.</div>`,
+                    );
+                }
+                return true;
+            }
+
+            const LOCAL_MEAL_FOODS = [
+                {
+                    key: "chicken breast",
+                    match: /\b(chicken breast|grilled chicken|chicken)\b/i,
+                    unit: "oz",
+                    per: 1,
+                    calories: 46,
+                    protein: 8.7,
+                    carbs: 0,
+                    fat: 1,
+                    defaultQty: 6,
+                },
+                {
+                    key: "white rice",
+                    match: /\b(white rice|rice)\b/i,
+                    unit: "cup",
+                    per: 1,
+                    calories: 205,
+                    protein: 4,
+                    carbs: 45,
+                    fat: 0.4,
+                    defaultQty: 1,
+                },
+                {
+                    key: "brown rice",
+                    match: /\bbrown rice\b/i,
+                    unit: "cup",
+                    per: 1,
+                    calories: 216,
+                    protein: 5,
+                    carbs: 45,
+                    fat: 1.8,
+                    defaultQty: 1,
+                },
+                {
+                    key: "egg",
+                    match: /\b(egg|eggs)\b/i,
+                    unit: "each",
+                    per: 1,
+                    calories: 72,
+                    protein: 6,
+                    carbs: 0.4,
+                    fat: 5,
+                    defaultQty: 2,
+                },
+                {
+                    key: "egg whites",
+                    match: /\b(egg whites?|liquid egg whites?)\b/i,
+                    unit: "cup",
+                    per: 1,
+                    calories: 126,
+                    protein: 26,
+                    carbs: 2,
+                    fat: 0,
+                    defaultQty: 1,
+                },
+                {
+                    key: "oats",
+                    match: /\b(oats|oatmeal)\b/i,
+                    unit: "cup",
+                    per: 1,
+                    calories: 300,
+                    protein: 10,
+                    carbs: 54,
+                    fat: 6,
+                    defaultQty: 0.5,
+                },
+                {
+                    key: "whey protein",
+                    match: /\b(whey|protein powder|protein shake)\b/i,
+                    unit: "scoop",
+                    per: 1,
+                    calories: 120,
+                    protein: 24,
+                    carbs: 3,
+                    fat: 1.5,
+                    defaultQty: 1,
+                },
+                {
+                    key: "nonfat greek yogurt",
+                    match: /\b(greek yogurt|nonfat yogurt)\b/i,
+                    unit: "cup",
+                    per: 1,
+                    calories: 130,
+                    protein: 23,
+                    carbs: 9,
+                    fat: 0,
+                    defaultQty: 1,
+                },
+                {
+                    key: "avocado",
+                    match: /\bavocado\b/i,
+                    unit: "half",
+                    per: 1,
+                    calories: 120,
+                    protein: 1.5,
+                    carbs: 6,
+                    fat: 11,
+                    defaultQty: 1,
+                },
+                {
+                    key: "banana",
+                    match: /\bbanana\b/i,
+                    unit: "each",
+                    per: 1,
+                    calories: 105,
+                    protein: 1,
+                    carbs: 27,
+                    fat: 0.3,
+                    defaultQty: 1,
+                },
+                {
+                    key: "salmon",
+                    match: /\bsalmon\b/i,
+                    unit: "oz",
+                    per: 1,
+                    calories: 58,
+                    protein: 6.3,
+                    carbs: 0,
+                    fat: 3.5,
+                    defaultQty: 6,
+                },
+                {
+                    key: "lean ground beef",
+                    match: /\b(lean ground beef|ground beef|beef)\b/i,
+                    unit: "oz",
+                    per: 1,
+                    calories: 55,
+                    protein: 7,
+                    carbs: 0,
+                    fat: 3,
+                    defaultQty: 6,
+                },
+                {
+                    key: "turkey",
+                    match: /\b(turkey breast|ground turkey|turkey)\b/i,
+                    unit: "oz",
+                    per: 1,
+                    calories: 45,
+                    protein: 8,
+                    carbs: 0,
+                    fat: 1.2,
+                    defaultQty: 6,
+                },
+                {
+                    key: "tuna",
+                    match: /\b(tuna)\b/i,
+                    unit: "can",
+                    per: 1,
+                    calories: 120,
+                    protein: 26,
+                    carbs: 0,
+                    fat: 1,
+                    defaultQty: 1,
+                },
+                {
+                    key: "potato",
+                    match: /\b(potato|potatoes)\b/i,
+                    unit: "medium",
+                    per: 1,
+                    calories: 160,
+                    protein: 4,
+                    carbs: 37,
+                    fat: 0,
+                    defaultQty: 1,
+                },
+                {
+                    key: "sweet potato",
+                    match: /\bsweet potato\b/i,
+                    unit: "medium",
+                    per: 1,
+                    calories: 112,
+                    protein: 2,
+                    carbs: 26,
+                    fat: 0,
+                    defaultQty: 1,
+                },
+                {
+                    key: "olive oil",
+                    match: /\b(olive oil|oil)\b/i,
+                    unit: "tbsp",
+                    per: 1,
+                    calories: 119,
+                    protein: 0,
+                    carbs: 0,
+                    fat: 14,
+                    defaultQty: 1,
+                },
+                {
+                    key: "peanut butter",
+                    match: /\bpeanut butter\b/i,
+                    unit: "tbsp",
+                    per: 1,
+                    calories: 95,
+                    protein: 3.5,
+                    carbs: 3.5,
+                    fat: 8,
+                    defaultQty: 1,
+                },
+                {
+                    key: "broccoli",
+                    match: /\bbroccoli\b/i,
+                    unit: "cup",
+                    per: 1,
+                    calories: 55,
+                    protein: 3.7,
+                    carbs: 11,
+                    fat: 0.6,
+                    defaultQty: 1,
+                },
+                {
+                    key: "black beans",
+                    match: /\b(black beans|beans)\b/i,
+                    unit: "cup",
+                    per: 1,
+                    calories: 227,
+                    protein: 15,
+                    carbs: 41,
+                    fat: 0.9,
+                    defaultQty: 1,
+                },
+                {
+                    key: "salsa",
+                    match: /\bsalsa\b/i,
+                    unit: "tbsp",
+                    per: 2,
+                    calories: 10,
+                    protein: 0,
+                    carbs: 2,
+                    fat: 0,
+                    defaultQty: 2,
+                },
+            ];
+
+            function _localMealQuantity(part, food) {
+                const text = String(part || "").toLowerCase();
+                const numberWords = {
+                    one: 1,
+                    two: 2,
+                    three: 3,
+                    four: 4,
+                    five: 5,
+                    six: 6,
+                    half: 0.5,
+                };
+                let qty = null;
+                const frac = text.match(/\b(\d+)\s*\/\s*(\d+)\b/);
+                if (frac) qty = Number(frac[1]) / Number(frac[2]);
+                const decimal = text.match(/\b(\d+(?:\.\d+)?)\b/);
+                if (qty === null && decimal) qty = Number(decimal[1]);
+                if (qty === null) {
+                    for (const [word, val] of Object.entries(numberWords)) {
+                        if (new RegExp(`\\b${word}\\b`, "i").test(text)) {
+                            qty = val;
+                            break;
+                        }
+                    }
+                }
+                const unitHints = {
+                    ounce: "oz",
+                    ounces: "oz",
+                    oz: "oz",
+                    cup: "cup",
+                    cups: "cup",
+                    tbsp: "tbsp",
+                    tablespoon: "tbsp",
+                    tablespoons: "tbsp",
+                    scoop: "scoop",
+                    scoops: "scoop",
+                    can: "can",
+                    cans: "can",
+                    egg: "each",
+                    eggs: "each",
+                    medium: "medium",
+                    half: "half",
+                };
+                const unitMatch = text.match(
+                    /\b(ounces?|oz|cups?|tbsp|tablespoons?|scoops?|cans?|eggs?|medium|half)\b/i,
+                );
+                const unit = unitMatch
+                    ? unitHints[unitMatch[1].toLowerCase()] || food.unit
+                    : food.unit;
+                if (qty === null) qty = food.defaultQty || 1;
+                if (food.unit === "half" && unit !== "half" && /whole/i.test(text))
+                    qty = qty * 2;
+                return { qty: _aiClampNumber(qty, 20, 2), unit };
+            }
+
+            function _localMealEstimateFromText(text) {
+                const source = String(text || "").trim();
+                if (!source) return null;
+                const parts = source
+                    .split(/\s*(?:,|\+|\band\b|\bwith\b)\s*/i)
+                    .map((x) => x.trim())
+                    .filter(Boolean);
+                const items = [];
+                const assumptions = [];
+                const seen = new Set();
+                parts.forEach((part) => {
+                    LOCAL_MEAL_FOODS.forEach((food) => {
+                        if (!food.match.test(part) || seen.has(food.key + part))
+                            return;
+                        seen.add(food.key + part);
+                        const { qty, unit } = _localMealQuantity(part, food);
+                        const mult = qty / (food.per || 1);
+                        items.push({
+                            name: food.key,
+                            quantity: `${qty} ${unit}`,
+                            calories: _aiClampNumber(food.calories * mult, 5000),
+                            protein: _aiClampNumber(food.protein * mult, 400, 1),
+                            carbs: _aiClampNumber(food.carbs * mult, 500, 1),
+                            fat: _aiClampNumber(food.fat * mult, 300, 1),
+                            _qty: qty,
+                            _unit: unit,
+                        });
+                    });
+                });
+                if (!items.length) return null;
+                const cleanItems = items.map((item) => {
+                    const qtyText = Number.isInteger(item._qty)
+                        ? String(item._qty)
+                        : item._qty.toFixed(2).replace(/\.?0+$/, "");
+                    assumptions.push(`${item.name}: ${qtyText} ${item._unit}`);
+                    return {
+                        name: item.name,
+                        quantity: `${qtyText} ${item._unit}`,
+                        calories: item.calories,
+                        protein: item.protein,
+                        carbs: item.carbs,
+                        fat: item.fat,
+                    };
+                });
+                const totals = cleanItems.reduce(
+                    (acc, item) => {
+                        acc.calories += item.calories;
+                        acc.protein += item.protein;
+                        acc.carbs += item.carbs;
+                        acc.fat += item.fat;
+                        return acc;
+                    },
+                    { calories: 0, protein: 0, carbs: 0, fat: 0 },
+                );
+                return {
+                    date: todayKey(),
+                    mealName:
+                        cleanItems
+                            .slice(0, 3)
+                            .map((item) => item.name)
+                            .join(" + ") || "Local meal estimate",
+                    slot: "",
+                    items: cleanItems,
+                    totals: {
+                        calories: Math.round(totals.calories),
+                        protein: _aiClampNumber(totals.protein, 400, 1),
+                        carbs: _aiClampNumber(totals.carbs, 500, 1),
+                        fat: _aiClampNumber(totals.fat, 300, 1),
+                    },
+                    confidence: cleanItems.length >= 2 ? "medium" : "low",
+                    assumptions: [
+                        "No tokens used; local macro library estimate.",
+                        ...assumptions.slice(0, 5),
+                    ],
+                };
+            }
+
+            function _showNoTokenMealPreview(inputText) {
+                const meal = _localMealEstimateFromText(inputText);
+                if (!meal) {
+                    _setAiQuickUpdatePreview(`
+      <div style="font-weight:800;color:var(--text);margin-bottom:4px;">No local meal estimate found</div>
+      <div style="color:var(--muted);">No tokens were used. Try adding amounts and common foods like "8 oz chicken, 1 cup rice". Tap Use AI only when you want a provider estimate.</div>
+      <button class="btn btn-ghost" onclick="previewAiMealMacrosWithAi()" style="font-size:11px;padding:6px 10px;margin-top:8px;">Use AI estimate</button>
+    `);
+                    return false;
+                }
+                pendingAiMealUpdate = {
+                    input: inputText,
+                    meal,
+                    providerLabel: "No-token estimate",
+                    model: "local-macro-library",
+                };
+                _renderAiMealPreview(pendingAiMealUpdate);
+                const preview = document.getElementById("aiQuickUpdatePreview");
+                if (preview) {
+                    preview.insertAdjacentHTML(
+                        "afterbegin",
+                        `<div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.28);border-radius:8px;padding:8px;margin-bottom:8px;color:var(--green);font-size:11px;">No tokens used. This is a rough local macro estimate; use AI only if you want a smarter pass.</div>`,
+                    );
+                }
+                return true;
+            }
+
             function _normalizeAiStackActions(parsed) {
                 const actions = Array.isArray(parsed)
                     ? parsed
@@ -17574,7 +18034,19 @@ ${_stackSummaryForAi()}
 Return JSON only. Use "add" only when the user names a new item. Use "remove" only when the user explicitly says remove/delete. Use "pause" for stop/hold/pause. Use "update" for dose, timing, status, start-date, or note edits to an existing row.`;
             }
 
-            async function previewAiStackUpdate() {
+            function previewAiStackUpdate() {
+                const input = document.getElementById("aiStackUpdateInput");
+                const text = (input?.value || "").trim();
+                if (!text) {
+                    showToast("Describe the stack change first", 2500);
+                    return;
+                }
+                pendingAiStackUpdate = null;
+                pendingAiMealUpdate = null;
+                _showNoTokenStackPreview(text);
+            }
+
+            async function previewAiStackUpdateWithAi() {
                 const input = document.getElementById("aiStackUpdateInput");
                 const text = (input?.value || "").trim();
                 if (!text) {
@@ -17584,11 +18056,11 @@ Return JSON only. Use "add" only when the user names a new item. Use "remove" on
                 pendingAiStackUpdate = null;
                 pendingAiMealUpdate = null;
                 _setAiButtonBusy(
-                    "aiStackUpdateBtn",
+                    "aiStackUpdateAiBtn",
                     true,
-                    "Previewing...",
+                    "Using AI...",
                 );
-                _aiUpdateLoading("Building stack update preview...");
+                _aiUpdateLoading("Using AI to build stack preview...");
                 try {
                     const result = await _coachJsonRequest({
                         system: AI_STACK_UPDATE_SYSTEM,
@@ -17615,7 +18087,7 @@ Return JSON only. Use "add" only when the user names a new item. Use "remove" on
                                 "",
                         );
                 } finally {
-                    _setAiButtonBusy("aiStackUpdateBtn", false);
+                    _setAiButtonBusy("aiStackUpdateAiBtn", false);
                 }
             }
 
@@ -17839,7 +18311,19 @@ ${current}
 Return JSON only. If the user says yesterday or another date, convert it to YYYY-MM-DD using today's date above.`;
             }
 
-            async function previewAiMealMacros() {
+            function previewAiMealMacros() {
+                const input = document.getElementById("aiMealInput");
+                const text = (input?.value || "").trim();
+                if (!text) {
+                    showToast("Describe the meal first", 2500);
+                    return;
+                }
+                pendingAiMealUpdate = null;
+                pendingAiStackUpdate = null;
+                _showNoTokenMealPreview(text);
+            }
+
+            async function previewAiMealMacrosWithAi() {
                 const input = document.getElementById("aiMealInput");
                 const text = (input?.value || "").trim();
                 if (!text) {
@@ -17849,7 +18333,8 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                 pendingAiMealUpdate = null;
                 pendingAiStackUpdate = null;
                 _setAiButtonBusy("aiMealBtn", true, "Estimating...");
-                _aiUpdateLoading("Estimating meal macros...");
+                _setAiButtonBusy("aiMealAiBtn", true, "Using AI...");
+                _aiUpdateLoading("Using AI to estimate meal macros...");
                 try {
                     const result = await _coachJsonRequest({
                         system: AI_MEAL_MACRO_SYSTEM,
@@ -17873,6 +18358,7 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                     );
                 } finally {
                     _setAiButtonBusy("aiMealBtn", false);
+                    _setAiButtonBusy("aiMealAiBtn", false);
                 }
             }
 
