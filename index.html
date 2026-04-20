@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.31.1" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.31.2" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -184,6 +184,229 @@
             }
             .card-collapsed {
                 padding-bottom: 16px;
+            }
+            .critical-flow-card {
+                border-color: rgba(0, 212, 255, 0.28);
+                background:
+                    linear-gradient(135deg, rgba(0, 212, 255, 0.08), transparent 36%),
+                    var(--surface);
+            }
+            .workflow-top {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 14px;
+                flex-wrap: wrap;
+                margin-bottom: 14px;
+            }
+            .workflow-kicker {
+                font-size: 11px;
+                font-weight: 800;
+                color: var(--accent);
+                text-transform: uppercase;
+            }
+            .workflow-title {
+                font-size: 18px;
+                font-weight: 850;
+                color: var(--text);
+                line-height: 1.2;
+                margin-top: 2px;
+            }
+            .workflow-sub {
+                font-size: 12px;
+                color: var(--muted);
+                margin-top: 5px;
+                line-height: 1.45;
+                max-width: 760px;
+            }
+            .workflow-status-chip {
+                border-radius: 8px;
+                padding: 7px 10px;
+                font-size: 11px;
+                font-weight: 800;
+                border: 1px solid var(--border);
+                background: var(--surface2);
+                color: var(--text);
+                white-space: nowrap;
+            }
+            .workflow-status-chip.red {
+                color: #fca5a5;
+                border-color: rgba(239, 68, 68, 0.45);
+                background: rgba(239, 68, 68, 0.12);
+            }
+            .workflow-status-chip.yellow {
+                color: #fcd34d;
+                border-color: rgba(234, 179, 8, 0.42);
+                background: rgba(234, 179, 8, 0.12);
+            }
+            .workflow-status-chip.green {
+                color: #86efac;
+                border-color: rgba(34, 197, 94, 0.38);
+                background: rgba(34, 197, 94, 0.1);
+            }
+            .workflow-summary {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+                gap: 8px;
+                margin-bottom: 12px;
+            }
+            .workflow-pill {
+                border: 1px solid var(--border);
+                background: rgba(13, 15, 20, 0.42);
+                border-radius: 8px;
+                padding: 9px 10px;
+                min-width: 0;
+            }
+            .workflow-pill-label {
+                font-size: 10px;
+                color: var(--muted);
+                text-transform: uppercase;
+            }
+            .workflow-pill-value {
+                font-size: 13px;
+                color: var(--text);
+                font-weight: 800;
+                margin-top: 2px;
+                overflow-wrap: anywhere;
+            }
+            .workflow-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                gap: 10px;
+            }
+            .workflow-step {
+                border: 1px solid var(--border);
+                background: rgba(13, 15, 20, 0.48);
+                border-radius: 8px;
+                padding: 12px;
+                min-height: 148px;
+                min-width: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                border-left-width: 3px;
+            }
+            .workflow-step.red {
+                border-left-color: var(--red);
+            }
+            .workflow-step.yellow {
+                border-left-color: var(--yellow);
+            }
+            .workflow-step.green {
+                border-left-color: var(--green);
+            }
+            .workflow-step.unknown {
+                border-left-color: var(--muted);
+            }
+            .workflow-step-head {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+            }
+            .workflow-step-number {
+                width: 24px;
+                height: 24px;
+                border-radius: 8px;
+                background: var(--surface2);
+                color: var(--accent);
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 12px;
+                font-weight: 850;
+                flex: none;
+            }
+            .workflow-step-state {
+                font-size: 10px;
+                font-weight: 800;
+                color: var(--muted);
+                text-transform: uppercase;
+            }
+            .workflow-step-title {
+                font-size: 13px;
+                font-weight: 800;
+                color: var(--text);
+                line-height: 1.25;
+                overflow-wrap: anywhere;
+            }
+            .workflow-step-meta {
+                font-size: 11px;
+                color: var(--muted);
+            }
+            .workflow-step-body {
+                font-size: 12px;
+                color: var(--muted);
+                line-height: 1.45;
+                flex: 1;
+                overflow-wrap: anywhere;
+            }
+            .workflow-step button {
+                align-self: flex-start;
+                font-size: 11px;
+                padding: 6px 10px;
+            }
+            .flash-target {
+                animation: workflowFlash 1.25s ease;
+            }
+            @keyframes workflowFlash {
+                0% {
+                    box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.55);
+                }
+                100% {
+                    box-shadow: 0 0 0 10px rgba(0, 212, 255, 0);
+                }
+            }
+            @media (max-width: 560px) {
+                .critical-flow-card {
+                    padding: 14px;
+                }
+                .workflow-top {
+                    gap: 8px;
+                    margin-bottom: 10px;
+                }
+                .workflow-title {
+                    font-size: 16px;
+                }
+                .workflow-sub,
+                .workflow-step-body {
+                    font-size: 11px;
+                }
+                .workflow-summary {
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                    gap: 6px;
+                }
+                .workflow-pill {
+                    padding: 8px;
+                }
+                .workflow-grid {
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                    gap: 8px;
+                }
+                .workflow-step {
+                    min-height: 0;
+                    padding: 10px;
+                    gap: 6px;
+                }
+                .workflow-step-title {
+                    font-size: 12px;
+                }
+                .workflow-step-body {
+                    display: -webkit-box;
+                    -webkit-line-clamp: 3;
+                    -webkit-box-orient: vertical;
+                    overflow: hidden;
+                }
+                .workflow-step button {
+                    width: 100%;
+                    padding: 6px 8px;
+                    text-align: center;
+                }
+            }
+            @media (max-width: 340px) {
+                .workflow-grid {
+                    grid-template-columns: 1fr;
+                }
             }
 
             /* KPI ROW */
@@ -5028,8 +5251,32 @@
         </div>
 
         <div class="main">
-            <!-- APP UPDATE BANNER (v2.31.1) -->
+            <!-- APP UPDATE BANNER (v2.31.2) -->
             <div id="appUpdateBanner" style="display: none"></div>
+
+            <!-- CRITICAL-FIRST WORKFLOW (v2.31.2) -->
+            <div class="card critical-flow-card" id="criticalWorkflowCard">
+                <div class="workflow-top">
+                    <div>
+                        <div class="workflow-kicker">Critical-first workflow</div>
+                        <div class="workflow-title">
+                            Start with what matters.
+                        </div>
+                        <div class="workflow-sub" id="criticalWorkflowLead">
+                            Safety signals first, today's required actions second,
+                            then labs and coach review.
+                        </div>
+                    </div>
+                    <div
+                        class="workflow-status-chip unknown"
+                        id="criticalWorkflowStatus"
+                    >
+                        Checking...
+                    </div>
+                </div>
+                <div class="workflow-summary" id="criticalWorkflowSummary"></div>
+                <div class="workflow-grid" id="criticalWorkflowSteps"></div>
+            </div>
 
             <!-- SECTION CONTROLS (v2.31.1) -->
             <div class="section-controls" id="sectionControls">
@@ -8802,8 +9049,19 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.31.1";
+            const VERSION = "2.31.2";
             const VERSION_CHANGES = [
+                {
+                    version: "2.31.2",
+                    date: "2026-04-20",
+                    summary: "Critical-first workflow header",
+                    details: [
+                        "Added a top-of-page workflow analysis panel that ranks safety, today's required actions, labs, and coach review.",
+                        "Added jump buttons that expand and scroll directly to the section behind each workflow item.",
+                        "Summarized red/yellow guardrails, injection day status, daily logging, hydration, and out-of-range labs before the long dashboard.",
+                        "Bumped the PWA manifest and service worker versions so mobile installs refresh to the new workflow.",
+                    ],
+                },
                 {
                     version: "2.31.1",
                     date: "2026-04-20",
@@ -9631,6 +9889,7 @@
                 renderBackupStatus();
 
                 renderAlert(plateau, avg, cw, nextCp);
+                renderCriticalWorkflow(entries, cw, avg, plateau, nextCp);
                 if (typeof renderMorningNudge === "function")
                     renderMorningNudge();
                 if (typeof renderPlateauInsight === "function")
@@ -26426,6 +26685,351 @@ ${parts.join("\n")}
             if (typeof window !== "undefined") {
                 window.computeGuardrails = computeGuardrails;
                 window.renderGuardrailCenter = renderGuardrailCenter;
+            }
+
+            // =========================================================
+            // CRITICAL-FIRST WORKFLOW (v2.31.2)
+            // ---------------------------------------------------------
+            // Review note: this top panel is intentionally decision-oriented.
+            // It summarizes the safest order to use the app before the user
+            // falls into the longer dashboard: safety, today, labs, then coach.
+            // =========================================================
+            const CRITICAL_WORKFLOW_TARGETS = {
+                weight_velocity: "commandCenter",
+                data_freshness: "todaysPlanCard",
+                blood_pressure: "vitalsCard",
+                resting_hr: "vitalsCard",
+                sleep: "recoveryCard",
+                symptoms: "symptomsCard",
+                hydration: "waterCard",
+                labs_staleness: "labsCard",
+                cycle_overrun: "cycleControlCard",
+            };
+
+            function _workflowStatusRank(status) {
+                return { red: 1, yellow: 2, unknown: 3, green: 4 }[status] || 5;
+            }
+
+            function _workflowStatusLabel(status) {
+                return (
+                    {
+                        red: "Critical",
+                        yellow: "Watch",
+                        unknown: "Needs data",
+                        green: "Clear",
+                    }[status] || "Review"
+                );
+            }
+
+            function _workflowTodayWaterTotal() {
+                try {
+                    const water = loadWater();
+                    const day = water[todayKey()];
+                    if (Array.isArray(day))
+                        return day.reduce((sum, entry) => sum + (+entry.oz || 0), 0);
+                    if (typeof day === "number") return day;
+                    if (day && typeof day.oz === "number") return day.oz;
+                } catch {}
+                return 0;
+            }
+
+            function _workflowLatestOutOfRangeLabs(limit = 4) {
+                const labs = loadLabs();
+                const latest = {};
+                labs.forEach((lab) => {
+                    if (!lab || !lab.marker) return;
+                    if (!latest[lab.marker] || lab.date > latest[lab.marker].date)
+                        latest[lab.marker] = lab;
+                });
+                return Object.values(latest)
+                    .filter((lab) => _labRangeStatus(lab, labs))
+                    .sort((a, b) => b.date.localeCompare(a.date))
+                    .slice(0, limit);
+            }
+
+            function _workflowSafetyStep(entries) {
+                const guardrails =
+                    typeof computeGuardrails === "function"
+                        ? computeGuardrails({ entries })
+                        : { overall: "unknown", signals: [] };
+                const signals = (guardrails.signals || []).slice();
+                const redCount = signals.filter((s) => s.status === "red").length;
+                const yellowCount = signals.filter(
+                    (s) => s.status === "yellow",
+                ).length;
+                const firstSignal =
+                    signals
+                        .filter((s) => s.status === "red" || s.status === "yellow")
+                        .sort(
+                            (a, b) =>
+                                _workflowStatusRank(a.status) -
+                                _workflowStatusRank(b.status),
+                        )[0] || null;
+                const status = firstSignal ? firstSignal.status : guardrails.overall;
+                const target = firstSignal
+                    ? CRITICAL_WORKFLOW_TARGETS[firstSignal.key] ||
+                      "guardrailCenter"
+                    : "guardrailCenter";
+                return {
+                    status: status || "unknown",
+                    title: "Safety gate",
+                    meta: `${redCount} red / ${yellowCount} watch`,
+                    body: firstSignal
+                        ? `${firstSignal.label}: ${firstSignal.action}`
+                        : "No red or watch guardrails right now. Keep vitals, symptoms, hydration, and labs current.",
+                    target,
+                    button: firstSignal ? "Open signal" : "Open guardrails",
+                    counts: { red: redCount, yellow: yellowCount },
+                };
+            }
+
+            function _workflowTodayStep(entries) {
+                const today = todayKey();
+                const actions = [];
+                let target = "todaysPlanCard";
+                let status = "green";
+
+                const hasCheckin = (entries || []).some((e) => e.date === today);
+                if (!hasCheckin) {
+                    actions.push("log today's weight/check-in");
+                    status = "yellow";
+                }
+
+                const goalOz = loadWaterSettings().goalOz || 100;
+                const waterTotal = _workflowTodayWaterTotal();
+                const waterPct = goalOz ? waterTotal / goalOz : 0;
+                if (waterPct < 0.5) {
+                    actions.push(`water is ${Math.round(waterTotal)}/${goalOz} oz`);
+                    if (status !== "red") status = "yellow";
+                    if (target === "todaysPlanCard") target = "waterCard";
+                }
+
+                if (
+                    typeof isInjDay === "function" &&
+                    typeof loadInjLog === "function" &&
+                    typeof INJ_COMPOUNDS !== "undefined" &&
+                    isInjDay()
+                ) {
+                    const todayLog = loadInjLog()[today] || {};
+                    const logged = INJ_COMPOUNDS.filter((c) =>
+                        isInjLogged(todayLog[c.key]),
+                    ).length;
+                    if (logged < INJ_COMPOUNDS.length) {
+                        status = "red";
+                        target = "injectionTrackerCard";
+                        actions.unshift(
+                            `injection day: ${logged}/${INJ_COMPOUNDS.length} logged`,
+                        );
+                    }
+                }
+
+                return {
+                    status,
+                    title: "Today's required actions",
+                    meta: actions.length ? `${actions.length} open` : "done",
+                    body: actions.length
+                        ? "Do next: " + actions.join("; ") + "."
+                        : "Today's core logging and required actions are covered.",
+                    target,
+                    button:
+                        target === "injectionTrackerCard"
+                            ? "Open injections"
+                            : target === "waterCard"
+                              ? "Open water"
+                              : "Open today",
+                };
+            }
+
+            function _workflowLabsStep() {
+                const labs = loadLabs();
+                const out = _workflowLatestOutOfRangeLabs(4);
+                const sorted = labs
+                    .slice()
+                    .filter((l) => l && l.date)
+                    .sort((a, b) => b.date.localeCompare(a.date));
+                const latest = sorted[0] || null;
+                const days = latest ? _grDaysSince(latest.date) : null;
+
+                if (out.length) {
+                    const labels = out
+                        .map((l) => l.label || _labMarkerLabel(l.marker, labs))
+                        .slice(0, 3)
+                        .join(", ");
+                    const hasCriticalText = out.some((l) =>
+                        /critical|urgent|panic|very abnormal/i.test(
+                            [l.notes, l.flag, l.label].filter(Boolean).join(" "),
+                        ),
+                    );
+                    return {
+                        status: hasCriticalText ? "red" : "yellow",
+                        title: "Labs / vitals review",
+                        meta: `${out.length} out of range`,
+                        body: `Review current out-of-range values: ${labels}. Confirm against the original PDF before acting.`,
+                        target: "labsCard",
+                        button: "Open labs",
+                    };
+                }
+
+                if (!labs.length) {
+                    return {
+                        status: "yellow",
+                        title: "Labs / vitals review",
+                        meta: "no labs",
+                        body: "Upload a baseline lab PDF or add manual values before dose changes or major protocol decisions.",
+                        target: "labsCard",
+                        button: "Open labs",
+                    };
+                }
+
+                if (days != null && days >= 120) {
+                    return {
+                        status: "red",
+                        title: "Labs / vitals review",
+                        meta: `${days}d old`,
+                        body: "Labs are stale. Put a new CBC / CMP / lipids panel near the top of the list.",
+                        target: "labsCard",
+                        button: "Open labs",
+                    };
+                }
+
+                if (days != null && days >= 90) {
+                    return {
+                        status: "yellow",
+                        title: "Labs / vitals review",
+                        meta: `${days}d old`,
+                        body: "Labs are due soon. Refresh the panel before making protocol changes.",
+                        target: "labsCard",
+                        button: "Open labs",
+                    };
+                }
+
+                return {
+                    status: "green",
+                    title: "Labs / vitals review",
+                    meta: days == null ? "current" : `${days}d old`,
+                    body: "No current out-of-range lab highlights detected. Keep the PDF/upload trail current.",
+                    target: "labsCard",
+                    button: "Open labs",
+                };
+            }
+
+            function _workflowCoachStep(steps, plateau, avg) {
+                const active = steps.some(
+                    (s) => s.status === "red" || s.status === "yellow",
+                );
+                if (active || plateau || (avg !== null && avg < 1)) {
+                    return {
+                        status: "yellow",
+                        title: "AI review after data is current",
+                        meta: "refresh coach",
+                        body: "After logging today's items, refresh the coach report so Claude or ChatGPT reviews the current red/watch signals.",
+                        target: "aiCoachCard",
+                        button: "Open AI coach",
+                    };
+                }
+                return {
+                    status: "green",
+                    title: "AI review after data is current",
+                    meta: "optional",
+                    body: "Use the coach for the weekly review, trend interpretation, and next adjustment only after the first three steps are clear.",
+                    target: "aiCoachCard",
+                    button: "Open AI coach",
+                };
+            }
+
+            function _workflowRenderStep(step, index) {
+                const target = JSON.stringify(step.target || "todaysPlanCard");
+                return `
+    <div class="workflow-step ${_escHtml(step.status || "unknown")}">
+      <div class="workflow-step-head">
+        <span class="workflow-step-number">${index + 1}</span>
+        <span class="workflow-step-state">${_escHtml(_workflowStatusLabel(step.status))}</span>
+      </div>
+      <div>
+        <div class="workflow-step-title">${_escHtml(step.title)}</div>
+        <div class="workflow-step-meta">${_escHtml(step.meta || "")}</div>
+      </div>
+      <div class="workflow-step-body">${_escHtml(step.body)}</div>
+      <button class="btn btn-ghost" onclick="openCriticalWorkflowItem(${target})">${_escHtml(step.button || "Open")}</button>
+    </div>`;
+            }
+
+            function openCriticalWorkflowItem(cardId) {
+                const el = document.getElementById(cardId);
+                if (!el) return;
+                if (typeof bottomNavJump === "function") bottomNavJump(cardId);
+                else el.scrollIntoView({ behavior: "smooth", block: "start" });
+                el.classList.add("flash-target");
+                setTimeout(() => el.classList.remove("flash-target"), 1400);
+            }
+
+            function renderCriticalWorkflow(entries, cw, avg, plateau, nextCp) {
+                const card = document.getElementById("criticalWorkflowCard");
+                if (!card) return;
+                const safety = _workflowSafetyStep(entries);
+                const today = _workflowTodayStep(entries);
+                const labs = _workflowLabsStep();
+                const coach = _workflowCoachStep(
+                    [safety, today, labs],
+                    plateau,
+                    avg,
+                );
+                const steps = [safety, today, labs, coach];
+                const overall = steps
+                    .slice()
+                    .sort(
+                        (a, b) =>
+                            _workflowStatusRank(a.status) -
+                            _workflowStatusRank(b.status),
+                    )[0].status;
+                const next = steps.find(
+                    (s) => s.status === "red" || s.status === "yellow",
+                );
+                const statusEl = document.getElementById(
+                    "criticalWorkflowStatus",
+                );
+                statusEl.className = `workflow-status-chip ${overall}`;
+                statusEl.textContent =
+                    overall === "red"
+                        ? "Action first"
+                        : overall === "yellow"
+                          ? "Watch items"
+                          : overall === "green"
+                            ? "Clear"
+                            : "Needs data";
+
+                const lead = document.getElementById("criticalWorkflowLead");
+                if (lead) {
+                    lead.textContent = next
+                        ? `First priority: ${next.title}. Work top to bottom before changing dose, calories, or protocol.`
+                        : "First priority is clear. Keep logging before making protocol changes.";
+                }
+
+                document.getElementById("criticalWorkflowSummary").innerHTML = `
+    <div class="workflow-pill">
+      <div class="workflow-pill-label">First</div>
+      <div class="workflow-pill-value">${_escHtml(next ? next.title : "All clear")}</div>
+    </div>
+    <div class="workflow-pill">
+      <div class="workflow-pill-label">Safety</div>
+      <div class="workflow-pill-value">${_escHtml(safety.meta)}</div>
+    </div>
+    <div class="workflow-pill">
+      <div class="workflow-pill-label">Today</div>
+      <div class="workflow-pill-value">${_escHtml(today.meta)}</div>
+    </div>
+    <div class="workflow-pill">
+      <div class="workflow-pill-label">Labs</div>
+      <div class="workflow-pill-value">${_escHtml(labs.meta)}</div>
+    </div>`;
+
+                document.getElementById("criticalWorkflowSteps").innerHTML =
+                    steps.map(_workflowRenderStep).join("");
+            }
+
+            if (typeof window !== "undefined") {
+                window.renderCriticalWorkflow = renderCriticalWorkflow;
+                window.openCriticalWorkflowItem = openCriticalWorkflowItem;
             }
 
             // =========================================================
