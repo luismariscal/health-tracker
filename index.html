@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.31.6" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.31.7" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -6065,6 +6065,170 @@
                         "
                     ></div>
                 </div>
+                <!-- Review note: AI Quick Update is intentionally preview-first.
+                     The model may interpret text, but local stack/meal data only changes
+                     after the user presses Apply. -->
+                <div
+                    id="aiQuickUpdatePanel"
+                    style="
+                        background: rgba(34, 197, 94, 0.05);
+                        border: 1px solid rgba(34, 197, 94, 0.2);
+                        border-radius: 8px;
+                        padding: 12px;
+                        margin-bottom: 12px;
+                    "
+                >
+                    <div
+                        style="
+                            display: flex;
+                            align-items: flex-start;
+                            justify-content: space-between;
+                            gap: 10px;
+                            flex-wrap: wrap;
+                            margin-bottom: 10px;
+                        "
+                    >
+                        <div>
+                            <div
+                                style="
+                                    font-size: 12px;
+                                    font-weight: 800;
+                                    color: var(--green);
+                                "
+                            >
+                                AI Quick Update
+                            </div>
+                            <div
+                                id="aiQuickUpdateMeta"
+                                style="
+                                    font-size: 10px;
+                                    color: var(--muted);
+                                    margin-top: 2px;
+                                "
+                            >
+                                Tell AI Coach what changed, review the preview,
+                                then apply it to the program.
+                            </div>
+                        </div>
+                    </div>
+                    <div
+                        style="
+                            display: grid;
+                            grid-template-columns: repeat(
+                                auto-fit,
+                                minmax(240px, 1fr)
+                            );
+                            gap: 10px;
+                        "
+                    >
+                        <div
+                            style="
+                                background: var(--surface2);
+                                border: 1px solid var(--border);
+                                border-radius: 8px;
+                                padding: 10px;
+                            "
+                        >
+                            <div
+                                style="
+                                    font-size: 11px;
+                                    font-weight: 800;
+                                    color: var(--text);
+                                    margin-bottom: 6px;
+                                "
+                            >
+                                Stack change
+                            </div>
+                            <textarea
+                                id="aiStackUpdateInput"
+                                placeholder="Example: Add creatine 5g with first meal, starting today. Remove berberine."
+                                style="
+                                    width: 100%;
+                                    min-height: 72px;
+                                    background: var(--surface);
+                                    border: 1px solid var(--border);
+                                    border-radius: 8px;
+                                    color: var(--text);
+                                    padding: 8px 10px;
+                                    font-size: 12px;
+                                    resize: vertical;
+                                "
+                            ></textarea>
+                            <button
+                                id="aiStackUpdateBtn"
+                                class="btn btn-primary"
+                                onclick="previewAiStackUpdate()"
+                                style="
+                                    font-size: 11px;
+                                    padding: 6px 10px;
+                                    margin-top: 8px;
+                                "
+                            >
+                                Preview stack update
+                            </button>
+                        </div>
+                        <div
+                            style="
+                                background: var(--surface2);
+                                border: 1px solid var(--border);
+                                border-radius: 8px;
+                                padding: 10px;
+                            "
+                        >
+                            <div
+                                style="
+                                    font-size: 11px;
+                                    font-weight: 800;
+                                    color: var(--text);
+                                    margin-bottom: 6px;
+                                "
+                            >
+                                Meal macros
+                            </div>
+                            <textarea
+                                id="aiMealInput"
+                                placeholder="Example: 8 oz grilled chicken, 1 cup rice, avocado, and salsa."
+                                style="
+                                    width: 100%;
+                                    min-height: 72px;
+                                    background: var(--surface);
+                                    border: 1px solid var(--border);
+                                    border-radius: 8px;
+                                    color: var(--text);
+                                    padding: 8px 10px;
+                                    font-size: 12px;
+                                    resize: vertical;
+                                "
+                            ></textarea>
+                            <button
+                                id="aiMealBtn"
+                                class="btn btn-primary"
+                                onclick="previewAiMealMacros()"
+                                style="
+                                    font-size: 11px;
+                                    padding: 6px 10px;
+                                    margin-top: 8px;
+                                "
+                            >
+                                Estimate and preview meal
+                            </button>
+                        </div>
+                    </div>
+                    <div
+                        id="aiQuickUpdatePreview"
+                        style="
+                            display: none;
+                            margin-top: 10px;
+                            background: var(--surface2);
+                            border: 1px solid var(--border);
+                            border-radius: 8px;
+                            padding: 12px;
+                            font-size: 12px;
+                            line-height: 1.55;
+                            color: var(--text);
+                        "
+                    ></div>
+                </div>
                 <div style="display: flex; gap: 8px; margin-bottom: 10px">
                     <input
                         type="text"
@@ -9224,8 +9388,19 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.31.6";
+            const VERSION = "2.31.7";
             const VERSION_CHANGES = [
+                {
+                    version: "2.31.7",
+                    date: "2026-04-20",
+                    summary: "AI quick updates for stack and meals",
+                    details: [
+                        "Added an AI Coach Quick Update panel for previewing stack additions, removals, pauses, and edits from plain text.",
+                        "Added AI meal macro estimation that previews calories, protein, carbs, fat, assumptions, and confidence before logging.",
+                        "Applied approved meal estimates to the existing Meal Log and Daily Progress compliance records so coach reports see the new macros.",
+                        "Kept AI updates preview-first with code review comments documenting that provider output cannot silently change the program.",
+                    ],
+                },
                 {
                     version: "2.31.6",
                     date: "2026-04-20",
@@ -9931,8 +10106,8 @@
                 bumpChangeCount();
             }
 
-            function loadCompliance() {
-                const d = new Date().toISOString().slice(0, 10);
+            function loadComplianceForDate(date) {
+                const d = _validIsoDate(date) || todayKey();
                 try {
                     return JSON.parse(
                         localStorage.getItem("tp_compliance_" + d) || "{}",
@@ -9941,10 +10116,16 @@
                     return {};
                 }
             }
-            function saveCompliance(obj) {
-                const d = new Date().toISOString().slice(0, 10);
+            function saveComplianceForDate(date, obj) {
+                const d = _validIsoDate(date) || todayKey();
                 localStorage.setItem("tp_compliance_" + d, JSON.stringify(obj));
                 bumpChangeCount();
+            }
+            function loadCompliance() {
+                return loadComplianceForDate(todayKey());
+            }
+            function saveCompliance(obj) {
+                saveComplianceForDate(todayKey(), obj);
             }
 
             // =========================================================
@@ -16644,6 +16825,666 @@ Note: Educational research monitoring only. Do not change medications, doses, la
             function clearResearchWatch() {
                 saveResearchWatch(null);
                 renderResearchWatch();
+            }
+
+            const AI_STACK_UPDATE_SYSTEM = `You convert the user's own stack change request into strict JSON for a local health tracker. Do not recommend, invent, optimize, or change doses. Only extract additions, removals, pauses, or edits the user explicitly requested. If the user asks what they should do instead of stating a change, return no actions and put the clarification in questions. Return only JSON: {"actions":[{"action":"add|remove|pause|update","name":"compound name","matchName":"existing name if editing/removing","dose":"as stated or empty","timing":"as stated or empty","status":"active|weekly|planned|paused|held","start":"YYYY-MM-DD or empty","note":"short user-stated note or empty","confidence":0.0}],"questions":["..."]}.`;
+            const AI_MEAL_MACRO_SYSTEM = `You estimate meal macros for a local health tracker. Return only JSON. Use common nutrition estimates when exact labels are not provided, include assumptions, and keep numbers realistic. Do not provide medical advice. JSON shape: {"date":"YYYY-MM-DD or empty","mealName":"short label","slot":"Meal 1|Meal 2|Meal 3|Meal 4|Meal 5 or empty","items":[{"name":"food","quantity":"amount","calories":0,"protein":0,"carbs":0,"fat":0}],"totals":{"calories":0,"protein":0,"carbs":0,"fat":0},"confidence":"low|medium|high","assumptions":["..."]}.`;
+            let pendingAiStackUpdate = null;
+            let pendingAiMealUpdate = null;
+
+            function _setAiQuickUpdatePreview(html) {
+                const el = document.getElementById("aiQuickUpdatePreview");
+                if (!el) return;
+                el.style.display = "block";
+                el.innerHTML = html;
+            }
+
+            function clearAiQuickUpdatePreview() {
+                pendingAiStackUpdate = null;
+                pendingAiMealUpdate = null;
+                const el = document.getElementById("aiQuickUpdatePreview");
+                if (!el) return;
+                el.style.display = "none";
+                el.innerHTML = "";
+            }
+
+            function _aiUpdateLoading(label) {
+                _setAiQuickUpdatePreview(
+                    `<div style="display:flex;align-items:center;gap:10px;color:var(--muted);"><span class="coach-spinner"></span>${escapeHtml(label)}</div>`,
+                );
+            }
+
+            function _aiUpdateError(message) {
+                _setAiQuickUpdatePreview(
+                    `<div style="color:#ef4444;font-weight:800;margin-bottom:4px;">Update preview failed</div><div style="color:var(--muted);">${escapeHtml(message)}</div>`,
+                );
+            }
+
+            function _setAiButtonBusy(id, busy, label) {
+                const btn = document.getElementById(id);
+                if (!btn) return;
+                if (!btn.dataset.idleText)
+                    btn.dataset.idleText = btn.textContent.trim();
+                btn.disabled = !!busy;
+                btn.textContent = busy ? label : btn.dataset.idleText;
+            }
+
+            function _validIsoDate(value) {
+                const s = String(value || "").trim();
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return "";
+                const d = new Date(s + "T00:00:00Z");
+                if (Number.isNaN(d.getTime())) return "";
+                return d.toISOString().slice(0, 10) === s ? s : "";
+            }
+
+            function _aiCleanText(value, max = 180) {
+                return String(value || "")
+                    .replace(/[\u0000-\u001f\u007f]/g, " ")
+                    .replace(/\s+/g, " ")
+                    .trim()
+                    .slice(0, max);
+            }
+
+            function _aiClampNumber(value, max, decimals = 0) {
+                const n = Number(value);
+                if (!Number.isFinite(n) || n < 0) return 0;
+                const scale = Math.pow(10, decimals);
+                return Math.round(Math.min(max, n) * scale) / scale;
+            }
+
+            function _stackNameKey(name) {
+                return String(name || "")
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, " ")
+                    .trim();
+            }
+
+            function _normalizeStackStatus(status, fallback = "active") {
+                const s = String(status || "").toLowerCase();
+                if (/weekly|thu|sun/.test(s)) return "weekly";
+                if (/plan|future/.test(s)) return "planned";
+                if (/pause|stop/.test(s)) return "paused";
+                if (/hold|held/.test(s)) return "held";
+                if (/active|daily|current/.test(s)) return "active";
+                return fallback;
+            }
+
+            function _stackSummaryForAi() {
+                const stack = loadStack();
+                return stack.length
+                    ? stack
+                          .map((s, i) =>
+                              [
+                                  `${i + 1}. ${s.name || "Unnamed"}`,
+                                  s.dose ? `dose=${s.dose}` : "",
+                                  s.timing ? `timing=${s.timing}` : "",
+                                  s.status ? `status=${s.status}` : "",
+                                  s.start ? `start=${s.start}` : "",
+                                  s.note ? `note=${s.note}` : "",
+                              ]
+                                  .filter(Boolean)
+                                  .join(" | "),
+                          )
+                          .join("\n")
+                    : "(no stack entries)";
+            }
+
+            async function _coachJsonRequest({ system, prompt, maxTokens = 1200 }) {
+                const settings = loadCoachSettings();
+                const provider = getCoachProvider(settings);
+                const providerLabel = getCoachProviderLabel(provider);
+                const apiKey = getCoachKeyForProvider(settings, provider);
+                const model = getCoachModelForProvider(
+                    settings,
+                    provider,
+                    "coach",
+                );
+                if (!coachKeyLooksValid(provider, apiKey)) {
+                    openCoachSettings();
+                    throw new Error(
+                        `Add a ${providerLabel} API key in AI Coach Settings first.`,
+                    );
+                }
+
+                let text = "";
+                let usage = null;
+                if (provider === "openai") {
+                    const resp = await openaiCall({
+                        apiKey,
+                        model,
+                        maxTokens,
+                        instructions: system,
+                        input: [
+                            {
+                                role: "user",
+                                content: [{ type: "input_text", text: prompt }],
+                            },
+                        ],
+                        reasoning: { effort: "low" },
+                    });
+                    text = openaiResponseText(resp);
+                    usage = normalizeOpenaiUsage(resp);
+                } else {
+                    const resp = await anthropicCall({
+                        apiKey,
+                        model,
+                        maxTokens,
+                        system,
+                        messages: [{ role: "user", content: prompt }],
+                    });
+                    text = (resp.content || [])
+                        .filter((c) => c.type === "text")
+                        .map((c) => c.text || "")
+                        .join("\n")
+                        .trim();
+                    usage = resp.usage || null;
+                }
+
+                const json = _extractJson(text);
+                if (!json) {
+                    console.warn("AI Quick Update raw output", text);
+                    throw new Error(
+                        `${providerLabel} returned unexpected output. See browser console for details.`,
+                    );
+                }
+                return { json, provider, providerLabel, model, usage };
+            }
+
+            function _normalizeAiStackActions(parsed) {
+                const actions = Array.isArray(parsed?.actions)
+                    ? parsed.actions
+                    : [];
+                return actions
+                    .map((raw) => {
+                        const rawAction = _aiCleanText(
+                            raw.action || raw.type || raw.intent,
+                            24,
+                        ).toLowerCase();
+                        let action = "";
+                        if (/add|start|begin/.test(rawAction)) action = "add";
+                        else if (/remove|delete/.test(rawAction))
+                            action = "remove";
+                        else if (/pause|hold|stop/.test(rawAction))
+                            action = "pause";
+                        else if (/update|change|edit/.test(rawAction))
+                            action = "update";
+                        if (!action) return null;
+                        const name = _aiCleanText(
+                            raw.name || raw.compound || raw.item,
+                            96,
+                        );
+                        const matchName = _aiCleanText(
+                            raw.matchName || raw.match || raw.existingName,
+                            96,
+                        );
+                        if (!name && !matchName) return null;
+                        const statusText = _aiCleanText(raw.status, 32);
+                        const status =
+                            statusText || action === "add" || action === "pause"
+                                ? _normalizeStackStatus(
+                                      statusText,
+                                      action === "pause" ? "paused" : "active",
+                                  )
+                                : "";
+                        return {
+                            action,
+                            name,
+                            matchName,
+                            dose: _aiCleanText(raw.dose, 96),
+                            timing: _aiCleanText(raw.timing || raw.schedule, 120),
+                            status,
+                            start: _validIsoDate(raw.start || raw.startDate),
+                            note: _aiCleanText(raw.note || raw.notes, 220),
+                            confidence: _aiClampNumber(raw.confidence, 1, 2),
+                        };
+                    })
+                    .filter(Boolean)
+                    .slice(0, 12);
+            }
+
+            function _findStackIndex(stack, action) {
+                const wanted = [action.matchName, action.name]
+                    .map(_stackNameKey)
+                    .filter(Boolean);
+                if (!wanted.length) return -1;
+                for (const key of wanted) {
+                    const exact = stack.findIndex(
+                        (s) => _stackNameKey(s.name) === key,
+                    );
+                    if (exact >= 0) return exact;
+                }
+                for (const key of wanted) {
+                    const partial = stack.findIndex((s) => {
+                        const existing = _stackNameKey(s.name);
+                        return (
+                            existing &&
+                            key &&
+                            (existing.includes(key) || key.includes(existing))
+                        );
+                    });
+                    if (partial >= 0) return partial;
+                }
+                return -1;
+            }
+
+            function _stackActionTitle(action) {
+                return {
+                    add: "Add",
+                    remove: "Remove",
+                    pause: "Pause",
+                    update: "Update",
+                }[action.action];
+            }
+
+            function _renderAiStackUpdatePreview(record) {
+                const stack = loadStack();
+                const questions = Array.isArray(record.questions)
+                    ? record.questions.map((q) => _aiCleanText(q, 180))
+                    : [];
+                if (!record.actions.length) {
+                    _setAiQuickUpdatePreview(`
+      <div style="font-weight:800;color:var(--text);margin-bottom:4px;">No stack change found</div>
+      <div style="color:var(--muted);">The coach could not find an explicit add, remove, pause, or update request.${questions.length ? " " + escapeHtml(questions[0]) : ""}</div>
+    `);
+                    return;
+                }
+                const rows = record.actions
+                    .map((a) => {
+                        const idx = _findStackIndex(stack, a);
+                        const target = idx >= 0 ? stack[idx].name : "";
+                        const detail = [
+                            a.dose ? `Dose: ${a.dose}` : "",
+                            a.timing ? `Timing: ${a.timing}` : "",
+                            a.status ? `Status: ${a.status}` : "",
+                            a.start ? `Start: ${a.start}` : "",
+                            a.note ? `Note: ${a.note}` : "",
+                        ]
+                            .filter(Boolean)
+                            .join(" | ");
+                        const matchText =
+                            a.action === "add"
+                                ? target
+                                    ? `Will update existing: ${target}`
+                                    : "Will add a new stack row"
+                                : target
+                                  ? `Matched: ${target}`
+                                  : "No existing match found";
+                        const matchColor =
+                            a.action === "add" || target
+                                ? "var(--muted)"
+                                : "#ef4444";
+                        return `<div style="border:1px solid var(--border);border-radius:8px;padding:9px;margin:7px 0;background:var(--surface);">
+        <div style="font-weight:800;color:var(--text);">${escapeHtml(_stackActionTitle(a))}: ${escapeHtml(a.name || a.matchName)}</div>
+        <div style="font-size:11px;color:${matchColor};margin-top:2px;">${escapeHtml(matchText)}</div>
+        ${detail ? `<div style="font-size:11px;color:var(--muted);margin-top:5px;">${escapeHtml(detail)}</div>` : ""}
+      </div>`;
+                    })
+                    .join("");
+                _setAiQuickUpdatePreview(`
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+        <div><div style="font-weight:800;color:var(--text);">Stack update preview</div>
+        <div style="font-size:11px;color:var(--muted);">${escapeHtml(record.providerLabel)} interpreted your text. Review before applying.</div></div>
+      </div>
+      ${rows}
+      <div style="font-size:11px;color:var(--muted);margin:8px 0;">Safety boundary: this applies only changes you stated. It does not generate dose recommendations.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="applyAiStackUpdate()" style="font-size:11px;padding:6px 10px;">Apply stack update</button>
+        <button class="btn btn-ghost" onclick="clearAiQuickUpdatePreview()" style="font-size:11px;padding:6px 10px;">Cancel</button>
+      </div>
+    `);
+            }
+
+            function _buildAiStackPrompt(userText) {
+                return `Today: ${todayKey()}
+
+User-stated stack change:
+${userText}
+
+Current stack rows:
+${_stackSummaryForAi()}
+
+Return JSON only. Use "add" only when the user names a new item. Use "remove" only when the user explicitly says remove/delete. Use "pause" for stop/hold/pause. Use "update" for dose, timing, status, start-date, or note edits to an existing row.`;
+            }
+
+            async function previewAiStackUpdate() {
+                const input = document.getElementById("aiStackUpdateInput");
+                const text = (input?.value || "").trim();
+                if (!text) {
+                    showToast("Describe the stack change first", 2500);
+                    return;
+                }
+                pendingAiStackUpdate = null;
+                pendingAiMealUpdate = null;
+                _setAiButtonBusy(
+                    "aiStackUpdateBtn",
+                    true,
+                    "Previewing...",
+                );
+                _aiUpdateLoading("Building stack update preview...");
+                try {
+                    const result = await _coachJsonRequest({
+                        system: AI_STACK_UPDATE_SYSTEM,
+                        prompt: _buildAiStackPrompt(text),
+                        maxTokens: 1200,
+                    });
+                    pendingAiStackUpdate = {
+                        input: text,
+                        actions: _normalizeAiStackActions(result.json),
+                        questions: result.json.questions || [],
+                        providerLabel: result.providerLabel,
+                        model: result.model,
+                    };
+                    _renderAiStackUpdatePreview(pendingAiStackUpdate);
+                } catch (e) {
+                    _aiUpdateError(e.message || String(e));
+                } finally {
+                    _setAiButtonBusy("aiStackUpdateBtn", false);
+                }
+            }
+
+            function applyAiStackUpdate() {
+                const record = pendingAiStackUpdate;
+                if (!record || !record.actions.length) return;
+                const stack = loadStack();
+                const applied = [];
+                const skipped = [];
+                record.actions.forEach((a) => {
+                    const idx = _findStackIndex(stack, a);
+                    if (a.action === "add") {
+                        const entry = {
+                            name: a.name || a.matchName,
+                            dose: a.dose || "",
+                            timing: a.timing || "",
+                            status: a.status || "active",
+                            start: a.start || todayKey(),
+                            note: a.note || "",
+                        };
+                        if (idx >= 0) {
+                            if (entry.dose) stack[idx].dose = entry.dose;
+                            if (entry.timing) stack[idx].timing = entry.timing;
+                            if (entry.status) stack[idx].status = entry.status;
+                            if (a.start) stack[idx].start = a.start;
+                            if (entry.note) stack[idx].note = entry.note;
+                            applied.push(`Updated existing ${stack[idx].name}`);
+                        } else {
+                            stack.push(entry);
+                            applied.push(`Added ${entry.name}`);
+                        }
+                    } else if (a.action === "remove") {
+                        if (idx < 0) {
+                            skipped.push(`No match for ${a.name || a.matchName}`);
+                            return;
+                        }
+                        const removed = stack.splice(idx, 1)[0];
+                        applied.push(`Removed ${removed.name}`);
+                    } else if (a.action === "pause") {
+                        if (idx < 0) {
+                            skipped.push(`No match for ${a.name || a.matchName}`);
+                            return;
+                        }
+                        stack[idx].status = "paused";
+                        if (a.note) stack[idx].note = a.note;
+                        applied.push(`Paused ${stack[idx].name}`);
+                    } else if (a.action === "update") {
+                        if (idx < 0) {
+                            skipped.push(`No match for ${a.name || a.matchName}`);
+                            return;
+                        }
+                        if (a.name) stack[idx].name = a.name;
+                        if (a.dose) stack[idx].dose = a.dose;
+                        if (a.timing) stack[idx].timing = a.timing;
+                        if (a.status) stack[idx].status = a.status;
+                        if (a.start) stack[idx].start = a.start;
+                        if (a.note) stack[idx].note = a.note;
+                        applied.push(`Updated ${stack[idx].name}`);
+                    }
+                });
+                saveStack(stack);
+                pendingAiStackUpdate = null;
+                const input = document.getElementById("aiStackUpdateInput");
+                if (input) input.value = "";
+                render();
+                _setAiQuickUpdatePreview(`
+      <div style="font-weight:800;color:var(--green);margin-bottom:5px;">Stack updated</div>
+      <div style="color:var(--muted);">${escapeHtml(applied.join(" | ") || "No changes applied.")}</div>
+      ${skipped.length ? `<div style="color:#ef4444;margin-top:6px;">Skipped: ${escapeHtml(skipped.join(" | "))}</div>` : ""}
+    `);
+                showToast(`Stack update applied (${applied.length})`, 2500);
+            }
+
+            function _normalizeMealEstimate(parsed) {
+                const root = parsed?.meal || parsed || {};
+                const rawItems = Array.isArray(root.items) ? root.items : [];
+                const items = rawItems
+                    .map((item) => ({
+                        name: _aiCleanText(item.name || item.food, 80),
+                        quantity: _aiCleanText(item.quantity || item.amount, 80),
+                        calories: _aiClampNumber(
+                            item.calories ?? item.kcal,
+                            5000,
+                        ),
+                        protein: _aiClampNumber(
+                            item.protein ?? item.p,
+                            400,
+                            1,
+                        ),
+                        carbs: _aiClampNumber(item.carbs ?? item.c, 500, 1),
+                        fat: _aiClampNumber(item.fat ?? item.f, 300, 1),
+                    }))
+                    .filter((item) => item.name)
+                    .slice(0, 10);
+                const totals = root.totals || root.total || root.macros || {};
+                const sum = items.reduce(
+                    (acc, item) => {
+                        acc.calories += item.calories;
+                        acc.protein += item.protein;
+                        acc.carbs += item.carbs;
+                        acc.fat += item.fat;
+                        return acc;
+                    },
+                    { calories: 0, protein: 0, carbs: 0, fat: 0 },
+                );
+                const protein =
+                    _aiClampNumber(totals.protein ?? totals.p, 400, 1) ||
+                    _aiClampNumber(sum.protein, 400, 1);
+                const carbs =
+                    _aiClampNumber(totals.carbs ?? totals.c, 500, 1) ||
+                    _aiClampNumber(sum.carbs, 500, 1);
+                const fat =
+                    _aiClampNumber(totals.fat ?? totals.f, 300, 1) ||
+                    _aiClampNumber(sum.fat, 300, 1);
+                const macroCalories = protein * 4 + carbs * 4 + fat * 9;
+                const calories =
+                    _aiClampNumber(totals.calories ?? totals.kcal, 5000) ||
+                    _aiClampNumber(sum.calories, 5000) ||
+                    Math.round(macroCalories);
+                const slot = MEAL_SLOTS.includes(root.slot) ? root.slot : "";
+                const confidence = ["low", "medium", "high"].includes(
+                    String(root.confidence || "").toLowerCase(),
+                )
+                    ? String(root.confidence).toLowerCase()
+                    : "medium";
+                return {
+                    date: _validIsoDate(root.date) || todayKey(),
+                    mealName:
+                        _aiCleanText(root.mealName || root.name || root.label, 80) ||
+                        "AI-estimated meal",
+                    slot,
+                    items,
+                    totals: {
+                        calories,
+                        protein,
+                        carbs,
+                        fat,
+                    },
+                    confidence,
+                    assumptions: Array.isArray(root.assumptions)
+                        ? root.assumptions
+                              .map((x) => _aiCleanText(x, 180))
+                              .filter(Boolean)
+                              .slice(0, 6)
+                        : [],
+                };
+            }
+
+            function _mealSlotHasMacros(row) {
+                if (!row) return false;
+                return !!(
+                    Number(row.p) ||
+                    Number(row.c) ||
+                    Number(row.f) ||
+                    row.label
+                );
+            }
+
+            function _nextMealSlot(data) {
+                return (
+                    MEAL_SLOTS.find((slot) => !_mealSlotHasMacros(data[slot])) ||
+                    MEAL_SLOTS[MEAL_SLOTS.length - 1]
+                );
+            }
+
+            function _plannedMealSlot(meal) {
+                const data = loadMealLog(meal.date);
+                return meal.slot || _nextMealSlot(data);
+            }
+
+            function _renderAiMealPreview(record) {
+                const meal = record.meal;
+                const slot = _plannedMealSlot(meal);
+                const itemRows = meal.items.length
+                    ? meal.items
+                          .map(
+                              (item) =>
+                                  `<li>${escapeHtml(item.quantity ? item.quantity + " " + item.name : item.name)} - ${Math.round(item.calories)} kcal, ${item.protein}P / ${item.carbs}C / ${item.fat}F</li>`,
+                          )
+                          .join("")
+                    : `<li>${escapeHtml(meal.mealName)} - item detail not returned</li>`;
+                const assumptions = meal.assumptions.length
+                    ? `<div style="font-size:11px;color:var(--muted);margin-top:8px;">Assumptions: ${escapeHtml(meal.assumptions.join(" | "))}</div>`
+                    : "";
+                _setAiQuickUpdatePreview(`
+      <div style="font-weight:800;color:var(--text);">Meal macro preview</div>
+      <div style="font-size:11px;color:var(--muted);margin:2px 0 8px;">${escapeHtml(record.providerLabel)} estimate - will log to ${escapeHtml(meal.date)} / ${escapeHtml(slot)}</div>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:8px;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center;"><b style="color:#f97316;">${Math.round(meal.totals.calories)}</b><div style="font-size:10px;color:var(--muted);">kcal</div></div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center;"><b style="color:#22c55e;">${meal.totals.protein}g</b><div style="font-size:10px;color:var(--muted);">protein</div></div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center;"><b style="color:#eab308;">${meal.totals.carbs}g</b><div style="font-size:10px;color:var(--muted);">carbs</div></div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center;"><b style="color:#a78bfa;">${meal.totals.fat}g</b><div style="font-size:10px;color:var(--muted);">fat</div></div>
+      </div>
+      <div style="font-weight:800;margin-bottom:4px;">${escapeHtml(meal.mealName)} <span style="font-size:10px;color:var(--muted);font-weight:600;">(${escapeHtml(meal.confidence)} confidence)</span></div>
+      <ul style="margin:0 0 0 18px;padding:0;">${itemRows}</ul>
+      ${assumptions}
+      <div style="font-size:11px;color:var(--muted);margin:8px 0;">Apply adds this meal to Meal Log and adds calories/protein to Daily Progress.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="applyAiMealMacros()" style="font-size:11px;padding:6px 10px;">Apply meal</button>
+        <button class="btn btn-ghost" onclick="clearAiQuickUpdatePreview()" style="font-size:11px;padding:6px 10px;">Cancel</button>
+      </div>
+    `);
+            }
+
+            function _buildAiMealPrompt(userText) {
+                const today = todayKey();
+                const data = loadMealLog(today);
+                const current = MEAL_SLOTS.map((slot) => {
+                    const m = data[slot] || {};
+                    return `${slot}: ${m.label || ""} ${m.p || 0}P/${m.c || 0}C/${m.f || 0}F`;
+                }).join("\n");
+                return `Today: ${today}
+Daily target context: 230g protein, roughly 2200-2400 kcal unless the app phase says otherwise.
+
+User meal text:
+${userText}
+
+Current meal log for today:
+${current}
+
+Return JSON only. If the user says yesterday or another date, convert it to YYYY-MM-DD using today's date above.`;
+            }
+
+            async function previewAiMealMacros() {
+                const input = document.getElementById("aiMealInput");
+                const text = (input?.value || "").trim();
+                if (!text) {
+                    showToast("Describe the meal first", 2500);
+                    return;
+                }
+                pendingAiMealUpdate = null;
+                pendingAiStackUpdate = null;
+                _setAiButtonBusy("aiMealBtn", true, "Estimating...");
+                _aiUpdateLoading("Estimating meal macros...");
+                try {
+                    const result = await _coachJsonRequest({
+                        system: AI_MEAL_MACRO_SYSTEM,
+                        prompt: _buildAiMealPrompt(text),
+                        maxTokens: 1400,
+                    });
+                    pendingAiMealUpdate = {
+                        input: text,
+                        meal: _normalizeMealEstimate(result.json),
+                        providerLabel: result.providerLabel,
+                        model: result.model,
+                    };
+                    _renderAiMealPreview(pendingAiMealUpdate);
+                } catch (e) {
+                    _aiUpdateError(e.message || String(e));
+                } finally {
+                    _setAiButtonBusy("aiMealBtn", false);
+                }
+            }
+
+            function applyAiMealMacros() {
+                const record = pendingAiMealUpdate;
+                if (!record || !record.meal) return;
+                const meal = record.meal;
+                const data = loadMealLog(meal.date);
+                const slot = _plannedMealSlot(meal);
+                const existing = data[slot] || {};
+                const existingItems = Array.isArray(existing.items)
+                    ? existing.items
+                    : [];
+                const existingLabel = _aiCleanText(existing.label, 140);
+                data[slot] = {
+                    ...existing,
+                    p: _aiClampNumber(Number(existing.p || 0) + meal.totals.protein, 500, 1),
+                    c: _aiClampNumber(Number(existing.c || 0) + meal.totals.carbs, 600, 1),
+                    f: _aiClampNumber(Number(existing.f || 0) + meal.totals.fat, 400, 1),
+                    kcal: _aiClampNumber(
+                        Number(existing.kcal || 0) + meal.totals.calories,
+                        8000,
+                    ),
+                    label: existingLabel
+                        ? `${existingLabel}; ${meal.mealName}`
+                        : meal.mealName,
+                    source: "ai",
+                    updatedAt: new Date().toISOString(),
+                    items: existingItems.concat(meal.items).slice(-16),
+                };
+                saveMealLog(meal.date, data);
+
+                // Review note: meal estimates update the same daily compliance
+                // record used by the dashboard and coach briefing.
+                const comp = loadComplianceForDate(meal.date);
+                comp.protein = _aiClampNumber(
+                    Number(comp.protein || 0) + meal.totals.protein,
+                    500,
+                    1,
+                );
+                comp.calories = _aiClampNumber(
+                    Number(comp.calories || 0) + meal.totals.calories,
+                    8000,
+                );
+                saveComplianceForDate(meal.date, comp);
+
+                pendingAiMealUpdate = null;
+                const input = document.getElementById("aiMealInput");
+                if (input) input.value = "";
+                render();
+                _setAiQuickUpdatePreview(`
+      <div style="font-weight:800;color:var(--green);margin-bottom:5px;">Meal logged</div>
+      <div style="color:var(--muted);">${escapeHtml(meal.mealName)} added to ${escapeHtml(meal.date)} / ${escapeHtml(slot)}. Daily Progress increased by ${meal.totals.protein}g protein and ${Math.round(meal.totals.calories)} kcal.</div>
+    `);
+                showToast("Meal macros added to Daily Progress", 2500);
             }
 
             function openCoachSettings() {
@@ -29779,10 +30620,14 @@ ${parts.join("\n")}
                 const body = document.getElementById("mealLogBody");
                 body.innerHTML = MEAL_SLOTS.map((slot) => {
                     const m = data[slot] || { p: "", c: "", f: "" };
+                    const aiLabel = m.label
+                        ? `<div style="font-size:10px;color:var(--muted);font-weight:500;margin-top:2px;">${escapeHtml(m.label)}</div>`
+                        : "";
+                    const kcal = m.kcal ? ` · ${Math.round(+m.kcal)} kcal` : "";
                     return `<div class="meal-row">
-      <div class="meal-label">${slot}</div>
+      <div class="meal-label">${slot}${aiLabel}</div>
       <div class="meal-macros">
-        <span class="m-p">${m.p || 0}P</span> · <span class="m-c">${m.c || 0}C</span> · <span class="m-f">${m.f || 0}F</span>
+        <span class="m-p">${m.p || 0}P</span> · <span class="m-c">${m.c || 0}C</span> · <span class="m-f">${m.f || 0}F</span><span style="color:var(--muted)">${kcal}</span>
       </div>
       <div class="meal-input">
         <input type="number" placeholder="P" value="${m.p || ""}" oninput="updateMeal('${slot}','p',this.value)">
