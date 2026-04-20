@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.31.2" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.31.3" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -9049,8 +9049,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.31.2";
+            const VERSION = "2.31.3";
             const VERSION_CHANGES = [
+                {
+                    version: "2.31.3",
+                    date: "2026-04-20",
+                    summary: "Fix workflow jump buttons",
+                    details: [
+                        "Rewired critical workflow buttons to use safe data attributes instead of quoted inline target strings.",
+                        "Added a direct button handler so Open signal, Open water, Open labs, and Open AI coach expand and scroll reliably.",
+                        "Added Playwright click coverage for the workflow jump behavior on desktop and mobile widths.",
+                    ],
+                },
                 {
                     version: "2.31.2",
                     date: "2026-04-20",
@@ -26938,7 +26948,7 @@ ${parts.join("\n")}
             }
 
             function _workflowRenderStep(step, index) {
-                const target = JSON.stringify(step.target || "todaysPlanCard");
+                const target = _escHtml(step.target || "todaysPlanCard");
                 return `
     <div class="workflow-step ${_escHtml(step.status || "unknown")}">
       <div class="workflow-step-head">
@@ -26950,8 +26960,15 @@ ${parts.join("\n")}
         <div class="workflow-step-meta">${_escHtml(step.meta || "")}</div>
       </div>
       <div class="workflow-step-body">${_escHtml(step.body)}</div>
-      <button class="btn btn-ghost" onclick="openCriticalWorkflowItem(${target})">${_escHtml(step.button || "Open")}</button>
+      <button class="btn btn-ghost" data-workflow-target="${target}" onclick="openCriticalWorkflowItemFromButton(this)">${_escHtml(step.button || "Open")}</button>
     </div>`;
+            }
+
+            function openCriticalWorkflowItemFromButton(button) {
+                // Review note: using a data attribute avoids quote-breaking inline
+                // handlers like onclick="openCriticalWorkflowItem("labsCard")".
+                const cardId = button?.dataset?.workflowTarget;
+                openCriticalWorkflowItem(cardId);
             }
 
             function openCriticalWorkflowItem(cardId) {
@@ -27029,6 +27046,8 @@ ${parts.join("\n")}
 
             if (typeof window !== "undefined") {
                 window.renderCriticalWorkflow = renderCriticalWorkflow;
+                window.openCriticalWorkflowItemFromButton =
+                    openCriticalWorkflowItemFromButton;
                 window.openCriticalWorkflowItem = openCriticalWorkflowItem;
             }
 
