@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.31.8" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.31.9" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -9388,8 +9388,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.31.8";
+            const VERSION = "2.31.9";
             const VERSION_CHANGES = [
+                {
+                    version: "2.31.9",
+                    date: "2026-04-20",
+                    summary: "Expose AI quick update debug and fallback parsing",
+                    details: [
+                        "Added a response-object scanner so AI Quick Update can parse JSON returned outside output_text.",
+                        "Added a local stack-change fallback for simple add, remove, pause, and update requests when provider JSON is unreadable.",
+                        "Added a visible provider debug clue and copy action so repeated ChatGPT parsing failures can be reviewed without opening dev tools.",
+                    ],
+                },
                 {
                     version: "2.31.8",
                     date: "2026-04-20",
@@ -17003,9 +17013,20 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                 );
             }
 
-            function _aiUpdateError(message) {
+            function _aiUpdateError(message, debugText = "") {
+                const debug = debugText
+                    ? `<details style="margin-top:8px;"><summary style="cursor:pointer;color:var(--muted);font-size:11px;">Provider debug clue</summary><pre style="white-space:pre-wrap;word-break:break-word;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px;max-height:180px;overflow:auto;font-size:10px;color:var(--muted);">${escapeHtml(debugText)}</pre></details>
+                       <button class="btn btn-ghost" onclick="copyAiQuickUpdateDebug()" style="font-size:11px;padding:5px 9px;margin-top:8px;">Copy debug clue</button>`
+                    : "";
                 _setAiQuickUpdatePreview(
-                    `<div style="color:#ef4444;font-weight:800;margin-bottom:4px;">Update preview failed</div><div style="color:var(--muted);">${escapeHtml(message)}</div>`,
+                    `<div style="color:#ef4444;font-weight:800;margin-bottom:4px;">Update preview failed</div><div style="color:var(--muted);">${escapeHtml(message)}</div>${debug}`,
+                );
+            }
+
+            function copyAiQuickUpdateDebug() {
+                copyTextToClipboard(
+                    localStorage.getItem("tp_ai_quick_update_debug") || "",
+                    "AI debug clue copied",
                 );
             }
 
@@ -17058,6 +17079,108 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                 return fallback;
             }
 
+            function _looksLikeQuickUpdateJson(value) {
+                if (!value || typeof value !== "object") return false;
+                if (Array.isArray(value)) {
+                    const first = value[0] || {};
+                    return !!(
+                        first &&
+                        typeof first === "object" &&
+                        (first.action ||
+                            first.intent ||
+                            first.mealName ||
+                            first.totals)
+                    );
+                }
+                return !!(
+                    Array.isArray(value.actions) ||
+                    value.meal ||
+                    value.totals ||
+                    value.mealName ||
+                    (Array.isArray(value.items) &&
+                        ("protein" in (value.items[0] || {}) ||
+                            "calories" in (value.items[0] || {})))
+                );
+            }
+
+            function _findQuickUpdateJson(value, depth = 0, seen = new Set()) {
+                if (!value || depth > 6) return null;
+                if (typeof value === "string") {
+                    const parsed = _extractJson(value);
+                    return _looksLikeQuickUpdateJson(parsed) ? parsed : null;
+                }
+                if (typeof value !== "object") return null;
+                if (seen.has(value)) return null;
+                seen.add(value);
+                if (_looksLikeQuickUpdateJson(value)) return value;
+
+                // Review note: OpenAI structured output may be exposed by SDKs or
+                // API variants as parsed/json/arguments instead of output_text.
+                for (const key of [
+                    "parsed",
+                    "json",
+                    "arguments",
+                    "output_text",
+                    "text",
+                    "content",
+                    "output",
+                    "message",
+                    "data",
+                ]) {
+                    if (!(key in value)) continue;
+                    const found = _findQuickUpdateJson(
+                        value[key],
+                        depth + 1,
+                        seen,
+                    );
+                    if (found) return found;
+                }
+                if (Array.isArray(value)) {
+                    for (const item of value) {
+                        const found = _findQuickUpdateJson(
+                            item,
+                            depth + 1,
+                            seen,
+                        );
+                        if (found) return found;
+                    }
+                }
+                return null;
+            }
+
+            function _quickUpdateDebugSummary({
+                providerLabel,
+                model,
+                text,
+                raw,
+                error,
+            }) {
+                const outputTypes = [];
+                try {
+                    (raw?.output || []).forEach((item) => {
+                        outputTypes.push(item.type || "item");
+                        (item.content || []).forEach((c) =>
+                            outputTypes.push(c.type || "content"),
+                        );
+                    });
+                } catch {}
+                const refusal = raw ? openaiResponseRefusal(raw) : "";
+                const summary = {
+                    at: new Date().toISOString(),
+                    provider: providerLabel,
+                    model,
+                    status: raw?.status || "",
+                    incompleteReason: raw?.incomplete_details?.reason || "",
+                    outputTypes,
+                    refusal,
+                    error: error || "",
+                    textPreview: String(text || "").slice(0, 1200),
+                };
+                const out = JSON.stringify(summary, null, 2);
+                localStorage.setItem("tp_ai_quick_update_debug", out);
+                return out;
+            }
+
             function _stackSummaryForAi() {
                 const stack = loadStack();
                 return stack.length
@@ -17102,6 +17225,7 @@ Note: Educational research monitoring only. Do not change medications, doses, la
 
                 let text = "";
                 let usage = null;
+                let rawResponse = null;
                 if (provider === "openai") {
                     const request = {
                         apiKey,
@@ -17145,6 +17269,7 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                             text: { format: { type: "json_object" } },
                         });
                     }
+                    rawResponse = resp;
                     text = openaiResponseText(resp);
                     usage = normalizeOpenaiUsage(resp);
                 } else {
@@ -17155,6 +17280,7 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                         system,
                         messages: [{ role: "user", content: prompt }],
                     });
+                    rawResponse = resp;
                     text = (resp.content || [])
                         .filter((c) => c.type === "text")
                         .map((c) => c.text || "")
@@ -17163,14 +17289,131 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                     usage = resp.usage || null;
                 }
 
-                const json = _extractJson(text);
+                const json =
+                    _extractJson(text) || _findQuickUpdateJson(rawResponse);
                 if (!json) {
-                    console.warn("AI Quick Update raw output", text);
-                    throw new Error(
-                        `${providerLabel} returned unexpected output. See browser console for details.`,
+                    const debug = _quickUpdateDebugSummary({
+                        providerLabel,
+                        model,
+                        text,
+                        raw: rawResponse,
+                    });
+                    console.warn("AI Quick Update raw output", {
+                        text,
+                        rawResponse,
+                    });
+                    if (rawResponse?.status === "incomplete") {
+                        throw new Error(
+                            `${providerLabel} response was incomplete (${rawResponse.incomplete_details?.reason || "reason unknown"}). Try again or raise max tokens in Settings.`,
+                        );
+                    }
+                    const refusal =
+                        provider === "openai"
+                            ? openaiResponseRefusal(rawResponse)
+                            : "";
+                    if (refusal)
+                        throw new Error(`${providerLabel} refused: ${refusal}`);
+                    const err = new Error(
+                        `${providerLabel} returned unexpected output. Tap "Provider debug clue" below and send me that clue if this repeats.`,
+                    );
+                    err.debugText = debug;
+                    throw err;
+                }
+                if (localStorage.getItem("tp_ai_quick_update_debug"))
+                    localStorage.removeItem("tp_ai_quick_update_debug");
+                return {
+                    json,
+                    provider,
+                    providerLabel,
+                    model,
+                    usage,
+                    raw: rawResponse,
+                    text,
+                };
+            }
+
+            function _localStackActionsFromText(text) {
+                const source = String(text || "").trim();
+                if (!source) return [];
+                const chunks = source
+                    .split(/\s*(?:[.;\n]|\band then\b|\bthen\b)\s*/i)
+                    .map((x) => x.trim())
+                    .filter(Boolean);
+                const actions = [];
+                const today = todayKey();
+                chunks.forEach((chunk) => {
+                    const lower = chunk.toLowerCase();
+                    let action = "";
+                    if (/\b(add|start|begin|taking|include)\b/.test(lower))
+                        action = "add";
+                    else if (/\b(remove|delete|drop|discontinue)\b/.test(lower))
+                        action = "remove";
+                    else if (/\b(pause|hold|stop)\b/.test(lower))
+                        action = "pause";
+                    else if (/\b(update|change|set|move|switch)\b/.test(lower))
+                        action = "update";
+                    if (!action) return;
+
+                    const doseMatch = chunk.match(
+                        /\b(\d+(?:\.\d+)?\s*(?:mcg|mg|g|iu|capsules?|tabs?|tablets?|scoops?|mL|ml|oz)\b(?:\s*(?:x|×)\s*\d+)?)\b/i,
+                    );
+                    const dose = doseMatch ? doseMatch[1] : "";
+                    const timingMatch = chunk.match(
+                        /\b(?:with|at|before|after|pre|post)\s+([^.;,]+)/i,
+                    );
+                    const timing = timingMatch ? timingMatch[0] : "";
+                    const status = action === "pause" ? "paused" : "active";
+                    const start = /\btoday\b/i.test(chunk) ? today : "";
+                    let name = chunk
+                        .replace(
+                            /\b(add|start|begin|taking|include|remove|delete|drop|discontinue|pause|hold|stop|update|change|set|move|switch)\b/gi,
+                            "",
+                        )
+                        .replace(/\b(starting|effective)\s+today\b/gi, "")
+                        .replace(/\b(to|from|my|the|a|an)\b/gi, " ")
+                        .replace(doseMatch?.[0] || "", "")
+                        .replace(timingMatch?.[0] || "", "")
+                        .replace(/\s+/g, " ")
+                        .trim();
+                    name = name.replace(/^of\s+/i, "").slice(0, 96);
+                    if (!name) return;
+                    actions.push({
+                        action,
+                        name,
+                        matchName: action === "add" ? "" : name,
+                        dose,
+                        timing,
+                        status: action === "update" ? "" : status,
+                        start,
+                        note: "Parsed locally after provider output was not readable JSON.",
+                        confidence: 0.5,
+                    });
+                });
+                return actions.slice(0, 8);
+            }
+
+            function _showLocalStackFallback(inputText, providerError) {
+                const actions = _localStackActionsFromText(inputText);
+                if (!actions.length) return false;
+                pendingAiStackUpdate = {
+                    input: inputText,
+                    actions,
+                    questions: [],
+                    providerLabel: "Local fallback",
+                    model: "no-provider-json",
+                    warning:
+                        providerError?.message ||
+                        "Provider output could not be parsed.",
+                };
+                _renderAiStackUpdatePreview(pendingAiStackUpdate);
+                const preview = document.getElementById("aiQuickUpdatePreview");
+                if (preview) {
+                    preview.insertAdjacentHTML(
+                        "afterbegin",
+                        `<div style="background:rgba(234,179,8,0.12);border:1px solid rgba(234,179,8,0.35);border-radius:8px;padding:8px;margin-bottom:8px;color:var(--yellow);font-size:11px;">ChatGPT did not return readable JSON, so the app used a local parser for this preview. Review carefully before applying.</div>`,
                     );
                 }
-                return { json, provider, providerLabel, model, usage };
+                return true;
             }
 
             function _normalizeAiStackActions(parsed) {
@@ -17362,7 +17605,15 @@ Return JSON only. Use "add" only when the user names a new item. Use "remove" on
                     };
                     _renderAiStackUpdatePreview(pendingAiStackUpdate);
                 } catch (e) {
-                    _aiUpdateError(e.message || String(e));
+                    if (!_showLocalStackFallback(text, e))
+                        _aiUpdateError(
+                            e.message || String(e),
+                            e.debugText ||
+                                localStorage.getItem(
+                                    "tp_ai_quick_update_debug",
+                                ) ||
+                                "",
+                        );
                 } finally {
                     _setAiButtonBusy("aiStackUpdateBtn", false);
                 }
@@ -17614,7 +17865,12 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                     };
                     _renderAiMealPreview(pendingAiMealUpdate);
                 } catch (e) {
-                    _aiUpdateError(e.message || String(e));
+                    _aiUpdateError(
+                        e.message || String(e),
+                        e.debugText ||
+                            localStorage.getItem("tp_ai_quick_update_debug") ||
+                            "",
+                    );
                 } finally {
                     _setAiButtonBusy("aiMealBtn", false);
                 }
