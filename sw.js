@@ -4,7 +4,7 @@
 // hydration + injection reminders, and basic cache shell.
 // Served from GitHub Pages at /health-tracker/sw.js.
 // =========================================================
-const SW_VERSION = 'tp-sw-v2.4.0';
+const SW_VERSION = 'tp-sw-v2.31.0';
 const SCOPE = self.registration.scope;
 
 self.addEventListener('install', (e) => {
@@ -13,7 +13,19 @@ self.addEventListener('install', (e) => {
 });
 
 self.addEventListener('activate', (e) => {
-  e.waitUntil(self.clients.claim());
+  e.waitUntil((async () => {
+    // Review note: clear older app-shell caches when the SW version changes so
+    // installed mobile PWAs do not keep serving stale Health Tracker builds.
+    try {
+      const keys = await caches.keys();
+      await Promise.all(
+        keys
+          .filter((key) => key.startsWith('tp-sw-') && key !== SW_VERSION)
+          .map((key) => caches.delete(key))
+      );
+    } catch { /* cache cleanup is best effort */ }
+    await self.clients.claim();
+  })());
 });
 
 // Network-first (default) — no caching yet; future-proofed hook.
