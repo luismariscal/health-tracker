@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.31.5" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.31.6" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -6009,6 +6009,20 @@
                             </button>
                             <button
                                 class="btn btn-ghost"
+                                onclick="emailResearchWatchBrief()"
+                                style="font-size: 11px; padding: 6px 10px"
+                            >
+                                Email brief
+                            </button>
+                            <button
+                                class="btn btn-ghost"
+                                onclick="exportResearchWatchBrief()"
+                                style="font-size: 11px; padding: 6px 10px"
+                            >
+                                Export txt
+                            </button>
+                            <button
+                                class="btn btn-ghost"
                                 onclick="copyResearchWatchPrompt()"
                                 style="font-size: 11px; padding: 6px 10px"
                             >
@@ -9210,8 +9224,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.31.5";
+            const VERSION = "2.31.6";
             const VERSION_CHANGES = [
+                {
+                    version: "2.31.6",
+                    date: "2026-04-20",
+                    summary: "Email and export research watch brief",
+                    details: [
+                        "Added Email brief and Export txt actions to the AI Coach Research Watch panel.",
+                        "Created a concise plain-text research summary for email drafts and text-file export.",
+                        "Stored the preferred email recipient locally so future briefs can be sent faster without syncing the address.",
+                    ],
+                },
                 {
                     version: "2.31.5",
                     date: "2026-04-20",
@@ -16157,6 +16181,7 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
             }
 
             const RESEARCH_WATCH_KEY = "tp_research_watch";
+            const RESEARCH_WATCH_EMAIL_KEY = "tp_research_watch_email";
             const RESEARCH_WATCH_DOMAINS = [
                 "pubmed.ncbi.nlm.nih.gov",
                 "clinicaltrials.gov",
@@ -16303,6 +16328,120 @@ Rules:
                     prompt,
                     `Research Watch prompt copied (${prompt.length.toLocaleString()} chars)`,
                 );
+            }
+
+            function _stripMarkdownForEmail(src) {
+                const text = String(src || "")
+                    .replace(/```[\s\S]*?```/g, "")
+                    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, "$1 ($2)")
+                    .replace(/[*_`#>]/g, "")
+                    .replace(/\r/g, "");
+                const ta = document.createElement("textarea");
+                ta.innerHTML = text;
+                return ta.value;
+            }
+
+            function _researchWatchSummaryText(record, maxChars = 2800) {
+                const plain = _stripMarkdownForEmail(record?.text || "");
+                const lines = plain
+                    .split("\n")
+                    .map((line) => line.trim())
+                    .filter(Boolean);
+                const picked = [];
+                for (const line of lines) {
+                    if (picked.join("\n").length + line.length > maxChars) break;
+                    picked.push(line);
+                    if (picked.length >= 22) break;
+                }
+                const summary = picked.join("\n");
+                return summary || "No research watch summary text is available.";
+            }
+
+            function buildResearchWatchEmailBody(record = loadResearchWatch()) {
+                if (!record || record.loading || record.error || !record.text)
+                    return "";
+                const generated = record.generatedAt
+                    ? new Date(record.generatedAt).toLocaleString()
+                    : new Date().toLocaleString();
+                const sourceLines = (record.sources || [])
+                    .slice(0, 10)
+                    .map((s, i) => `${i + 1}. ${s.title || s.url} - ${s.url}`)
+                    .join("\n");
+                return `Health Tracker Research Watch Brief
+Generated: ${generated}
+Provider: ${record.providerLabel || "AI"} (${record.model || "model not recorded"})
+
+Brief summary:
+${_researchWatchSummaryText(record)}
+
+Sources:
+${sourceLines || "No source URLs were captured. Open the app briefing and verify sources before acting."}
+
+Note: Educational research monitoring only. Do not change medications, doses, labs, or treatment plans without a qualified clinician.`;
+            }
+
+            function _researchWatchFileDate(record) {
+                const d = record?.generatedAt
+                    ? new Date(record.generatedAt)
+                    : new Date();
+                return d.toISOString().slice(0, 10);
+            }
+
+            function _validEmailAddress(email) {
+                return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || "");
+            }
+
+            function _researchWatchReadyRecord() {
+                const record = loadResearchWatch();
+                if (!record || record.loading || record.error || !record.text) {
+                    showToast("Refresh Research Watch before exporting", 3000);
+                    return null;
+                }
+                return record;
+            }
+
+            function exportResearchWatchBrief() {
+                const record = _researchWatchReadyRecord();
+                if (!record) return;
+                const body = buildResearchWatchEmailBody(record);
+                const blob = new Blob([body], { type: "text/plain" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `research-watch-${_researchWatchFileDate(record)}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                showToast("Research Watch text file exported", 2500);
+            }
+
+            function emailResearchWatchBrief() {
+                const record = _researchWatchReadyRecord();
+                if (!record) return;
+                const saved = localStorage.getItem(RESEARCH_WATCH_EMAIL_KEY) || "";
+                const to = prompt("Email Research Watch brief to:", saved || "");
+                if (to == null) return;
+                const email = to.trim();
+                if (!_validEmailAddress(email)) {
+                    showToast("Enter a valid email address", 3000);
+                    return;
+                }
+                localStorage.setItem(RESEARCH_WATCH_EMAIL_KEY, email);
+                const body = buildResearchWatchEmailBody(record);
+                const subject = `Health Tracker Research Watch - ${_researchWatchFileDate(record)}`;
+                const mailto =
+                    `mailto:${encodeURIComponent(email)}` +
+                    `?subject=${encodeURIComponent(subject)}` +
+                    `&body=${encodeURIComponent(body)}`;
+                // Review note: static GitHub Pages cannot send email directly, so this
+                // safely exports a plain-text draft through the user's email app.
+                copyTextToClipboard(
+                    body,
+                    "Email brief copied; opening email draft",
+                );
+                const opened = window.open(mailto, "_blank", "noopener");
+                if (!opened) window.location.href = mailto;
             }
 
             function _collectResearchSources(obj) {
