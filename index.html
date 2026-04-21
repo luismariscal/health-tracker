@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.32.6" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.32.7" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -9496,8 +9496,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.32.6";
+            const VERSION = "2.32.7";
             const VERSION_CHANGES = [
+                {
+                    version: "2.32.7",
+                    date: "2026-04-21",
+                    summary: "Fix local-day rollover for daily logs",
+                    details: [
+                        "Switched daily log keys from UTC-derived date strings to local calendar dates so water, meals, injections, and day-based workflow cards follow the real day on your device.",
+                        "Added a live day-boundary refresh so the app resets daily totals after midnight even if it stays open overnight.",
+                        "Updated daily history helpers and reminders to use the same local-date key path for cleaner 7-day trends and compliance history.",
+                    ],
+                },
                 {
                     version: "2.32.6",
                     date: "2026-04-20",
@@ -12530,7 +12540,7 @@
                 const p = prefill || {};
                 return `
   <div class="form-grid">
-    <div class="field"><label>Date</label><input type="date" id="fi_date" value="${p.date || new Date().toISOString().slice(0, 10)}"></div>
+    <div class="field"><label>Date</label><input type="date" id="fi_date" value="${p.date || todayKey()}"></div>
     <div class="field"><label>Weight (lb)</label><input type="number" id="fi_weight" placeholder="305" step="0.1" value="${p.weight || ""}"></div>
     <div class="field"><label>Protein (g)</label><input type="number" id="fi_protein" placeholder="230" step="1" value="${p.protein || ""}"></div>
     <div class="field"><label>Water (oz)</label><input type="number" id="fi_water" placeholder="128" step="1" value="${p.water || ""}"></div>
@@ -12613,9 +12623,7 @@
                     const el = document.getElementById(id);
                     if (el)
                         el.value =
-                            id === "fi_date"
-                                ? new Date().toISOString().slice(0, 10)
-                                : "";
+                            id === "fi_date" ? todayKey() : "";
                 });
                 ["fi_energy", "fi_hunger", "fi_recovery", "fi_look"].forEach(
                     (id) => {
@@ -13093,7 +13101,7 @@
                 if (noteEl && !noteEl.value.trim()) noteEl.value = p.note || "";
                 const startEl = document.getElementById("se_start");
                 if (startEl && !startEl.value)
-                    startEl.value = new Date().toISOString().slice(0, 10);
+                    startEl.value = todayKey();
                 document.getElementById("se_name").focus();
             }
 
@@ -14927,7 +14935,7 @@
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 const days = Math.ceil((off - today) / 86400000);
-                const offStr = off.toISOString().slice(0, 10);
+                const offStr = _dateKeyLocal(off);
                 if (days <= 0) {
                     return {
                         key: "off",
@@ -15164,8 +15172,22 @@
                 if (ov) ov.style.display = "none";
             }
 
+            // Review note: daily logs must follow the device's local calendar
+            // day. UTC ISO dates were shifting "today" into tomorrow during the
+            // evening in US timezones, which broke midnight resets and history.
+            function _dateKeyLocal(value = new Date()) {
+                const d =
+                    value instanceof Date
+                        ? new Date(value.getTime())
+                        : new Date(value);
+                if (Number.isNaN(d.getTime())) return "";
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, "0");
+                const day = String(d.getDate()).padStart(2, "0");
+                return `${y}-${m}-${day}`;
+            }
             function todayKey() {
-                return new Date().toISOString().slice(0, 10);
+                return _dateKeyLocal();
             }
             function isInjDay() {
                 const day = new Date().getDay(); // 0=Sun, 4=Thu
@@ -15481,7 +15503,7 @@
                         now.getMonth(),
                         now.getDate() - i,
                     );
-                    const key = d.toISOString().slice(0, 10);
+                    const key = _dateKeyLocal(d);
                     const entries = water[key] || [];
                     const total = entries.reduce(
                         (sum, e) => sum + (+e.oz || 0),
@@ -15675,10 +15697,32 @@
 
             // Poll every minute while the app is open — fires at most once per interval
             let _waterPollTimer = null;
+            let _runtimeTodayKey = todayKey();
+            function refreshDailyDateBoundary(force = false) {
+                const nextDate = todayKey();
+                if (!force && nextDate === _runtimeTodayKey) return false;
+                const previousDate = _runtimeTodayKey;
+                _runtimeTodayKey = nextDate;
+                if (!previousDate && !force) return false;
+                // Review note: daily logs are already stored per date key. The
+                // missing piece was a live midnight rollover while the app stays
+                // open, so we re-render when the local day changes instead of
+                // carrying the old day's totals into the new day.
+                render();
+                if (
+                    document.getElementById("waterLogOverlay")?.style.display ===
+                    "flex"
+                ) {
+                    renderWaterModal();
+                }
+                return true;
+            }
             function startWaterPoll() {
                 if (_waterPollTimer) return;
+                _runtimeTodayKey = todayKey();
                 _waterPollTimer = setInterval(() => {
                     try {
+                        refreshDailyDateBoundary(false);
                         checkWaterReminder(false);
                     } catch {}
                 }, 60 * 1000);
@@ -16322,7 +16366,7 @@
                 for (let i = days - 1; i >= 0; i--) {
                     const d = new Date(now);
                     d.setDate(d.getDate() - i);
-                    const key = d.toISOString().slice(0, 10);
+                    const key = _dateKeyLocal(d);
                     let data = {};
                     try {
                         data = JSON.parse(
@@ -16485,7 +16529,7 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
 
             function buildCoachBundle(promptKey) {
                 const lines = [];
-                const today = new Date().toISOString().slice(0, 10);
+                const today = todayKey();
                 const entries = loadEntries();
                 const sortedEntries = [...entries].sort((a, b) =>
                     a.date.localeCompare(b.date),
@@ -17038,7 +17082,7 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
             }
 
             function buildResearchWatchPrompt() {
-                const today = new Date().toISOString().slice(0, 10);
+                const today = todayKey();
                 const subjects = activeResearchSubjects();
                 const rows = subjects.length
                     ? subjects
@@ -17163,7 +17207,7 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                 const d = record?.generatedAt
                     ? new Date(record.generatedAt)
                     : new Date();
-                return d.toISOString().slice(0, 10);
+                return _dateKeyLocal(d);
             }
 
             function _validEmailAddress(email) {
@@ -19756,7 +19800,7 @@ Style:
                 const sunday = new Date(d);
                 sunday.setDate(d.getDate() - day);
                 sunday.setHours(0, 0, 0, 0);
-                return sunday.toISOString().slice(0, 10);
+                return _dateKeyLocal(sunday);
             }
 
             function loadWeeklyReport() {
@@ -20440,7 +20484,7 @@ Style:
                 pre.textContent = "Syncing today…\n";
                 const log = [];
                 try {
-                    const today = new Date().toISOString().slice(0, 10);
+                    const today = todayKey();
                     await fitbitSyncDate(today, log);
                     pre.textContent = log.join("\n");
                     const data = loadFitbit();
@@ -20462,7 +20506,7 @@ Style:
                     for (let i = 0; i < days; i++) {
                         const d = new Date();
                         d.setDate(d.getDate() - i);
-                        const key = d.toISOString().slice(0, 10);
+                        const key = _dateKeyLocal(d);
                         const log = [];
                         await fitbitSyncDate(key, log);
                         out.push(`${key}: ${log.join(" · ") || "(nothing)"}`);
@@ -21268,7 +21312,7 @@ Style:
             }
 
             function _todayIsoDate() {
-                return new Date().toISOString().slice(0, 10);
+                return todayKey();
             }
 
             function _normalizeLabIsoDate(value, fallback) {
@@ -23005,7 +23049,7 @@ Rules:
                 const d = new Date();
                 for (let i = 1; i <= 30; i++) {
                     d.setDate(d.getDate() - 1);
-                    const dk = d.toISOString().slice(0, 10);
+                    const dk = _dateKeyLocal(d);
                     const log = loadSuppLog(dk);
                     if (log[key]) streak++;
                     else break;
@@ -28528,7 +28572,7 @@ ${parts.join("\n")}
                 for (let i = 0; i < days; i++) {
                     const d = new Date(today);
                     d.setDate(d.getDate() - i);
-                    const key = d.toISOString().slice(0, 10);
+                    const key = _dateKeyLocal(d);
                     const entries = waterMap[key] || [];
                     const oz = entries.reduce(
                         (s, e) => s + (parseFloat(e.oz) || 0),
@@ -28577,7 +28621,7 @@ ${parts.join("\n")}
                     d.setDate(d.getDate() - i);
                     if (d.getDay() === 4 || d.getDay() === 0) {
                         expected++;
-                        const dateKey = d.toISOString().slice(0, 10);
+                    const dateKey = _dateKeyLocal(d);
                         // Check for any logged injection on this date
                         const hasLog = Object.keys(log).some((k) => {
                             if (!k.startsWith(dateKey + ":")) return false;
@@ -30266,7 +30310,7 @@ ${parts.join("\n")}
             }
 
             function morningNudgeHasLoggedToday() {
-                const today = new Date().toISOString().slice(0, 10);
+                const today = todayKey();
                 const entries = loadEntries() || [];
                 return entries.some((e) => e.date === today);
             }
@@ -30279,7 +30323,7 @@ ${parts.join("\n")}
                     el.style.display = "none";
                     return;
                 }
-                const today = new Date().toISOString().slice(0, 10);
+                const today = todayKey();
                 if (cfg.dismissedDate === today) {
                     el.style.display = "none";
                     return;
@@ -30329,7 +30373,7 @@ ${parts.join("\n")}
 
             function dismissMorningNudge() {
                 const cfg = loadMorningNudge();
-                cfg.dismissedDate = new Date().toISOString().slice(0, 10);
+                cfg.dismissedDate = todayKey();
                 saveMorningNudge(cfg);
                 renderMorningNudge();
             }
@@ -30585,7 +30629,7 @@ ${parts.join("\n")}
                         today.setHours(0, 0, 0, 0);
                         if (end <= today) {
                             events.push({
-                                date: end.toISOString().slice(0, 10),
+                                date: _dateKeyLocal(end),
                                 type: "cycle-end",
                                 icon: "⏹️",
                                 color: "rgba(251,146,60,0.35)",
@@ -31017,7 +31061,7 @@ ${parts.join("\n")}
                 let sleepVals = [];
                 for (let i = 0; i < 7; i++) {
                     const d = new Date(today.getTime() - i * 86400000);
-                    const k = d.toISOString().slice(0, 10);
+                    const k = _dateKeyLocal(d);
                     try {
                         const data = JSON.parse(
                             localStorage.getItem("tp_compliance_" + k) || "{}",
@@ -31149,7 +31193,7 @@ ${parts.join("\n")}
                 const waterVals = [];
                 for (let i = 0; i < 7; i++) {
                     const d = new Date(today.getTime() - i * 86400000);
-                    const k = d.toISOString().slice(0, 10);
+                    const k = _dateKeyLocal(d);
                     const day = water[k];
                     if (day && typeof day.oz === "number" && day.oz > 0)
                         waterVals.push(day.oz);
@@ -31771,7 +31815,7 @@ ${parts.join("\n")}
                 const lastEnd = new Date(today.getTime() - 7 * DAY);
 
                 function fmt(d) {
-                    return d.toISOString().slice(0, 10);
+                    return _dateKeyLocal(d);
                 }
                 function inRange(dateStr, start, end) {
                     return dateStr >= fmt(start) && dateStr <= fmt(end);
@@ -32092,7 +32136,7 @@ ${parts.join("\n")}
                     .sort((a, b) => a.date.localeCompare(b.date));
                 const outliers = [];
                 const todayStr =
-                    opts.today || new Date().toISOString().slice(0, 10);
+                    opts.today || todayKey();
 
                 // ---- 1. Impossible / bounds + duplicate + future
                 const BOUNDS = {
@@ -32405,7 +32449,7 @@ ${parts.join("\n")}
             function _closeoutKey(dateStr) {
                 return (
                     _CLOSEOUT_KEY_PREFIX +
-                    (dateStr || new Date().toISOString().slice(0, 10))
+                    (dateStr || todayKey())
                 );
             }
 
@@ -32433,7 +32477,7 @@ ${parts.join("\n")}
                 opts = opts || {};
                 const entries = opts.entries || loadEntries();
                 const dateStr =
-                    opts.date || new Date().toISOString().slice(0, 10);
+                    opts.date || todayKey();
 
                 // Find today's entry
                 const todayEntry = entries.find((e) => e && e.date === dateStr);
@@ -32576,7 +32620,7 @@ ${parts.join("\n")}
             function closeToday(opts) {
                 opts = opts || {};
                 const dateStr =
-                    opts.date || new Date().toISOString().slice(0, 10);
+                    opts.date || todayKey();
                 const status = computeTodayCloseoutStatus({
                     date: dateStr,
                     entries: opts.entries,
@@ -33359,7 +33403,7 @@ ${parts.join("\n")}
             // =========================================================
 
             function todayKey() {
-                return new Date().toISOString().slice(0, 10);
+                return _dateKeyLocal();
             }
             function daysBetween(a, b) {
                 return Math.round(
@@ -33895,10 +33939,10 @@ ${parts.join("\n")}
                 for (let i = -8; i <= 3; i++) {
                     const wk = new Date(now);
                     wk.setDate(wk.getDate() + i * 7);
-                    const wkKey = wk.toISOString().slice(0, 10);
+                    const wkKey = _dateKeyLocal(wk);
                     const prior = new Date(wk);
                     prior.setDate(prior.getDate() - 7);
-                    const priorKey = prior.toISOString().slice(0, 10);
+                    const priorKey = _dateKeyLocal(prior);
                     const hadRefeed = refeeds.some(
                         (r) => r >= priorKey && r < wkKey,
                     );
@@ -34362,7 +34406,7 @@ ${parts.join("\n")}
                 ctx.font = "14px Arial";
                 ctx.textAlign = "right";
                 ctx.fillText(
-                    new Date().toISOString().slice(0, 10),
+                    todayKey(),
                     canvas.width - 20,
                     30,
                 );
@@ -34436,7 +34480,7 @@ ${parts.join("\n")}
                 const url = canvas.toDataURL("image/png");
                 const a = document.createElement("a");
                 a.href = url;
-                a.download = `transformation-collage-${angle}-${new Date().toISOString().slice(0, 10)}.png`;
+                a.download = `transformation-collage-${angle}-${todayKey()}.png`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -34465,7 +34509,7 @@ ${parts.join("\n")}
                 for (let i = 0; i < 60; i++) {
                     const d = new Date(today);
                     d.setDate(d.getDate() - i);
-                    const k = d.toISOString().slice(0, 10);
+                    const k = _dateKeyLocal(d);
                     if (entries.some((e) => e.date === k)) weightStreak++;
                     else break;
                 }
@@ -34474,7 +34518,7 @@ ${parts.join("\n")}
                 for (let i = 0; i < 60; i++) {
                     const d = new Date(today);
                     d.setDate(d.getDate() - i);
-                    const k = d.toISOString().slice(0, 10);
+                    const k = _dateKeyLocal(d);
                     const e = entries.find((x) => x.date === k);
                     if (e && typeof e.protein === "number" && e.protein >= 207)
                         proteinStreak++;
@@ -34486,7 +34530,7 @@ ${parts.join("\n")}
                 for (let i = 0; i < 60; i++) {
                     const d = new Date(today);
                     d.setDate(d.getDate() - i);
-                    const k = d.toISOString().slice(0, 10);
+                    const k = _dateKeyLocal(d);
                     let data = {};
                     try {
                         data = JSON.parse(
@@ -35362,9 +35406,13 @@ ${parts.join("\n")}
             initBottomNavScrollSpy();
             initFloatingScrollTopButton();
             setTimeout(() => checkAppVersionFreshness({ silent: true }), 1500);
-            window.addEventListener("focus", () =>
-                checkAppVersionFreshness({ silent: true }),
-            );
+            window.addEventListener("focus", () => {
+                refreshDailyDateBoundary(false);
+                checkAppVersionFreshness({ silent: true });
+            });
+            document.addEventListener("visibilitychange", () => {
+                if (!document.hidden) refreshDailyDateBoundary(false);
+            });
             // v2.5.0: kick off cross-device sync if the user has already connected a gist
             renderSyncStatusChip();
             (function initSync() {
