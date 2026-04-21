@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.32.2" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.32.3" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -9401,8 +9401,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.32.2";
+            const VERSION = "2.32.3";
             const VERSION_CHANGES = [
+                {
+                    version: "2.32.3",
+                    date: "2026-04-20",
+                    summary: "Track inventory by vial or pack counts",
+                    details: [
+                        "Added vial and pack-aware inventory helpers with default per-container amounts for Retatrutide, cabergoline, and HCG.",
+                        "Reworked the inventory manager so you can save containers on hand plus amount per container while the app still auto-decrements total remaining after injections.",
+                        "Updated the inventory card quick-add flow to add sealed containers instead of raw mg or IU.",
+                    ],
+                },
                 {
                     version: "2.32.2",
                     date: "2026-04-20",
@@ -27954,6 +27964,46 @@ ${parts.join("\n")}
                 cabergoline: "mg",
                 hcg: "IU",
             };
+            const INVENTORY_CONTAINER_LABELS = {
+                retatrutide: { one: "vial", many: "vials" },
+                cabergoline: { one: "pack", many: "packs" },
+                hcg: { one: "vial", many: "vials" },
+            };
+            const DEFAULT_CONTAINER_AMOUNT = {
+                retatrutide: 10,
+                cabergoline: 2,
+                hcg: 5000,
+            };
+
+            function _inventoryNumber(value, fallback = 0) {
+                const n = Number(value);
+                return Number.isFinite(n) ? n : fallback;
+            }
+
+            function _inventoryContainerLabel(compoundKey, singular = false) {
+                const labels = INVENTORY_CONTAINER_LABELS[compoundKey] || {
+                    one: "container",
+                    many: "containers",
+                };
+                return singular ? labels.one : labels.many;
+            }
+
+            function _inventoryContainerAmount(compoundKey, entry = null) {
+                const saved = _inventoryNumber(entry?.containerAmount, 0);
+                return saved > 0
+                    ? saved
+                    : _inventoryNumber(DEFAULT_CONTAINER_AMOUNT[compoundKey], 0);
+            }
+
+            function _inventoryFormatCount(value, decimals = 1) {
+                const n = _inventoryNumber(value, 0);
+                if (Math.abs(n - Math.round(n)) < 0.01) return String(Math.round(n));
+                return n.toFixed(decimals).replace(/\.?0+$/, "");
+            }
+
+            function _inventoryCompoundByKey(compoundKey) {
+                return (INJ_COMPOUNDS || []).find((c) => c.key === compoundKey);
+            }
 
             function loadInventory() {
                 try {
@@ -27963,9 +28013,17 @@ ${parts.join("\n")}
                     // Ensure every compound has an entry (seed if missing)
                     const out = {};
                     (INJ_COMPOUNDS || []).forEach((c) => {
-                        out[c.key] = raw[c.key] || {
-                            remaining: 0,
-                            lastReorderedAt: "",
+                        const saved = raw[c.key] || {};
+                        out[c.key] = {
+                            remaining: +_inventoryNumber(
+                                saved.remaining,
+                                0,
+                            ).toFixed(3),
+                            containerAmount: +_inventoryContainerAmount(
+                                c.key,
+                                saved,
+                            ).toFixed(3),
+                            lastReorderedAt: saved.lastReorderedAt || "",
                         };
                     });
                     return out;
@@ -27990,6 +28048,18 @@ ${parts.join("\n")}
                 return DEFAULT_DOSE_MG[compoundKey] || 1;
             }
 
+            function inventoryContainersRemaining(compoundKey, inv = loadInventory()) {
+                const entry = inv[compoundKey] || {};
+                const containerAmount = _inventoryContainerAmount(
+                    compoundKey,
+                    entry,
+                );
+                if (!containerAmount) return null;
+                return +(
+                    _inventoryNumber(entry.remaining, 0) / containerAmount
+                ).toFixed(2);
+            }
+
             function inventoryDaysRemaining(compoundKey) {
                 const inv = loadInventory();
                 const remaining =
@@ -28001,23 +28071,31 @@ ${parts.join("\n")}
                 return Math.round(dosesLeft * (7 / DOSES_PER_WEEK));
             }
 
-            function renderInventory() {
+            function renderInventoryLegacy() {
                 const body = document.getElementById("inventoryBody");
                 if (!body) return;
                 const inv = loadInventory();
                 const rows = (INJ_COMPOUNDS || [])
                     .map((c) => {
-                        const entry = inv[c.key] || { remaining: 0 };
+                        const entry = inv[c.key] || {
+                            remaining: 0,
+                            containerAmount: _inventoryContainerAmount(c.key),
+                        };
                         const dose = _inventoryDoseFor(c.key);
                         const unit = INVENTORY_UNITS[c.key] || "mg";
                         const dosesLeft = dose
-                            ? Math.floor(entry.remaining / dose)
+                            ? Math.floor(_inventoryNumber(entry.remaining, 0) / dose)
                             : 0;
                         const daysLeft = inventoryDaysRemaining(c.key);
+                        const containerCount = inventoryContainersRemaining(
+                            c.key,
+                            inv,
+                        );
+                        const containerLabel = _inventoryContainerLabel(c.key);
                         const low =
                             daysLeft !== null &&
                             daysLeft <= INVENTORY_WARN_DAYS;
-                        const empty = entry.remaining <= 0;
+                        const empty = _inventoryNumber(entry.remaining, 0) <= 0;
                         const statusColor = empty
                             ? "#ef4444"
                             : low
@@ -28047,7 +28125,7 @@ ${parts.join("\n")}
                     '<div style="font-size:12px;color:var(--muted);padding:10px;">No injection compounds configured.</div>';
             }
 
-            function inventoryQuickAdd(compoundKey) {
+            function inventoryQuickAddLegacy(compoundKey) {
                 const unit = INVENTORY_UNITS[compoundKey] || "mg";
                 const amt = prompt(
                     `Add how many ${unit} to ${compoundKey} inventory?`,
@@ -28069,7 +28147,7 @@ ${parts.join("\n")}
                 showToast(`✅ +${v} ${unit} to ${compoundKey}`, 2500);
             }
 
-            function inventoryDecrementOnInjection(compoundKey) {
+            function inventoryDecrementOnInjectionLegacy(compoundKey) {
                 const inv = loadInventory();
                 inv[compoundKey] = inv[compoundKey] || { remaining: 0 };
                 const dose = _inventoryDoseFor(compoundKey);
@@ -28097,7 +28175,7 @@ ${parts.join("\n")}
                 const o = document.getElementById("inventoryOverlay");
                 if (o) o.style.display = "none";
             }
-            function renderInventoryManager() {
+            function renderInventoryManagerLegacy() {
                 const body = document.getElementById("inventoryManagerBody");
                 if (!body) return;
                 const inv = loadInventory();
@@ -28143,7 +28221,7 @@ ${parts.join("\n")}
       <button class="btn btn-primary" onclick="closeInventoryManager()">Done</button>
     </div>`;
             }
-            function inventorySetValue(compoundKey) {
+            function inventorySetValueLegacy(compoundKey) {
                 const input = document.getElementById(
                     "inv_" + compoundKey + "_val",
                 );
@@ -28162,6 +28240,240 @@ ${parts.join("\n")}
                 renderInventoryManager();
                 showToast(
                     `✅ ${compoundKey}: ${v} ${INVENTORY_UNITS[compoundKey] || "mg"}`,
+                    2500,
+                );
+            }
+
+            // =========================================================
+            // INVENTORY OVERRIDES (v2.32.3)
+            // Review note: keep one canonical "remaining" field in mg/IU so
+            // injection logging decrements a stable numeric value while the UI
+            // can still speak in vials/packs for day-to-day inventory review.
+            // =========================================================
+            function renderInventory() {
+                const body = document.getElementById("inventoryBody");
+                if (!body) return;
+                const inv = loadInventory();
+                const rows = (INJ_COMPOUNDS || [])
+                    .map((c) => {
+                        const entry = inv[c.key] || {
+                            remaining: 0,
+                            containerAmount: _inventoryContainerAmount(c.key),
+                        };
+                        const dose = _inventoryDoseFor(c.key);
+                        const unit = INVENTORY_UNITS[c.key] || "mg";
+                        const remaining = _inventoryNumber(entry.remaining, 0);
+                        const dosesLeft = dose ? Math.floor(remaining / dose) : 0;
+                        const daysLeft = inventoryDaysRemaining(c.key);
+                        const containerCount = inventoryContainersRemaining(
+                            c.key,
+                            inv,
+                        );
+                        const containerLabel = _inventoryContainerLabel(c.key);
+                        const empty = remaining <= 0;
+                        const low =
+                            !empty &&
+                            daysLeft !== null &&
+                            daysLeft <= INVENTORY_WARN_DAYS;
+                        const statusColor = empty
+                            ? "#ef4444"
+                            : low
+                              ? "#eab308"
+                              : "var(--green, #22c55e)";
+                        const statusLabel = empty
+                            ? "Out"
+                            : daysLeft === null
+                              ? "Tracked"
+                              : `${daysLeft}d left`;
+                        return `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-left:3px solid ${statusColor};border-radius:8px;margin-bottom:6px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:${c.color};flex:none;"></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);">${c.name}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:1px;">${_inventoryFormatCount(remaining, 2)} ${unit} total &middot; ${_inventoryFormatCount(containerCount, 1)} ${containerLabel} &middot; ${dosesLeft} doses</div>
+        </div>
+        <div style="text-align:right;flex:none;">
+          <div style="font-size:12px;font-weight:700;color:${statusColor};">${statusLabel}</div>
+          <button class="btn btn-ghost" style="font-size:10px;padding:3px 8px;margin-top:3px;" onclick="inventoryQuickAdd('${c.key}')">+ ${_inventoryContainerLabel(c.key, true)}</button>
+        </div>
+      </div>`;
+                    })
+                    .join("");
+                body.innerHTML =
+                    rows ||
+                    '<div style="font-size:12px;color:var(--muted);padding:10px;">No injection compounds configured.</div>';
+            }
+
+            function inventoryQuickAdd(compoundKey) {
+                const inv = loadInventory();
+                const entry = inv[compoundKey] || {
+                    remaining: 0,
+                    containerAmount: _inventoryContainerAmount(compoundKey),
+                };
+                const compound = _inventoryCompoundByKey(compoundKey);
+                const labelOne = _inventoryContainerLabel(compoundKey, true);
+                const labelMany = _inventoryContainerLabel(compoundKey);
+                const unit = INVENTORY_UNITS[compoundKey] || "mg";
+                const containerAmount = _inventoryContainerAmount(
+                    compoundKey,
+                    entry,
+                );
+                const amt = prompt(
+                    `Add how many ${labelMany} to ${compound?.name || compoundKey}? (${_inventoryFormatCount(containerAmount, 2)} ${unit} per ${labelOne})`,
+                    "1",
+                );
+                if (amt == null) return;
+                const containers = parseFloat(amt);
+                if (!isFinite(containers) || containers <= 0) {
+                    showToast("Enter a positive container count", 2500);
+                    return;
+                }
+                const totalAdded = +(containers * containerAmount).toFixed(3);
+                inv[compoundKey] = {
+                    ...entry,
+                    remaining: +(
+                        _inventoryNumber(entry.remaining, 0) + totalAdded
+                    ).toFixed(3),
+                    containerAmount: +containerAmount.toFixed(3),
+                    lastReorderedAt: new Date().toISOString(),
+                };
+                saveInventory(inv);
+                renderInventory();
+                if (
+                    document.getElementById("inventoryOverlay")?.style.display ===
+                    "flex"
+                ) {
+                    renderInventoryManager();
+                }
+                showToast(
+                    `${compound?.name || compoundKey}: +${_inventoryFormatCount(containers, 1)} ${containers === 1 ? labelOne : labelMany}`,
+                    2500,
+                );
+            }
+
+            function inventoryDecrementOnInjection(compoundKey) {
+                const inv = loadInventory();
+                const entry = inv[compoundKey] || {
+                    remaining: 0,
+                    containerAmount: _inventoryContainerAmount(compoundKey),
+                };
+                const dose = _inventoryDoseFor(compoundKey);
+                const was = _inventoryNumber(entry.remaining, 0);
+                const next = Math.max(0, +(was - dose).toFixed(3));
+                inv[compoundKey] = {
+                    ...entry,
+                    remaining: next,
+                };
+                saveInventory(inv);
+                if (was > 0 && next === 0) {
+                    showToast(
+                        `${_inventoryCompoundByKey(compoundKey)?.name || compoundKey} is out - reorder soon`,
+                        5000,
+                    );
+                }
+                renderInventory();
+                if (
+                    document.getElementById("inventoryOverlay")?.style.display ===
+                    "flex"
+                ) {
+                    renderInventoryManager();
+                }
+            }
+
+            function renderInventoryManager() {
+                const body = document.getElementById("inventoryManagerBody");
+                if (!body) return;
+                const inv = loadInventory();
+                const rows = (INJ_COMPOUNDS || [])
+                    .map((c) => {
+                        const entry = inv[c.key] || {
+                            remaining: 0,
+                            containerAmount: _inventoryContainerAmount(c.key),
+                            lastReorderedAt: "",
+                        };
+                        const unit = INVENTORY_UNITS[c.key] || "mg";
+                        const dose = _inventoryDoseFor(c.key);
+                        const remaining = _inventoryNumber(entry.remaining, 0);
+                        const containerAmount = _inventoryContainerAmount(
+                            c.key,
+                            entry,
+                        );
+                        const containers = inventoryContainersRemaining(c.key, inv);
+                        const doses = dose ? Math.floor(remaining / dose) : 0;
+                        const days = inventoryDaysRemaining(c.key);
+                        const labelOne = _inventoryContainerLabel(c.key, true);
+                        const labelMany = _inventoryContainerLabel(c.key);
+                        return `
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <div style="width:12px;height:12px;border-radius:50%;background:${c.color};"></div>
+          <div style="font-size:14px;font-weight:700;flex:1;">${c.name}</div>
+          <div style="font-size:11px;color:var(--muted);">Dose: ${c.dose}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;align-items:end;margin-bottom:8px;">
+          <label style="display:flex;flex-direction:column;gap:4px;">
+            <span style="font-size:11px;color:var(--muted);">${labelMany} on hand</span>
+            <input type="number" step="0.01" min="0" id="inv_${c.key}_containers" value="${_inventoryFormatCount(containers, 2)}" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-family:inherit;">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:4px;">
+            <span style="font-size:11px;color:var(--muted);">${unit} per ${labelOne}</span>
+            <input type="number" step="0.01" min="0.01" id="inv_${c.key}_containerAmount" value="${_inventoryFormatCount(containerAmount, 2)}" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-family:inherit;">
+          </label>
+          <button class="btn btn-primary" style="font-size:12px;padding:8px 12px;" onclick="inventorySetValue('${c.key}')">Save</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.5;">
+          ${_inventoryFormatCount(remaining, 2)} ${unit} total &middot; ${doses} doses left &middot; ~${days === null ? "-" : days} days at 2x/week${entry.lastReorderedAt ? ` &middot; last updated ${new Date(entry.lastReorderedAt).toLocaleDateString()}` : ""}
+        </div>
+      </div>`;
+                    })
+                    .join("");
+                body.innerHTML = `
+    <div style="font-size:13px;color:var(--text);line-height:1.55;margin-bottom:14px;">
+      Track sealed containers on hand. Inventory still auto-decrements when you log an injection, so the manager converts vial or pack counts into total remaining mg/IU for the schedule math.
+    </div>
+    ${rows}
+    <div style="background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.2);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--muted);line-height:1.5;margin-top:6px;">
+      Enter how many sealed containers you have and how much each one holds. Example: 3 Retatrutide vials at 10 mg each stores 30 mg total remaining.
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+      <button class="btn btn-primary" onclick="closeInventoryManager()">Done</button>
+    </div>`;
+            }
+
+            function inventorySetValue(compoundKey) {
+                const containersInput = document.getElementById(
+                    "inv_" + compoundKey + "_containers",
+                );
+                const amountInput = document.getElementById(
+                    "inv_" + compoundKey + "_containerAmount",
+                );
+                if (!containersInput || !amountInput) return;
+                const containers = parseFloat(containersInput.value);
+                const containerAmount = parseFloat(amountInput.value);
+                if (!isFinite(containers) || containers < 0) {
+                    showToast("Enter a non-negative container count", 2500);
+                    return;
+                }
+                if (!isFinite(containerAmount) || containerAmount <= 0) {
+                    showToast("Enter a positive amount per container", 2500);
+                    return;
+                }
+                const inv = loadInventory();
+                const compound = _inventoryCompoundByKey(compoundKey);
+                const labelOne = _inventoryContainerLabel(compoundKey, true);
+                const labelMany = _inventoryContainerLabel(compoundKey);
+                const remaining = +(containers * containerAmount).toFixed(3);
+                inv[compoundKey] = {
+                    ...(inv[compoundKey] || {}),
+                    remaining,
+                    containerAmount: +containerAmount.toFixed(3),
+                    lastReorderedAt: new Date().toISOString(),
+                };
+                saveInventory(inv);
+                renderInventory();
+                renderInventoryManager();
+                showToast(
+                    `${compound?.name || compoundKey}: ${_inventoryFormatCount(containers, 2)} ${containers === 1 ? labelOne : labelMany}`,
                     2500,
                 );
             }
