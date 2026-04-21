@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.32.1" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.32.2" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -9401,8 +9401,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.32.1";
+            const VERSION = "2.32.2";
             const VERSION_CHANGES = [
+                {
+                    version: "2.32.2",
+                    date: "2026-04-20",
+                    summary: "Make daily protocol follow live stack",
+                    details: [
+                        "Rebuilt the Daily Protocol card from the live stack instead of the old static seed list.",
+                        "Mapped active and weekly stack timing into protocol blocks so new additions show in the correct slot.",
+                        "Updated manual stack save/delete flows to re-render Daily Protocol immediately after edits.",
+                    ],
+                },
                 {
                     version: "2.32.1",
                     date: "2026-04-20",
@@ -9694,32 +9704,17 @@
             const DAILY_PROTOCOL = [
                 {
                     time: "05:00",
-                    items: [
-                        "Methylene Blue (5 drops)",
-                        "NAD+ Patch",
-                        "MOTS-c 2 mg",
-                        "KLOW80 AM dose (2 mg)",
-                        "Water",
-                    ],
+                    items: ["Water"],
                     special: false,
                 },
                 {
                     time: "06:00",
-                    items: [
-                        "First meal",
-                        "1 scoop whey",
-                        "Creatine 5 g",
-                        "Multivitamin (Centrum Men 50+)",
-                        "Spirulina 1000 mg",
-                    ],
+                    items: ["First meal"],
                     special: false,
                 },
                 {
                     time: "Midday",
-                    items: [
-                        "Protein meal or shake",
-                        "Copper Glycinate 3 mg (with lunch)",
-                    ],
+                    items: ["Protein meal or shake"],
                     special: false,
                 },
                 {
@@ -9729,19 +9724,12 @@
                 },
                 {
                     time: "22:00",
-                    items: [
-                        "Tesamorelin 2 mg (fasted)",
-                        "KLOW80 PM dose (2 mg)",
-                    ],
+                    items: [],
                     special: false,
                 },
                 {
                     time: "Thu/Sun",
-                    items: [
-                        "Retatrutide 4 mg",
-                        "Cabergoline 0.25 mg",
-                        "HCG 500 IU (if active)",
-                    ],
+                    items: [],
                     special: true,
                 },
             ];
@@ -12339,21 +12327,186 @@
                 ).join("");
             }
 
+            function _protocolSortKey(time, special = false) {
+                if (special) return 9000;
+                const fixed = {
+                    "05:00": 500,
+                    "06:00": 600,
+                    Midday: 1200,
+                    Evening: 1800,
+                    "22:00": 2200,
+                    "Thu/Sun": 9000,
+                };
+                if (fixed[time] != null) return fixed[time];
+                const exactTime = String(time || "").match(/^(\d{1,2}):(\d{2})$/);
+                if (exactTime)
+                    return +exactTime[1] * 100 + +exactTime[2];
+                const lower = String(time || "").toLowerCase();
+                if (/morning|wake|am/.test(lower)) return 550;
+                if (/breakfast|first meal/.test(lower)) return 600;
+                if (/mid|lunch|noon|afternoon|meal|training/.test(lower))
+                    return 1300;
+                if (/evening|dinner/.test(lower)) return 1800;
+                if (/night|bed|pm/.test(lower)) return 2200;
+                return 3000;
+            }
+
+            function _protocolBaseBlocks() {
+                return DAILY_PROTOCOL.map((block, index) => ({
+                    time: block.time,
+                    items: [...(block.items || [])],
+                    special: !!block.special,
+                    sortKey: _protocolSortKey(block.time, block.special),
+                    order: index,
+                }));
+            }
+
+            function _protocolDoseSummary(dose) {
+                const raw = String(dose || "").trim();
+                if (!raw) return "";
+                const main = raw.split(" = ")[0].trim();
+                return main || raw;
+            }
+
+            function _protocolSplitDose(dose) {
+                const raw = String(dose || "").trim();
+                const split = raw.match(/(.+?)\s*AM\s*\+\s*(.+?)\s*PM/i);
+                if (!split) return null;
+                return {
+                    morning: `${split[1].trim()} AM`,
+                    night: `${split[2].trim()} PM`,
+                };
+            }
+
+            function _protocolEntrySlots(entry) {
+                const timing = String(entry?.timing || "").trim();
+                const status = String(entry?.status || "").toLowerCase();
+                const lower = timing.toLowerCase();
+                if (entry?.active === false) return [];
+                if (["paused", "held"].includes(status)) return [];
+                if (status === "planned") return [];
+                if (
+                    status === "weekly" ||
+                    /\b(thursday|sunday|thu|sun)\b/.test(lower)
+                ) {
+                    return [{ time: "Thu/Sun", special: true }];
+                }
+                if (lower.includes("morning") && lower.includes("22:00")) {
+                    const splitDose = _protocolSplitDose(entry.dose);
+                    return [
+                        {
+                            time: "05:00",
+                            special: false,
+                            doseOverride: splitDose?.morning || "",
+                        },
+                        {
+                            time: "22:00",
+                            special: false,
+                            doseOverride: splitDose?.night || "",
+                        },
+                    ];
+                }
+                if (
+                    /\b(06:00|first meal|breakfast)\b/.test(lower)
+                ) {
+                    return [{ time: "06:00", special: false }];
+                }
+                if (
+                    /\b(22:00|bedtime|pre-bed|nightly|night|fasted)\b/.test(
+                        lower,
+                    )
+                ) {
+                    return [{ time: "22:00", special: false }];
+                }
+                if (/\b(morning|waking|wake|am)\b/.test(lower)) {
+                    return [{ time: "05:00", special: false }];
+                }
+                if (/\b(lunch|midday|noon)\b/.test(lower)) {
+                    return [{ time: "Midday", special: false }];
+                }
+                if (/\b(evening|dinner)\b/.test(lower)) {
+                    return [{ time: "Evening", special: false }];
+                }
+                if (
+                    /\b(with meal|fatty meal|carb meals|multiple times daily|any time|training)\b/.test(
+                        lower,
+                    )
+                ) {
+                    return [{ time: "Midday", special: false }];
+                }
+                return timing
+                    ? [{ time: timing, special: false }]
+                    : [{ time: "Midday", special: false }];
+            }
+
+            function _protocolEnsureBlock(blocks, time, special = false) {
+                let block = blocks.find(
+                    (item) => item.time === time && item.special === !!special,
+                );
+                if (block) return block;
+                block = {
+                    time,
+                    items: [],
+                    special: !!special,
+                    sortKey: _protocolSortKey(time, special),
+                    order: blocks.length,
+                };
+                blocks.push(block);
+                return block;
+            }
+
+            function _protocolBlocksFromStack() {
+                const blocks = _protocolBaseBlocks();
+                const seen = new Set();
+                (loadStack() || []).forEach((entry) => {
+                    _protocolEntrySlots(entry).forEach((slot) => {
+                        const dose = _protocolDoseSummary(
+                            slot.doseOverride || entry.dose,
+                        );
+                        const label = `${entry.name || "Unnamed"}${dose ? ` (${dose})` : ""}`;
+                        const dedupeKey = `${slot.time}|${label}`;
+                        if (seen.has(dedupeKey)) return;
+                        seen.add(dedupeKey);
+                        _protocolEnsureBlock(
+                            blocks,
+                            slot.time,
+                            slot.special,
+                        ).items.push(label);
+                    });
+                });
+                return blocks
+                    .filter((block) => block.items.length)
+                    .sort(
+                        (a, b) =>
+                            a.sortKey - b.sortKey || a.order - b.order,
+                    );
+            }
+
             function renderProtocol() {
                 const grid = document.getElementById("protocolGrid");
                 if (!grid) return;
-                if (!DAILY_PROTOCOL || !DAILY_PROTOCOL.length) {
+                const blocks = _protocolBlocksFromStack();
+                if (!blocks.length) {
                     grid.innerHTML =
-                        '<div style="color:var(--muted);font-size:12px;padding:14px;">Daily protocol is empty. Reload the page to re-seed.</div>';
+                        '<div style="color:var(--muted);font-size:12px;padding:14px;">Daily protocol is empty. Add stack timing to build it.</div>';
                     return;
                 }
-                grid.innerHTML = DAILY_PROTOCOL.map(
-                    (p) => `
+                // Review note: protocol blocks are rebuilt from the live stack so
+                // AI/manual stack edits update the Daily Protocol immediately.
+                grid.innerHTML = blocks
+                    .map(
+                        (p) => `
     <div class="proto-block">
-      <div class="proto-time ${p.special ? "special" : ""}">${p.time}</div>
-      ${p.items.map((item) => `<div class="proto-item"><div class="proto-dot ${p.special ? "special" : ""}"></div>${item}</div>`).join("")}
+      <div class="proto-time ${p.special ? "special" : ""}">${escapeHtml(p.time)}</div>
+      ${p.items
+          .map(
+              (item) =>
+                  `<div class="proto-item"><div class="proto-dot ${p.special ? "special" : ""}"></div>${escapeHtml(item)}</div>`,
+          )
+          .join("")}
     </div>`,
-                ).join("");
+                    )
+                    .join("");
             }
 
             function renderStack() {
@@ -12586,7 +12739,11 @@
                 else stack[idx] = entry;
                 saveStack(stack);
                 closeStackEdit();
+                renderProtocol();
                 renderStack();
+                renderCoachPreview();
+                if (typeof refreshCollapsiblePreviews === "function")
+                    refreshCollapsiblePreviews();
             }
 
             function deleteStackItem(idx) {
@@ -12594,7 +12751,11 @@
                 const stack = loadStack();
                 stack.splice(idx, 1);
                 saveStack(stack);
+                renderProtocol();
                 renderStack();
+                renderCoachPreview();
+                if (typeof refreshCollapsiblePreviews === "function")
+                    refreshCollapsiblePreviews();
             }
 
             // =========================================================
