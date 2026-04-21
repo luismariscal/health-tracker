@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.32.5" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.32.6" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -2632,6 +2632,93 @@
                 height: 100%;
                 border-radius: 3px;
                 transition: width 0.4s;
+            }
+            .supp-head {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 12px;
+                flex-wrap: wrap;
+                margin-bottom: 14px;
+            }
+            .supp-head-title {
+                font-size: 14px;
+                font-weight: 800;
+                color: var(--text);
+            }
+            .supp-head-sub {
+                font-size: 11px;
+                color: var(--muted);
+                margin-top: 3px;
+                max-width: 540px;
+                line-height: 1.5;
+            }
+            .supp-head-actions {
+                display: flex;
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+            .supp-summary-row {
+                display: flex;
+                gap: 8px;
+                flex-wrap: wrap;
+                margin-bottom: 14px;
+            }
+            .supp-summary-pill {
+                background: var(--surface2);
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                padding: 8px 10px;
+                min-width: 120px;
+            }
+            .supp-summary-label {
+                font-size: 10px;
+                font-weight: 800;
+                letter-spacing: 0.7px;
+                text-transform: uppercase;
+                color: var(--muted);
+            }
+            .supp-summary-value {
+                font-size: 13px;
+                font-weight: 800;
+                color: var(--text);
+                margin-top: 2px;
+            }
+            .supp-summary-sub {
+                font-size: 11px;
+                color: var(--muted);
+                margin-top: 2px;
+            }
+            .supp-item-main {
+                flex: 1;
+                min-width: 0;
+            }
+            .supp-item-actions {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                flex-shrink: 0;
+            }
+            .supp-edit-btn {
+                background: rgba(0, 212, 255, 0.08);
+                border: 1px solid rgba(0, 212, 255, 0.22);
+                color: var(--accent);
+                border-radius: 8px;
+                padding: 5px 8px;
+                font-size: 11px;
+                font-weight: 700;
+                cursor: pointer;
+            }
+            .supp-edit-btn:hover {
+                opacity: 0.88;
+            }
+            .supp-empty-note {
+                background: var(--surface2);
+                border: 1px dashed var(--border);
+                border-radius: 8px;
+                padding: 10px 12px;
+                font-size: 12px;
+                color: var(--muted);
             }
 
             /* INJECTION SITES */
@@ -9409,8 +9496,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.32.5";
+            const VERSION = "2.32.6";
             const VERSION_CHANGES = [
+                {
+                    version: "2.32.6",
+                    date: "2026-04-20",
+                    summary: "Make supplements follow the live stack",
+                    details: [
+                        "Rebuilt the Supplements checklist from the live stack so new active items appear automatically instead of living in a separate static list.",
+                        "Added a quick Add supplement workflow inside the Supplements tab that writes into the shared stack source of truth.",
+                        "Added workflow summaries and edit shortcuts so Supplements, Stack, and Daily Protocol stay aligned.",
+                    ],
+                },
                 {
                     version: "2.32.5",
                     date: "2026-04-20",
@@ -10157,6 +10254,8 @@
                 localStorage.setItem("tp_stack", JSON.stringify(arr));
                 bumpChangeCount();
                 if (typeof renderInventory === "function") renderInventory();
+                if (typeof renderSuppChecklist === "function")
+                    renderSuppChecklist();
                 if (
                     document.getElementById("inventoryOverlay")?.style.display ===
                         "flex" &&
@@ -10641,7 +10740,7 @@
                 renderPeakWeek();
                 renderCycleTracker();
                 renderInjectionTracker();
-                renderSuppChecklist();
+                renderSuppChecklist(state);
                 renderMeasurements();
                 renderTraining();
                 renderSymptoms();
@@ -22576,6 +22675,317 @@ Rules:
                 },
             ];
 
+            function _suppBaseBlocks() {
+                return [
+                    {
+                        id: "am",
+                        time: "05:00",
+                        block: "AM - 05:00",
+                        tag: "am",
+                        tagClass: "supp-time-am",
+                        tagLabel: "AM",
+                        sortKey: _protocolSortKey("05:00", false),
+                    },
+                    {
+                        id: "meal1",
+                        time: "06:00",
+                        block: "With First Meal - 06:00",
+                        tag: "day",
+                        tagClass: "supp-time-day",
+                        tagLabel: "Daily",
+                        sortKey: _protocolSortKey("06:00", false),
+                    },
+                    {
+                        id: "midday",
+                        time: "Midday",
+                        block: "Midday - Lunch",
+                        tag: "day",
+                        tagClass: "supp-time-day",
+                        tagLabel: "Daily",
+                        sortKey: _protocolSortKey("Midday", false),
+                    },
+                    {
+                        id: "evening",
+                        time: "Evening",
+                        block: "Evening",
+                        tag: "pm",
+                        tagClass: "supp-time-pm",
+                        tagLabel: "PM",
+                        sortKey: _protocolSortKey("Evening", false),
+                    },
+                    {
+                        id: "pm",
+                        time: "22:00",
+                        block: "PM - 22:00",
+                        tag: "pm",
+                        tagClass: "supp-time-pm",
+                        tagLabel: "PM",
+                        sortKey: _protocolSortKey("22:00", false),
+                    },
+                    {
+                        id: "thu",
+                        time: "Thu/Sun",
+                        block: "Thu & Sun Only",
+                        tag: "thu",
+                        tagClass: "supp-time-thu",
+                        tagLabel: "Thu/Sun",
+                        special: true,
+                        sortKey: _protocolSortKey("Thu/Sun", true),
+                    },
+                ];
+            }
+
+            function _suppResolveBlock(slot) {
+                const time = String(slot?.time || "").trim() || "Midday";
+                const special = !!slot?.special || time === "Thu/Sun";
+                const base = _suppBaseBlocks().find(
+                    (item) => item.time === time && !!item.special === special,
+                );
+                if (base) return { ...base };
+                return {
+                    id: `supp-block-${_protocolOsSlug(`${time}-${special ? "special" : "daily"}`)}`,
+                    time,
+                    block: special ? `${time} only` : time,
+                    tag: special ? "thu" : "day",
+                    tagClass: special ? "supp-time-thu" : "supp-time-day",
+                    tagLabel: special ? "Special" : "Daily",
+                    special,
+                    sortKey: _protocolSortKey(time, special),
+                };
+            }
+
+            function _suppLegacyChecklistKey(name, blockId) {
+                const key = _stackNameKey(name);
+                if (!key) return "";
+                if (/methylene blue/.test(key)) return "mb";
+                if (/nad/.test(key) && /patch/.test(key)) return "nad";
+                if (/mots c|motsc/.test(key)) return "motsc";
+                if (/klow ?80/.test(key)) {
+                    if (blockId === "am") return "klow_am";
+                    if (["evening", "pm"].includes(blockId)) return "klow_pm";
+                }
+                if (/creatine/.test(key)) return "creatine";
+                if (/multivitamin|centrum men 50/.test(key)) return "multi";
+                if (/spirulina/.test(key)) return "spirulina";
+                if (/whey protein|protein shake|on gold/.test(key))
+                    return "protein1";
+                if (/copper glycinate/.test(key)) return "copper_gly";
+                if (/tesamorelin/.test(key)) return "tesam";
+                if (/retatrutide/.test(key)) return "retatrutide_s";
+                if (/cabergoline/.test(key)) return "cabergoline_s";
+                if (/\bhcg\b/.test(key)) return "hcg_s";
+                return "";
+            }
+
+            function _suppChecklistKey(entry, blockId) {
+                const legacy = _suppLegacyChecklistKey(entry?.name, blockId);
+                if (legacy) return legacy;
+                return `supp_${_protocolOsSlug(entry?.name || "item")}_${blockId}`;
+            }
+
+            function _suppSourceStack(stateLike = null) {
+                if (Array.isArray(stateLike?.domains?.stackItems)) {
+                    return stateLike.domains.stackItems;
+                }
+                return (loadStack() || []).map((item, index) =>
+                    _protocolOsNormalizeStackItem(item, index),
+                );
+            }
+
+            function _suppBuildChecklistBlocks(stateLike = null) {
+                const blocks = _suppBaseBlocks().map((block) => ({
+                    ...block,
+                    items: [],
+                }));
+                const byId = new Map(blocks.map((block) => [block.id, block]));
+                const seen = new Set();
+                _suppSourceStack(stateLike).forEach((entry, fallbackIndex) => {
+                    _protocolEntrySlots(entry).forEach((slot) => {
+                        const meta = _suppResolveBlock(slot);
+                        let block = byId.get(meta.id);
+                        if (!block) {
+                            block = { ...meta, items: [] };
+                            byId.set(meta.id, block);
+                            blocks.push(block);
+                        }
+                        const dose =
+                            _protocolDoseSummary(
+                                slot.doseOverride || entry.dose,
+                            ) || "Dose not set";
+                        const dedupeKey = [
+                            block.id,
+                            _stackNameKey(entry.name),
+                            dose,
+                        ].join("|");
+                        if (seen.has(dedupeKey)) return;
+                        seen.add(dedupeKey);
+                        block.items.push({
+                            key: _suppChecklistKey(entry, block.id),
+                            name: String(entry.name || "Unnamed").trim(),
+                            dose,
+                            stackIndex:
+                                Number.isFinite(entry.index) &&
+                                entry.index >= 0
+                                    ? entry.index
+                                    : fallbackIndex,
+                        });
+                    });
+                });
+                return blocks
+                    .filter((block) => block.items.length)
+                    .sort(
+                        (a, b) =>
+                            a.sortKey - b.sortKey ||
+                            a.block.localeCompare(b.block),
+                    );
+            }
+
+            function _suppSummary(blocks, log, isThu) {
+                let total = 0;
+                let checked = 0;
+                let nextBlock = "";
+                blocks.forEach((block) => {
+                    if (block.id === "thu" && !isThu) return;
+                    block.items.forEach((item) => {
+                        total++;
+                        if (log[item.key]) checked++;
+                    });
+                    if (!nextBlock && block.items.some((item) => !log[item.key])) {
+                        nextBlock = block.block;
+                    }
+                });
+                return {
+                    total,
+                    checked,
+                    pct: total ? Math.round((checked / total) * 100) : 0,
+                    nextBlock:
+                        nextBlock || (total ? "All complete" : "Nothing scheduled"),
+                };
+            }
+
+            function _suppQuickAddTimingChoice(timing) {
+                const lower = String(timing || "").toLowerCase();
+                if (/\b(thursday|sunday|thu|sun)\b/.test(lower))
+                    return "Thu & Sun";
+                if (/\b(06:00|first meal|breakfast)\b/.test(lower))
+                    return "With first meal";
+                if (/\b(22:00|bedtime|pre-bed|night|fasted)\b/.test(lower))
+                    return "22:00";
+                if (/\b(evening|dinner)\b/.test(lower)) return "Evening";
+                if (
+                    /\b(lunch|midday|noon|with meal|fatty meal|any time|training)\b/.test(
+                        lower,
+                    )
+                ) {
+                    return "With lunch";
+                }
+                return "Morning";
+            }
+
+            function fillSupplementQuickAdd(i) {
+                const preset = SUPPLEMENT_PRESETS[i];
+                if (!preset) return;
+                const nameEl = document.getElementById("suppAddName");
+                const doseEl = document.getElementById("suppAddDose");
+                const timingEl = document.getElementById("suppAddTiming");
+                const noteEl = document.getElementById("suppAddNote");
+                if (nameEl) nameEl.value = preset.name || "";
+                if (doseEl) doseEl.value = preset.dose || "";
+                if (timingEl)
+                    timingEl.value = _suppQuickAddTimingChoice(preset.timing);
+                if (noteEl && !noteEl.value.trim()) noteEl.value = preset.note || "";
+            }
+
+            function openSupplementQuickAdd() {
+                const presetChips = SUPPLEMENT_PRESETS.map(
+                    (preset, i) => `
+      <button type="button" onclick="fillSupplementQuickAdd(${i})"
+        style="background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:16px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer;"
+      >${escapeHtml(preset.name)}</button>`,
+                ).join("");
+                const html = `
+    <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:12px;">
+      Add it here once, then Supplements, Daily Protocol, and Stack all stay in sync.
+    </div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:800;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">Quick starts</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">${presetChips}</div>
+    </div>
+    <div class="form-grid">
+      <div class="field" style="grid-column:1/-1"><label>Name</label><input id="suppAddName" placeholder="e.g. Magnesium Glycinate"></div>
+      <div class="field" style="grid-column:1/-1"><label>Dose</label><input id="suppAddDose" placeholder="e.g. 400 mg"></div>
+      <div class="field"><label>Timing</label>
+        <select id="suppAddTiming">
+          <option>Morning</option>
+          <option>With first meal</option>
+          <option>With lunch</option>
+          <option>Evening</option>
+          <option>22:00</option>
+          <option>Thu & Sun</option>
+        </select>
+      </div>
+      <div class="field"><label>Custom timing (optional)</label><input id="suppAddTimingCustom" placeholder="e.g. Pre-training"></div>
+      <div class="field" style="grid-column:1/-1"><label>Notes</label><textarea id="suppAddNote" placeholder="Why it is in the stack or any composition details"></textarea></div>
+    </div>
+    <div class="form-actions" style="margin-top:16px">
+      <button class="btn btn-primary" onclick="submitSupplementQuickAdd()">Add supplement</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-ghost" onclick="closeModal();openStackEdit(-1)" style="margin-left:auto">Advanced edit</button>
+    </div>`;
+                showModal("Add Supplement", html);
+                setTimeout(
+                    () => document.getElementById("suppAddName")?.focus(),
+                    0,
+                );
+            }
+
+            function submitSupplementQuickAdd() {
+                const name =
+                    document.getElementById("suppAddName")?.value.trim() || "";
+                if (!name) {
+                    alert("Supplement name is required.");
+                    return;
+                }
+                const selected =
+                    document.getElementById("suppAddTiming")?.value || "Morning";
+                const customTiming =
+                    document.getElementById("suppAddTimingCustom")?.value.trim() ||
+                    "";
+                const timing = customTiming || selected;
+                const status = /\b(thursday|sunday|thu|sun)\b/i.test(timing)
+                    ? "weekly"
+                    : "active";
+                const entry = {
+                    name,
+                    dose:
+                        document.getElementById("suppAddDose")?.value.trim() || "",
+                    timing,
+                    status,
+                    start: todayKey(),
+                    note:
+                        document.getElementById("suppAddNote")?.value.trim() || "",
+                };
+                const stack = loadStack();
+                stack.push(entry);
+                // Review note: Supplements quick add writes into tp_stack so the
+                // checklist, Daily Protocol, and Stack manager all read one
+                // source of truth instead of drifting into separate stores.
+                saveStack(stack);
+                closeModal();
+                renderProtocol();
+                renderStack();
+                renderSuppChecklist();
+                renderCoachPreview();
+                if (typeof refreshCollapsiblePreviews === "function")
+                    refreshCollapsiblePreviews();
+            }
+
+            function openSuppStackManager() {
+                if (typeof switchTab2 === "function") switchTab2("stack");
+                if (typeof bottomNavJump === "function")
+                    bottomNavJump("protocolStackCard");
+            }
+
             function loadSuppLog(dateKey) {
                 try {
                     return JSON.parse(
@@ -22611,7 +23021,7 @@ Rules:
                 renderSuppChecklist();
             }
 
-            function renderSuppChecklist() {
+            function renderSuppChecklistLegacy() {
                 const dk = todayKey();
                 const log = loadSuppLog(dk);
                 const isThu = isInjDay();
@@ -22693,6 +23103,115 @@ Rules:
   </div>`;
 
                 document.getElementById("suppChecklist").innerHTML = html;
+            }
+
+            function renderSuppChecklist(stateLike = null) {
+                const host = document.getElementById("suppChecklist");
+                if (!host) return;
+                const dk = todayKey();
+                const log = loadSuppLog(dk);
+                const isThu = isInjDay();
+                const blocks = _suppBuildChecklistBlocks(stateLike);
+                const summary = _suppSummary(blocks, log, isThu);
+                const pct = summary.pct;
+                const pctColor =
+                    pct === 100
+                        ? "var(--green)"
+                        : pct >= 60
+                          ? "var(--yellow)"
+                          : "var(--accent)";
+
+                let html = `
+    <div class="supp-head">
+      <div>
+        <div class="supp-head-title">Supplement workflow</div>
+        <div class="supp-head-sub">Checklist follows your live stack. Add, pause, or edit once and the workflow updates across Supplements, Stack, and Daily Protocol.</div>
+      </div>
+      <div class="supp-head-actions">
+        <button class="btn btn-primary" onclick="openSupplementQuickAdd()">+ Add supplement</button>
+        <button class="btn btn-ghost" onclick="openSuppStackManager()">Open stack</button>
+      </div>
+    </div>
+    <div class="supp-summary-row">
+      <div class="supp-summary-pill">
+        <div class="supp-summary-label">Open Today</div>
+        <div class="supp-summary-value">${summary.total}</div>
+        <div class="supp-summary-sub">Checklist items due now</div>
+      </div>
+      <div class="supp-summary-pill">
+        <div class="supp-summary-label">Completed</div>
+        <div class="supp-summary-value">${summary.checked}/${summary.total}</div>
+        <div class="supp-summary-sub">${pct}% done today</div>
+      </div>
+      <div class="supp-summary-pill">
+        <div class="supp-summary-label">Next Block</div>
+        <div class="supp-summary-value">${escapeHtml(summary.nextBlock)}</div>
+        <div class="supp-summary-sub">What to look at next</div>
+      </div>
+    </div>`;
+
+                if (!blocks.length) {
+                    html += `<div class="supp-empty-note">No active supplements are scheduled yet. Add one here and it will flow into the live stack and daily checklist automatically.</div>`;
+                    host.innerHTML = html;
+                    return;
+                }
+
+                // Review note: the checklist is rendered from the live stack so
+                // the supplements tab becomes a workflow surface, not a second
+                // disconnected scheduler that drifts out of sync.
+                html += blocks
+                    .map((block) => {
+                        if (block.tag === "thu" && !isThu) {
+                            return `<div class="supp-block">
+        <div class="supp-block-title">
+          ${escapeHtml(block.block)}
+          <span class="supp-time-tag ${block.tagClass}">${escapeHtml(block.tagLabel)}</span>
+          <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:4px">- not today</span>
+        </div>
+        <div class="supp-empty-note">These stay visible so you can confirm the weekly protocol without counting them in today's completion rate.</div>
+      </div>`;
+                        }
+                        const itemsHtml = block.items
+                            .map((item) => {
+                                const isChecked = !!log[item.key];
+                                const streak = suppStreak(item.key);
+                                const pipCls =
+                                    streak >= 7
+                                        ? "s-high"
+                                        : streak >= 3
+                                          ? "s-mid"
+                                          : "s-low";
+                                return `<div class="supp-item ${isChecked ? "si-checked" : ""}" onclick="toggleSupp('${item.key}')">
+        <input type="checkbox" class="supp-cb" ${isChecked ? "checked" : ""}>
+        <div class="supp-item-main">
+          <div class="supp-name ${isChecked ? "si-checked" : ""}">${escapeHtml(item.name)}</div>
+          <div class="supp-dose-txt">${escapeHtml(item.dose)}</div>
+        </div>
+        <div class="supp-item-actions">
+          ${streak > 0 ? `<span class="streak-pip ${pipCls}">${streak}d</span>` : ""}
+          <button class="supp-edit-btn" onclick="event.stopPropagation();openStackEdit(${item.stackIndex})">Edit</button>
+        </div>
+      </div>`;
+                            })
+                            .join("");
+                        return `<div class="supp-block">
+      <div class="supp-block-title">
+        ${escapeHtml(block.block)}
+        <span class="supp-time-tag ${block.tagClass}">${escapeHtml(block.tagLabel)}</span>
+      </div>
+      <div class="supp-items-grid">${itemsHtml}</div>
+    </div>`;
+                    })
+                    .join("");
+
+                html += `<div class="supp-overall">
+    <span>${summary.checked}/${summary.total} today</span>
+    <div class="supp-overall-bar"><div class="supp-overall-fill" style="width:${pct}%;background:${pctColor}"></div></div>
+    <span style="font-weight:800;color:${pctColor}">${pct}%</span>
+    ${pct === 100 && summary.total ? '<span style="color:var(--green);font-weight:800">Protocol Complete</span>' : ""}
+  </div>`;
+
+                host.innerHTML = html;
             }
 
             // =========================================================
