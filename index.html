@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.32.7" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.32.8" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -3127,6 +3127,77 @@
             .vitals-chart-wrap {
                 height: 180px;
                 position: relative;
+            }
+            .vitals-coach-box {
+                background: linear-gradient(
+                    135deg,
+                    rgba(0, 212, 255, 0.08),
+                    rgba(139, 92, 246, 0.08)
+                );
+                border: 1px solid rgba(0, 212, 255, 0.24);
+                border-radius: 8px;
+                padding: 12px 14px;
+                margin-bottom: 12px;
+            }
+            .vitals-coach-box.warn {
+                border-color: rgba(249, 115, 22, 0.32);
+                background: linear-gradient(
+                    135deg,
+                    rgba(249, 115, 22, 0.08),
+                    rgba(234, 179, 8, 0.08)
+                );
+            }
+            .vitals-coach-box.danger {
+                border-color: rgba(239, 68, 68, 0.32);
+                background: linear-gradient(
+                    135deg,
+                    rgba(239, 68, 68, 0.08),
+                    rgba(249, 115, 22, 0.08)
+                );
+            }
+            .vitals-coach-box.good {
+                border-color: rgba(34, 197, 94, 0.28);
+                background: linear-gradient(
+                    135deg,
+                    rgba(34, 197, 94, 0.08),
+                    rgba(0, 212, 255, 0.08)
+                );
+            }
+            .vitals-coach-head {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                flex-wrap: wrap;
+                margin-bottom: 8px;
+            }
+            .vitals-coach-title {
+                font-size: 12px;
+                font-weight: 800;
+                color: var(--text);
+            }
+            .vitals-coach-tag {
+                font-size: 10px;
+                font-weight: 800;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                color: var(--muted);
+            }
+            .vitals-coach-lead {
+                font-size: 13px;
+                font-weight: 700;
+                color: var(--text);
+                line-height: 1.5;
+            }
+            .vitals-coach-detail,
+            .vitals-coach-next {
+                font-size: 12px;
+                color: var(--muted);
+                line-height: 1.55;
+                margin-top: 6px;
+            }
+            .vitals-coach-next {
+                color: var(--text);
             }
 
             /* DOSE TITRATION PLANNER */
@@ -7077,6 +7148,7 @@
                         Log
                     </button>
                 </div>
+                <div id="vitalsCoachBox"></div>
                 <div class="vitals-chart-wrap">
                     <canvas id="vitalsChart"></canvas>
                 </div>
@@ -9496,8 +9568,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.32.7";
+            const VERSION = "2.32.8";
             const VERSION_CHANGES = [
+                {
+                    version: "2.32.8",
+                    date: "2026-04-21",
+                    summary: "Add instant AI coach summary for vitals",
+                    details: [
+                        "Added an instant local AI Coach Summary inside the Vitals card so each BP and resting-HR log gets immediate interpretation.",
+                        "Summaries compare the saved reading against the app thresholds, prior vitals log, and recent 7-day trend without spending API tokens.",
+                        "Updated the vitals save flow so the newest reading becomes the active coach summary right after logging.",
+                    ],
+                },
                 {
                     version: "2.32.7",
                     date: "2026-04-21",
@@ -33429,6 +33511,222 @@ ${parts.join("\n")}
                 bumpChangeCount();
             }
 
+            let vitalsCoachFocusDate = null;
+            function _vitalsCoachMetric(kind, value) {
+                const n = Number(value);
+                if (!Number.isFinite(n)) {
+                    return { level: "info", sentence: "", label: "" };
+                }
+                if (kind === "sbp") {
+                    if (n > 140)
+                        return {
+                            level: "danger",
+                            sentence: `SBP ${n} is above the app's red threshold.`,
+                            label: "SBP",
+                        };
+                    if (n > 130)
+                        return {
+                            level: "warn",
+                            sentence: `SBP ${n} is above your green zone.`,
+                            label: "SBP",
+                        };
+                    if (n < 80)
+                        return {
+                            level: "danger",
+                            sentence: `SBP ${n} is below the app's red threshold.`,
+                            label: "SBP",
+                        };
+                    if (n < 90)
+                        return {
+                            level: "warn",
+                            sentence: `SBP ${n} is lower than your usual target band.`,
+                            label: "SBP",
+                        };
+                    return {
+                        level: "good",
+                        sentence: `SBP ${n} looks steady.`,
+                        label: "SBP",
+                    };
+                }
+                if (kind === "dbp") {
+                    if (n > 90)
+                        return {
+                            level: "danger",
+                            sentence: `DBP ${n} is above the app's red threshold.`,
+                            label: "DBP",
+                        };
+                    if (n > 85)
+                        return {
+                            level: "warn",
+                            sentence: `DBP ${n} is mildly elevated.`,
+                            label: "DBP",
+                        };
+                    if (n < 50)
+                        return {
+                            level: "danger",
+                            sentence: `DBP ${n} is below the app's red threshold.`,
+                            label: "DBP",
+                        };
+                    if (n < 60)
+                        return {
+                            level: "warn",
+                            sentence: `DBP ${n} is lower than your usual target band.`,
+                            label: "DBP",
+                        };
+                    return {
+                        level: "good",
+                        sentence: `DBP ${n} is in range.`,
+                        label: "DBP",
+                    };
+                }
+                if (n > 100)
+                    return {
+                        level: "danger",
+                        sentence: `Resting HR ${n} is above the app's red threshold.`,
+                        label: "RHR",
+                    };
+                if (n > 85)
+                    return {
+                        level: "warn",
+                        sentence: `Resting HR ${n} is running a bit high.`,
+                        label: "RHR",
+                    };
+                if (n < 40)
+                    return {
+                        level: "danger",
+                        sentence: `Resting HR ${n} is below the app's red threshold.`,
+                        label: "RHR",
+                    };
+                if (n < 50)
+                    return {
+                        level: "warn",
+                        sentence: `Resting HR ${n} is on the low side.`,
+                        label: "RHR",
+                    };
+                return {
+                    level: "good",
+                    sentence: `Resting HR ${n} looks steady.`,
+                    label: "RHR",
+                };
+            }
+            function _vitalsCoachRank(level) {
+                return { info: 0, good: 1, warn: 2, danger: 3 }[level] || 0;
+            }
+            function _vitalsCoachDiff(label, current, previous, unit) {
+                const a = Number(current);
+                const b = Number(previous);
+                if (!Number.isFinite(a) || !Number.isFinite(b)) return "";
+                const diff = a - b;
+                if (!diff) return `${label} is unchanged from your last log.`;
+                const direction = diff > 0 ? "up" : "down";
+                return `${label} is ${direction} ${Math.abs(diff)} ${unit} from your last log.`;
+            }
+            function _vitalsCoachSnapshot(arr, entry) {
+                if (!entry) return null;
+                const last7 = (arr || []).slice(-7);
+                const avgSBP = mean(last7.map((v) => v.sbp));
+                const avgDBP = mean(last7.map((v) => v.dbp));
+                const avgHR = mean(last7.map((v) => v.hr));
+                const previous = [...(arr || [])]
+                    .filter((v) => v.date < entry.date)
+                    .slice(-1)[0];
+                const metrics = [
+                    _vitalsCoachMetric("sbp", entry.sbp),
+                    _vitalsCoachMetric("dbp", entry.dbp),
+                    _vitalsCoachMetric("hr", entry.hr),
+                ].filter((item) => item.sentence);
+                const level = metrics.reduce(
+                    (worst, item) =>
+                        _vitalsCoachRank(item.level) > _vitalsCoachRank(worst)
+                            ? item.level
+                            : worst,
+                    metrics.length ? "good" : "info",
+                );
+                const titleMap = {
+                    danger: "AI Coach Summary - flagged reading",
+                    warn: "AI Coach Summary - watch this trend",
+                    good: "AI Coach Summary - stable check-in",
+                    info: "AI Coach Summary - need more data",
+                };
+                const detailBits = [];
+                if (previous) {
+                    [
+                        _vitalsCoachDiff("SBP", entry.sbp, previous.sbp, "mmHg"),
+                        _vitalsCoachDiff("DBP", entry.dbp, previous.dbp, "mmHg"),
+                        _vitalsCoachDiff("RHR", entry.hr, previous.hr, "bpm"),
+                    ]
+                        .filter(Boolean)
+                        .forEach((bit) => detailBits.push(bit));
+                }
+                const trendDays = last7.length;
+                if (
+                    Number.isFinite(avgSBP) ||
+                    Number.isFinite(avgDBP) ||
+                    Number.isFinite(avgHR)
+                ) {
+                    const trendParts = [];
+                    if (Number.isFinite(avgSBP))
+                        trendParts.push(`avg SBP ${Math.round(avgSBP)}`);
+                    if (Number.isFinite(avgDBP))
+                        trendParts.push(`avg DBP ${Math.round(avgDBP)}`);
+                    if (Number.isFinite(avgHR))
+                        trendParts.push(`avg RHR ${Math.round(avgHR)}`);
+                    detailBits.push(
+                        `7-day trend: ${trendParts.join(" • ")} across ${trendDays} logged day${trendDays === 1 ? "" : "s"}.`,
+                    );
+                }
+                if (trendDays < 3) {
+                    detailBits.push(
+                        `Trend confidence is still low with only ${trendDays} logged day${trendDays === 1 ? "" : "s"}.`,
+                    );
+                }
+                const nextMap = {
+                    danger:
+                        "Recheck after a few minutes of quiet rest and keep logging before making protocol decisions off one number alone.",
+                    warn:
+                        "Watch the next few morning pre-caffeine readings and pair them with hydration, sleep, caffeine timing, and symptoms.",
+                    good:
+                        "Keep logging in the same morning window so the trend stays comparable and the coach can spot drift early.",
+                    info:
+                        "Try to log SBP, DBP, and resting HR together so the coach can build a cleaner baseline.",
+                };
+                return {
+                    level,
+                    title: titleMap[level] || titleMap.info,
+                    lead: metrics.length
+                        ? metrics.map((item) => item.sentence).join(" ")
+                        : "Log a full BP and resting HR check-in to unlock the coach summary.",
+                    detail: detailBits.join(" "),
+                    next: nextMap[level] || nextMap.info,
+                    date: entry.date,
+                };
+            }
+            function renderVitalsCoachSummary(arr) {
+                const host = document.getElementById("vitalsCoachBox");
+                if (!host) return;
+                const rows = arr || loadVitals();
+                const latest = rows[rows.length - 1] || null;
+                const entry =
+                    rows.find((v) => v.date === vitalsCoachFocusDate) || latest;
+                const summary = _vitalsCoachSnapshot(rows, entry);
+                if (!summary) {
+                    host.innerHTML = `<div class="vitals-coach-box"><div class="vitals-coach-head"><div class="vitals-coach-title">AI Coach Summary</div><div class="vitals-coach-tag">Waiting for first reading</div></div><div class="vitals-coach-detail">Log BP or resting HR and the coach will summarize the result immediately here.</div></div>`;
+                    return;
+                }
+                // Review note: this is an instant local coach layer on top of
+                // vitals logging. It gives immediate interpretation without
+                // requiring a paid provider call after every BP entry.
+                host.innerHTML = `<div class="vitals-coach-box ${summary.level}">
+      <div class="vitals-coach-head">
+        <div class="vitals-coach-title">${escapeHtml(summary.title)}</div>
+        <div class="vitals-coach-tag">${escapeHtml(summary.date || "")}</div>
+      </div>
+      <div class="vitals-coach-lead">${escapeHtml(summary.lead)}</div>
+      ${summary.detail ? `<div class="vitals-coach-detail">${escapeHtml(summary.detail)}</div>` : ""}
+      <div class="vitals-coach-next"><b>Next:</b> ${escapeHtml(summary.next)}</div>
+    </div>`;
+            }
+
             function saveVitals() {
                 const d =
                     document.getElementById("vit_date").value || todayKey();
@@ -33448,10 +33746,11 @@ ${parts.join("\n")}
                 });
                 arr.sort((a, b) => a.date.localeCompare(b.date));
                 saveVitalsArr(arr);
+                vitalsCoachFocusDate = d;
                 document.getElementById("vit_sbp").value = "";
                 document.getElementById("vit_dbp").value = "";
                 document.getElementById("vit_hr").value = "";
-                showToast("✓ Vitals logged");
+                showToast("✓ Vitals logged - coach summary updated");
                 renderVitals();
             }
 
@@ -33561,6 +33860,7 @@ ${parts.join("\n")}
                               )
                               .join("")
                         : "";
+                renderVitalsCoachSummary(arr);
 
                 // 14-day chart
                 const canvas = document.getElementById("vitalsChart");
