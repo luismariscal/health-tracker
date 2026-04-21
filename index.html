@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.32.4" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.32.5" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -9409,8 +9409,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.32.4";
+            const VERSION = "2.32.5";
             const VERSION_CHANGES = [
+                {
+                    version: "2.32.5",
+                    date: "2026-04-20",
+                    summary: "Add Protocol OS state layer for workflow sections",
+                    details: [
+                        "Added a central read-model that normalizes stack, cycles, compliance, inventory, and weight data into one Protocol OS state object.",
+                        "Refactored Critical Workflow, Today's Plan, Command Center, Protocol, and Stack rendering to read from shared computed state instead of recomputing separately.",
+                        "Exposed the state builder and workflow selector on window for easier debugging and future rule-engine work.",
+                    ],
+                },
                 {
                     version: "2.32.4",
                     date: "2026-04-20",
@@ -10335,11 +10345,100 @@
             }
 
             // =========================================================
-            // RENDER
+            // PROTOCOL OS STATE LAYER (v2.32.5)
+            // ---------------------------------------------------------
+            // Review note: this is a read-model layer, not a second source of
+            // truth. localStorage-backed domain loaders still own writes, while
+            // workflow-heavy UI reads from one normalized state object so
+            // Command Center, Today's Plan, and Protocol stay aligned.
             // =========================================================
-            function render() {
-                seedCyclesIfEmpty(); // ensure cycles exist before any reader reads them
-                const entries = getEntries();
+            const STACK_STATUS_LABELS = {
+                active: "Daily",
+                weekly: "Thu/Sun",
+                planned: "Planned",
+                paused: "Paused",
+                held: "Held",
+            };
+
+            function _protocolOsSlug(text) {
+                return String(text || "")
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, "-")
+                    .replace(/^-+|-+$/g, "") || "item";
+            }
+
+            function _protocolOsStackId(item, index) {
+                return item?.id || `stack-${_protocolOsSlug(item?.name || "")}-${index}`;
+            }
+
+            function _protocolOsNormalizeStackItem(item, index) {
+                const status = String(item?.status || "planned").toLowerCase();
+                return {
+                    id: _protocolOsStackId(item, index),
+                    index,
+                    name: String(item?.name || "").trim(),
+                    dose: String(item?.dose || "").trim(),
+                    timing: String(item?.timing || "").trim(),
+                    status,
+                    statusLabel:
+                        STACK_STATUS_LABELS[status] ||
+                        status.charAt(0).toUpperCase() + status.slice(1),
+                    start: String(item?.start || "—").trim() || "—",
+                    note: String(item?.note || "").trim(),
+                    active: item?.active !== false,
+                    raw: item,
+                };
+            }
+
+            function _protocolOsNormalizeCycle(cycle, index) {
+                return {
+                    id: cycle?.id || `cycle-${_protocolOsSlug(cycle?.compound || "")}-${index}`,
+                    compound: String(cycle?.compound || "").trim(),
+                    startDate: String(cycle?.startDate || "").trim(),
+                    weeks: Number(cycle?.weeks || 0),
+                    active: cycle?.active !== false,
+                    raw: cycle,
+                };
+            }
+
+            function _protocolOsMapById(list) {
+                return (list || []).reduce((acc, item) => {
+                    if (item?.id) acc[item.id] = item;
+                    return acc;
+                }, {});
+            }
+
+            function _protocolOsIsPeptideLike(item) {
+                try {
+                    if (typeof _inventoryIsTrackableStackItem === "function")
+                        return _inventoryIsTrackableStackItem(item);
+                } catch {}
+                return /(retatrutide|tesamorelin|mots(?:-?c)?|hcg|cabergoline|bpc|tb-?500|ghk|kpv|cjc|ipamorelin|semaglutide|tirzepatide|cagrilintide|sermorelin|selank|semax|epitalon|melanotan)/i.test(
+                    `${item?.name || ""} ${item?.note || ""}`,
+                );
+            }
+
+            function buildProtocolOsState(entriesInput = null) {
+                const entries = Array.isArray(entriesInput)
+                    ? entriesInput.slice().sort((a, b) => a.date.localeCompare(b.date))
+                    : getEntries();
+                const stackItems = (loadStack() || []).map(
+                    _protocolOsNormalizeStackItem,
+                );
+                const cycles =
+                    typeof loadCycles === "function"
+                        ? (loadCycles() || []).map(_protocolOsNormalizeCycle)
+                        : [];
+                const inventory =
+                    typeof loadInventory === "function" ? loadInventory() : {};
+                const compliance7 =
+                    typeof loadComplianceHistory === "function"
+                        ? loadComplianceHistory(7)
+                        : [];
+                const compliance3 =
+                    typeof loadComplianceHistory === "function"
+                        ? loadComplianceHistory(3)
+                        : [];
                 const cw = currentWeight(entries);
                 const lost = totalLost(entries);
                 const pct = pctToGoal(entries);
@@ -10347,6 +10446,146 @@
                 const nextCp = nextCheckpoint(cw);
                 const avg = avgWeeklyLoss(entries);
                 const plateau = isPlateaued(entries);
+                const lookPattern =
+                    typeof analyzeLookPattern === "function"
+                        ? analyzeLookPattern(entries)
+                        : null;
+                const proteinIssue =
+                    typeof proteinShortAlert === "function"
+                        ? proteinShortAlert(entries)
+                        : null;
+                const predictive =
+                    typeof predictivePlateauSignal === "function"
+                        ? predictivePlateauSignal(entries)
+                        : null;
+                const guardrails =
+                    typeof computeGuardrails === "function"
+                        ? computeGuardrails({ entries })
+                        : { overall: "unknown", signals: [] };
+                const sleepAvg7 = mean(
+                    compliance7.map((h) => h.sleep_hours || null),
+                );
+                const stepsAvg7 = mean(compliance7.map((h) => h.steps || null));
+                const sleepAvg3 = mean(
+                    compliance3.map((h) => h.sleep_hours || null),
+                );
+                const qualityAvg3 = mean(
+                    compliance3.map((h) => h.sleep_quality || null),
+                );
+                const cyclesActive = cycles.filter((cycle) => cycle.active);
+                const cyclesOff = cyclesActive.filter(
+                    (cycle) => cycleStatus(cycle.raw || cycle).key === "off",
+                );
+                const cyclesEnd = cyclesActive.filter(
+                    (cycle) => cycleStatus(cycle.raw || cycle).key === "end",
+                );
+                const activeStack = stackItems.filter(
+                    (item) =>
+                        item.active !== false &&
+                        (item.status === "active" || item.status === "weekly"),
+                );
+                const trackableStack = stackItems.filter(_protocolOsIsPeptideLike);
+
+                return {
+                    version: VERSION,
+                    domains: {
+                        entries,
+                        stackItems,
+                        stackById: _protocolOsMapById(stackItems),
+                        cycles,
+                        cyclesById: _protocolOsMapById(cycles),
+                        inventory,
+                        compliance3,
+                        compliance7,
+                        today: todayKey(),
+                    },
+                    computed: {
+                        cw,
+                        lost,
+                        pct,
+                        phase,
+                        nextCp,
+                        avg,
+                        plateau,
+                        lookPattern,
+                        proteinIssue,
+                        predictive,
+                        guardrails,
+                        sleepAvg7,
+                        stepsAvg7,
+                        sleepAvg3,
+                        qualityAvg3,
+                    },
+                    selectors: {
+                        activeStack,
+                        trackableStack,
+                        cyclesActive,
+                        cyclesOff,
+                        cyclesEnd,
+                    },
+                };
+            }
+
+            function _isProtocolOsState(value) {
+                return !!value && !!value.domains && !!value.computed;
+            }
+
+            function _coerceProtocolOsState(value) {
+                if (_isProtocolOsState(value)) return value;
+                return buildProtocolOsState(Array.isArray(value) ? value : null);
+            }
+
+            function selectWorkflowSummary(stateLike) {
+                const state = _coerceProtocolOsState(stateLike);
+                const entries = state.domains.entries;
+                const today = state.domains.today;
+                const waterGoal = loadWaterSettings().goalOz || 100;
+                const waterTotal = _workflowTodayWaterTotal();
+                const todayLog =
+                    typeof loadInjLog === "function" ? loadInjLog()[today] || {} : {};
+                const injectionRequired =
+                    typeof isInjDay === "function" &&
+                    typeof INJ_COMPOUNDS !== "undefined" &&
+                    isInjDay();
+                const injectionLogged = injectionRequired
+                    ? INJ_COMPOUNDS.filter((compound) =>
+                          isInjLogged(todayLog[compound.key]),
+                      ).length
+                    : 0;
+                return {
+                    hasCheckin: entries.some((entry) => entry.date === today),
+                    waterGoal,
+                    waterTotal,
+                    waterPct: waterGoal ? waterTotal / waterGoal : 0,
+                    injectionRequired,
+                    injectionLogged,
+                    injectionTotal:
+                        typeof INJ_COMPOUNDS !== "undefined" ? INJ_COMPOUNDS.length : 0,
+                    guardrails: state.computed.guardrails,
+                    proteinIssue: state.computed.proteinIssue,
+                    lookPattern: state.computed.lookPattern,
+                    predictive: state.computed.predictive,
+                    sleepAvg7: state.computed.sleepAvg7,
+                    stepsAvg7: state.computed.stepsAvg7,
+                    cyclesOff: state.selectors.cyclesOff,
+                    cyclesEnd: state.selectors.cyclesEnd,
+                };
+            }
+
+            if (typeof window !== "undefined") {
+                window.buildProtocolOsState = buildProtocolOsState;
+                window.selectWorkflowSummary = selectWorkflowSummary;
+            }
+
+            // =========================================================
+            // RENDER
+            // =========================================================
+            function render() {
+                seedCyclesIfEmpty(); // ensure cycles exist before any reader reads them
+                const state = buildProtocolOsState(getEntries());
+                const entries = state.domains.entries;
+                const { cw, lost, pct, phase, nextCp, avg, plateau } =
+                    state.computed;
 
                 // Topbar
                 document.getElementById("topbarDate").textContent =
@@ -10364,9 +10603,10 @@
                 }
                 renderAppUpdateBanner();
                 renderBackupStatus();
+                if (typeof window !== "undefined") window.__tpState = state;
 
                 renderAlert(plateau, avg, cw, nextCp);
-                renderCriticalWorkflow(entries, cw, avg, plateau, nextCp);
+                renderCriticalWorkflow(state);
                 if (typeof renderMorningNudge === "function")
                     renderMorningNudge();
                 if (typeof renderPlateauInsight === "function")
@@ -10382,8 +10622,8 @@
                 if (typeof renderTodayCloseout === "function")
                     renderTodayCloseout(entries);
                 if (typeof renderInventory === "function") renderInventory();
-                renderTodaysPlan(entries, cw, avg, plateau);
-                renderCommandCenter(entries, cw, avg, plateau, nextCp);
+                renderTodaysPlan(state);
+                renderCommandCenter(state);
                 renderKPIs(cw, lost, pct, phase, nextCp, avg);
                 renderProjection(entries, cw, avg);
                 renderCharts(entries);
@@ -10395,8 +10635,8 @@
                     renderChangeTimeline(entries);
                 renderCheckpoints(cw);
                 renderMacros(cw);
-                renderProtocol();
-                renderStack();
+                renderProtocol(state);
+                renderStack(state);
                 renderShoppingList();
                 renderPeakWeek();
                 renderCycleTracker();
@@ -10463,19 +10703,22 @@
                 }
             }
 
-            function renderCommandCenter(entries, cw, avg, plateau, nextCp) {
+            function renderCommandCenter(stateLike, cw, avg, plateau, nextCp) {
+                const state = _coerceProtocolOsState(stateLike);
+                const entries = state.domains.entries;
+                ({ cw, avg, plateau, nextCp } = state.computed);
+                const workflow = selectWorkflowSummary(state);
                 // ---- Determine overall status ----
                 let status = { key: "green", label: "🟢 ON TRACK" };
-                const cyclesActive = loadCycles().filter((c) => c.active);
-                const cyclesOff = cyclesActive.filter(
-                    (c) => cycleStatus(c).key === "off",
+                const cyclesOff = workflow.cyclesOff.map(
+                    (cycle) => cycle.raw || cycle,
                 );
-                const cyclesEnd = cyclesActive.filter(
-                    (c) => cycleStatus(c).key === "end",
+                const cyclesEnd = workflow.cyclesEnd.map(
+                    (cycle) => cycle.raw || cycle,
                 );
-                const proteinIssue = proteinShortAlert(entries);
-                const lookPat = analyzeLookPattern(entries);
-                const predict = predictivePlateauSignal(entries);
+                const proteinIssue = workflow.proteinIssue;
+                const lookPat = workflow.lookPattern;
+                const predict = workflow.predictive;
 
                 // Status escalation logic
                 if (plateau === "confirmed" || cyclesOff.length)
@@ -10589,14 +10832,13 @@
                         sev: "high",
                         text: `Protein short ${proteinIssue.days}/3 recent days (avg ${proteinIssue.avg}g of ${proteinIssue.target}g target)`,
                     });
-                const hist = loadComplianceHistory(7);
-                const sleepAvg = mean(hist.map((h) => h.sleep_hours || null));
+                const sleepAvg = workflow.sleepAvg7;
                 if (sleepAvg !== null && sleepAvg < 6.5)
                     alerts.push({
                         sev: "med",
                         text: `Recovery compromised — sleep ${sleepAvg.toFixed(1)}h avg (target ≥7h)`,
                     });
-                const stepsAvg = mean(hist.map((h) => h.steps || null));
+                const stepsAvg = workflow.stepsAvg7;
                 if (stepsAvg !== null && stepsAvg < 6000)
                     alerts.push({
                         sev: "med",
@@ -10754,7 +10996,10 @@
             // Outputs: one directive per row — training, steps, nutrition,
             //          protein, dose, recovery — plus a phase chip.
             // =============================================================
-            function computeTodaysPlan(entries, cw, avg, plateau) {
+            function computeTodaysPlan(stateLike, cw, avg, plateau) {
+                const state = _coerceProtocolOsState(stateLike);
+                const entries = state.domains.entries;
+                ({ cw, avg, plateau } = state.computed);
                 // ---- Phase (decision engine root) ----
                 // 🔵 trending | 🟠 slowdown | 🔴 plateau | ⚪ unclear
                 let phase, phaseIcon, phaseLabel, engineNote;
@@ -10859,12 +11104,11 @@
                 }
 
                 // ---- Training directive (energy + recovery aware) ----
-                const hist3 = loadComplianceHistory(3);
-                const sleepAvg3 = mean(hist3.map((h) => h.sleep_hours || null));
-                const stepsAvg3 = mean(hist3.map((h) => h.steps || null));
-                const qualityAvg3 = mean(
-                    hist3.map((h) => h.sleep_quality || null),
+                const sleepAvg3 = state.computed.sleepAvg3;
+                const stepsAvg3 = mean(
+                    state.domains.compliance3.map((h) => h.steps || null),
                 );
+                const qualityAvg3 = state.computed.qualityAvg3;
                 const poorSleep = sleepAvg3 !== null && sleepAvg3 < 6;
                 const poorQuality = qualityAvg3 !== null && qualityAvg3 <= 2;
                 const recoveryCompromised = poorSleep || poorQuality;
@@ -10985,13 +11229,9 @@
                 }
 
                 // ---- Cycle context ----
-                let cycles = [];
-                try {
-                    cycles = JSON.parse(
-                        localStorage.getItem("tp_cycles") || "[]",
-                    );
-                } catch {}
-                const active = cycles.filter((c) => c.active);
+                const active = state.selectors.cyclesActive.map(
+                    (cycle) => cycle.raw || cycle,
+                );
                 const ending = active
                     .map((c) => ({ c, s: cycleStatus(c) }))
                     .filter((x) => x.s.key === "end" || x.s.key === "off");
@@ -11031,10 +11271,10 @@
                 };
             }
 
-            function renderTodaysPlan(entries, cw, avg, plateau) {
+            function renderTodaysPlan(stateLike, cw, avg, plateau) {
                 const card = document.getElementById("todaysPlanCard");
                 if (!card) return;
-                const p = computeTodaysPlan(entries, cw, avg, plateau);
+                const p = computeTodaysPlan(stateLike, cw, avg, plateau);
                 const todayStr = new Date().toLocaleDateString("en-US", {
                     weekday: "long",
                     month: "short",
@@ -12493,10 +12733,14 @@
                 return block;
             }
 
-            function _protocolBlocksFromStack() {
+            function _protocolBlocksFromStack(stateLike = null) {
+                const state = _isProtocolOsState(stateLike) ? stateLike : null;
                 const blocks = _protocolBaseBlocks();
                 const seen = new Set();
-                (loadStack() || []).forEach((entry) => {
+                const sourceStack = state
+                    ? state.domains.stackItems
+                    : loadStack() || [];
+                sourceStack.forEach((entry) => {
                     _protocolEntrySlots(entry).forEach((slot) => {
                         const dose = _protocolDoseSummary(
                             slot.doseOverride || entry.dose,
@@ -12520,10 +12764,11 @@
                     );
             }
 
-            function renderProtocol() {
+            function renderProtocol(stateLike = null) {
+                const state = _coerceProtocolOsState(stateLike);
                 const grid = document.getElementById("protocolGrid");
                 if (!grid) return;
-                const blocks = _protocolBlocksFromStack();
+                const blocks = _protocolBlocksFromStack(state);
                 if (!blocks.length) {
                     grid.innerHTML =
                         '<div style="color:var(--muted);font-size:12px;padding:14px;">Daily protocol is empty. Add stack timing to build it.</div>';
@@ -12547,7 +12792,8 @@
                     .join("");
             }
 
-            function renderStack() {
+            function renderStack(stateLike = null) {
+                const state = _coerceProtocolOsState(stateLike);
                 const statusMap = {
                     active: ["badge-active", "Daily"],
                     weekly: ["badge-weekly", "Thu/Sun"],
@@ -12555,7 +12801,7 @@
                     paused: ["badge-paused", "Paused"],
                     held: ["badge-held", "Held"],
                 };
-                const stack = loadStack();
+                const stack = state.domains.stackItems;
                 document.getElementById("stackTable").innerHTML = `
     <thead><tr><th>Compound</th><th>Dose</th><th>Timing</th><th>Status</th><th>Started</th><th style="width:64px"></th></tr></thead>
     <tbody>
@@ -30685,11 +30931,12 @@ ${parts.join("\n")}
                     .slice(0, limit);
             }
 
-            function _workflowSafetyStep(entries) {
-                const guardrails =
-                    typeof computeGuardrails === "function"
-                        ? computeGuardrails({ entries })
-                        : { overall: "unknown", signals: [] };
+            function _workflowSafetyStep(stateLike) {
+                const state = _coerceProtocolOsState(stateLike);
+                const guardrails = state.computed.guardrails || {
+                    overall: "unknown",
+                    signals: [],
+                };
                 const signals = (guardrails.signals || []).slice();
                 const redCount = signals.filter((s) => s.status === "red").length;
                 const yellowCount = signals.filter(
@@ -30721,42 +30968,35 @@ ${parts.join("\n")}
                 };
             }
 
-            function _workflowTodayStep(entries) {
+            function _workflowTodayStep(stateLike) {
+                const state = _coerceProtocolOsState(stateLike);
+                const entries = state.domains.entries;
+                const workflow = selectWorkflowSummary(state);
                 const today = todayKey();
                 const actions = [];
                 let target = "todaysPlanCard";
                 let status = "green";
 
-                const hasCheckin = (entries || []).some((e) => e.date === today);
-                if (!hasCheckin) {
+                if (!workflow.hasCheckin) {
                     actions.push("log today's weight/check-in");
                     status = "yellow";
                 }
 
-                const goalOz = loadWaterSettings().goalOz || 100;
-                const waterTotal = _workflowTodayWaterTotal();
-                const waterPct = goalOz ? waterTotal / goalOz : 0;
+                const goalOz = workflow.waterGoal;
+                const waterTotal = workflow.waterTotal;
+                const waterPct = workflow.waterPct;
                 if (waterPct < 0.5) {
                     actions.push(`water is ${Math.round(waterTotal)}/${goalOz} oz`);
                     if (status !== "red") status = "yellow";
                     if (target === "todaysPlanCard") target = "waterCard";
                 }
 
-                if (
-                    typeof isInjDay === "function" &&
-                    typeof loadInjLog === "function" &&
-                    typeof INJ_COMPOUNDS !== "undefined" &&
-                    isInjDay()
-                ) {
-                    const todayLog = loadInjLog()[today] || {};
-                    const logged = INJ_COMPOUNDS.filter((c) =>
-                        isInjLogged(todayLog[c.key]),
-                    ).length;
-                    if (logged < INJ_COMPOUNDS.length) {
+                if (workflow.injectionRequired) {
+                    if (workflow.injectionLogged < workflow.injectionTotal) {
                         status = "red";
                         target = "injectionTrackerCard";
                         actions.unshift(
-                            `injection day: ${logged}/${INJ_COMPOUNDS.length} logged`,
+                            `injection day: ${workflow.injectionLogged}/${workflow.injectionTotal} logged`,
                         );
                     }
                 }
@@ -30778,7 +31018,7 @@ ${parts.join("\n")}
                 };
             }
 
-            function _workflowLabsStep() {
+            function _workflowLabsStep(stateLike = null) {
                 const labs = loadLabs();
                 const out = _workflowLatestOutOfRangeLabs(4);
                 const sorted = labs
@@ -30851,7 +31091,9 @@ ${parts.join("\n")}
                 };
             }
 
-            function _workflowCoachStep(steps, plateau, avg) {
+            function _workflowCoachStep(stateLike, steps, plateau, avg) {
+                const state = _coerceProtocolOsState(stateLike);
+                ({ plateau, avg } = state.computed);
                 const active = steps.some(
                     (s) => s.status === "red" || s.status === "yellow",
                 );
@@ -30908,17 +31150,14 @@ ${parts.join("\n")}
                 setTimeout(() => el.classList.remove("flash-target"), 1400);
             }
 
-            function renderCriticalWorkflow(entries, cw, avg, plateau, nextCp) {
+            function renderCriticalWorkflow(stateLike, cw, avg, plateau, nextCp) {
+                const state = _coerceProtocolOsState(stateLike);
                 const card = document.getElementById("criticalWorkflowCard");
                 if (!card) return;
-                const safety = _workflowSafetyStep(entries);
-                const today = _workflowTodayStep(entries);
-                const labs = _workflowLabsStep();
-                const coach = _workflowCoachStep(
-                    [safety, today, labs],
-                    plateau,
-                    avg,
-                );
+                const safety = _workflowSafetyStep(state);
+                const today = _workflowTodayStep(state);
+                const labs = _workflowLabsStep(state);
+                const coach = _workflowCoachStep(state, [safety, today, labs], plateau, avg);
                 const steps = [safety, today, labs, coach];
                 const overall = steps
                     .slice()
