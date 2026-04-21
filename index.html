@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.32.3" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.32.4" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -5736,13 +5736,21 @@
                     <div class="card-title" style="margin-bottom: 0">
                         💊 Inventory
                     </div>
-                    <button
-                        class="btn btn-ghost"
-                        style="font-size: 11px; padding: 4px 10px"
-                        onclick="openInventoryManager()"
-                    >
-                        Manage
-                    </button>
+                    <div style="display: flex; gap: 6px; align-items: center">
+                        <button
+                            id="inventoryNotifyBtn"
+                            class="btn btn-ghost"
+                            style="font-size: 11px; padding: 4px 10px"
+                            onclick="toggleInventoryNotifications()"
+                        ></button>
+                        <button
+                            class="btn btn-ghost"
+                            style="font-size: 11px; padding: 4px 10px"
+                            onclick="openInventoryManager()"
+                        >
+                            Manage
+                        </button>
+                    </div>
                 </div>
                 <div id="inventoryBody"></div>
             </div>
@@ -9401,8 +9409,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.32.3";
+            const VERSION = "2.32.4";
             const VERSION_CHANGES = [
+                {
+                    version: "2.32.4",
+                    date: "2026-04-20",
+                    summary: "Make inventory follow the live peptide stack",
+                    details: [
+                        "Rebuilt inventory from peptide items in Current Stack so more than the old three compounds appear automatically.",
+                        "Added manual Add peptide support for inventory-only entries, including weekly usage for run-out reminders.",
+                        "Added low-stock inventory alerts and switched run-out timing to follow current stack usage instead of the fixed Thu/Sun assumption.",
+                    ],
+                },
                 {
                     version: "2.32.3",
                     date: "2026-04-20",
@@ -10128,6 +10146,16 @@
             function saveStack(arr) {
                 localStorage.setItem("tp_stack", JSON.stringify(arr));
                 bumpChangeCount();
+                if (typeof renderInventory === "function") renderInventory();
+                if (
+                    document.getElementById("inventoryOverlay")?.style.display ===
+                        "flex" &&
+                    typeof renderInventoryManager === "function"
+                ) {
+                    renderInventoryManager();
+                }
+                if (typeof checkInventoryReminder === "function")
+                    checkInventoryReminder();
             }
 
             function loadTraining() {
@@ -28479,6 +28507,974 @@ ${parts.join("\n")}
             }
 
             // =========================================================
+            // INVENTORY DYNAMIC OVERRIDES (v2.32.4)
+            // Review note: inventory should follow the live peptide stack, not
+            // a stale hardcoded list, so reminders and run-out dates stay tied
+            // to the user's actual protocol edits.
+            // =========================================================
+            const INVENTORY_DEFAULT_RULES = [
+                {
+                    match: /retatrutide/i,
+                    unit: "mg",
+                    containerLabel: "vial",
+                    containerAmount: 10,
+                },
+                {
+                    match: /tesamorelin/i,
+                    unit: "mg",
+                    containerLabel: "vial",
+                    containerAmount: 10,
+                },
+                {
+                    match: /mots(?:-?c)?/i,
+                    unit: "mg",
+                    containerLabel: "vial",
+                    containerAmount: 10,
+                },
+                {
+                    match: /klow/i,
+                    unit: "mg",
+                    containerLabel: "vial",
+                    containerAmount: 80,
+                },
+                {
+                    match: /\bhcg\b/i,
+                    unit: "IU",
+                    containerLabel: "vial",
+                    containerAmount: 5000,
+                },
+                {
+                    match: /cabergoline/i,
+                    unit: "mg",
+                    containerLabel: "pack",
+                    containerAmount: 2,
+                },
+            ];
+            const INVENTORY_TRACKABLE_STACK_RE =
+                /(retatrutide|tesamorelin|mots(?:-?c)?|hcg|cabergoline|klow|bpc|tb-?500|ghk|kpv|cjc|ipamorelin|semaglutide|tirzepatide|cagrilintide|sermorelin|selank|semax|epitalon|melanotan)/i;
+            const INVENTORY_EXCLUDED_STACK_RE =
+                /(centrum|spirulina|creatine|whey|protein|vitamin|magnesium|zinc|omega|taurine|theanine|glycine|berberine|patch|methylene blue|copper|tablet|capsule)/i;
+            const INVENTORY_NOTIFY_DEFAULTS = {
+                enabled: false,
+                lastNotified: "",
+            };
+
+            function _inventoryLoadRaw() {
+                try {
+                    return JSON.parse(localStorage.getItem("tp_inventory") || "{}");
+                } catch {
+                    return {};
+                }
+            }
+
+            function _inventorySlug(name) {
+                return String(name || "")
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, "-")
+                    .replace(/^-+|-+$/g, "") || "inventory-item";
+            }
+
+            function _inventoryPluralize(label) {
+                const clean = String(label || "container").trim().toLowerCase();
+                if (!clean) return "containers";
+                if (clean.endsWith("s")) return clean;
+                if (clean.endsWith("x")) return clean + "es";
+                if (clean.endsWith("y") && !/[aeiou]y$/.test(clean))
+                    return clean.slice(0, -1) + "ies";
+                return clean + "s";
+            }
+
+            function _inventoryNormalizeUnit(unit) {
+                const clean = String(unit || "").trim().toLowerCase();
+                if (!clean) return "mg";
+                if (clean === "ug") return "mcg";
+                if (clean === "iu") return "IU";
+                if (clean === "ml") return "mL";
+                return clean;
+            }
+
+            function _inventoryInferUnit(text, fallback = "mg") {
+                const s = String(text || "");
+                if (/\bIU\b/i.test(s)) return "IU";
+                if (/\bmcg\b|\bug\b/i.test(s)) return "mcg";
+                if (/\bmg\b/i.test(s)) return "mg";
+                if (/\bmL\b|\bml\b/.test(s)) return "mL";
+                if (/\bg\b/i.test(s)) return "g";
+                return _inventoryNormalizeUnit(fallback);
+            }
+
+            function _inventoryDefaultsFor(nameOrKey) {
+                const text = String(nameOrKey || "");
+                return (
+                    INVENTORY_DEFAULT_RULES.find((rule) => rule.match.test(text)) ||
+                    null
+                );
+            }
+
+            function _inventoryIsTrackableStackItem(item) {
+                const text = `${item?.name || ""} ${item?.note || ""}`.trim();
+                if (!text) return false;
+                if (INVENTORY_EXCLUDED_STACK_RE.test(text)) return false;
+                if (INVENTORY_TRACKABLE_STACK_RE.test(text)) return true;
+                if (
+                    /\b(IU|mcg|ug|mg)\b/i.test(item?.dose || "") &&
+                    /(weekly|nightly|thursday|sunday|morning|evening|22:00|am|pm|fasted)/i.test(
+                        `${item?.status || ""} ${item?.timing || ""}`,
+                    )
+                ) {
+                    return true;
+                }
+                return false;
+            }
+
+            function _inventoryStatusRank(status) {
+                const map = {
+                    active: 0,
+                    weekly: 1,
+                    planned: 2,
+                    paused: 3,
+                    held: 4,
+                    manual: 5,
+                };
+                return map[status] ?? 9;
+            }
+
+            function _inventoryTimingEventsPerWeek(timingText) {
+                const text = String(timingText || "").toLowerCase();
+                if (!text) return null;
+                const weekdayMatches =
+                    text.match(
+                        /\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday|sun|mon|tue|wed|thu|thur|thurs|fri|sat)\b/g,
+                    ) || [];
+                const uniqueDays = new Set(weekdayMatches.map((d) => d.slice(0, 3)));
+                if (uniqueDays.size) return uniqueDays.size;
+                if (/daily|every day|nightly/.test(text)) return 7;
+                return null;
+            }
+
+            function _inventoryDoseAmountAndUnit(text, fallbackUnit = "mg") {
+                const match = String(text || "").match(
+                    /([\d.]+)\s*(IU|mcg|ug|mg|mL|ml|g)\b/i,
+                );
+                if (!match) return null;
+                return {
+                    amount: parseFloat(match[1]),
+                    unit: _inventoryNormalizeUnit(match[2] || fallbackUnit),
+                };
+            }
+
+            function _inventoryWeeklyUsageFromStackItem(item, unit) {
+                const doseText = String(item?.dose || "");
+                const status = String(item?.status || "").toLowerCase();
+                const targetUnit = _inventoryNormalizeUnit(unit);
+                const parsers = [
+                    /=\s*([\d.]+)\s*(IU|mcg|ug|mg|mL|ml|g)\s*(?:weekly|\/\s*week|per\s+week)/i,
+                    /([\d.]+)\s*(IU|mcg|ug|mg|mL|ml|g)\s*(?:weekly|\/\s*week|per\s+week)/i,
+                    /=\s*([\d.]+)\s*(IU|mcg|ug|mg|mL|ml|g)\s*\/\s*day/i,
+                    /=\s*([\d.]+)\s*(IU|mcg|ug|mg|mL|ml|g)\s*(?:daily|nightly)/i,
+                    /([\d.]+)\s*(IU|mcg|ug|mg|mL|ml|g)\s*[x×]\s*([\d.]+)\s*\/\s*week/i,
+                    /([\d.]+)\s*(IU|mcg|ug|mg|mL|ml|g)\s*(?:daily|nightly)/i,
+                ];
+                for (const re of parsers) {
+                    const m = doseText.match(re);
+                    if (!m) continue;
+                    const amount = parseFloat(m[1]);
+                    const parsedUnit = _inventoryNormalizeUnit(m[2]);
+                    if (
+                        !Number.isFinite(amount) ||
+                        (targetUnit && parsedUnit !== targetUnit)
+                    )
+                        continue;
+                    if (re === parsers[2] || re === parsers[3] || re === parsers[5])
+                        return +(amount * 7).toFixed(3);
+                    if (re === parsers[4]) {
+                        const perWeek = parseFloat(m[3]);
+                        return +(amount * perWeek).toFixed(3);
+                    }
+                    return +amount.toFixed(3);
+                }
+                if (status === "planned" || status === "paused" || status === "held")
+                    return 0;
+                const base = _inventoryDoseAmountAndUnit(doseText, targetUnit);
+                if (!base || base.unit !== targetUnit) return 0;
+                if (status === "weekly") {
+                    return +(
+                        base.amount *
+                        (_inventoryTimingEventsPerWeek(item?.timing) || 1)
+                    ).toFixed(3);
+                }
+                if (status === "active") return +(base.amount * 7).toFixed(3);
+                return 0;
+            }
+
+            function _inventoryTrackableStackItems() {
+                return (loadStack() || [])
+                    .filter(_inventoryIsTrackableStackItem)
+                    .map((item) => {
+                        const defaults = _inventoryDefaultsFor(item.name) || {};
+                        const unit = defaults.unit || _inventoryInferUnit(item.dose);
+                        return {
+                            key: _inventorySlug(item.name),
+                            name: item.name,
+                            dose: item.dose || "",
+                            timing: item.timing || "",
+                            status: item.status || "active",
+                            note: item.note || "",
+                            unit,
+                            containerLabel: defaults.containerLabel || "vial",
+                            containerAmount: _inventoryNumber(
+                                defaults.containerAmount,
+                                10,
+                            ),
+                            weeklyUsage: _inventoryWeeklyUsageFromStackItem(
+                                item,
+                                unit,
+                            ),
+                            warnAtDays: INVENTORY_WARN_DAYS,
+                            source: "stack",
+                            fromStack: true,
+                        };
+                    })
+                    .sort((a, b) => {
+                        const rankDiff =
+                            _inventoryStatusRank(a.status) -
+                            _inventoryStatusRank(b.status);
+                        return rankDiff || a.name.localeCompare(b.name);
+                    });
+            }
+
+            function inventoryCatalog() {
+                const raw = _inventoryLoadRaw();
+                const byKey = {};
+                _inventoryTrackableStackItems().forEach((item) => {
+                    byKey[item.key] = item;
+                });
+                Object.entries(raw).forEach(([key, saved]) => {
+                    if (byKey[key]) return;
+                    const defaults =
+                        _inventoryDefaultsFor(saved?.name || key) || {};
+                    byKey[key] = {
+                        key,
+                        name: saved?.name || key,
+                        dose: saved?.dose || "",
+                        timing: saved?.timing || "",
+                        status: saved?.status || "manual",
+                        note: saved?.note || "",
+                        unit:
+                            _inventoryNormalizeUnit(saved?.unit) ||
+                            defaults.unit ||
+                            "mg",
+                        containerLabel:
+                            saved?.containerLabel ||
+                            defaults.containerLabel ||
+                            "vial",
+                        containerAmount: _inventoryNumber(
+                            saved?.containerAmount,
+                            defaults.containerAmount || 10,
+                        ),
+                        weeklyUsage: _inventoryNumber(saved?.weeklyUsage, 0),
+                        warnAtDays: Math.max(
+                            1,
+                            Math.round(
+                                _inventoryNumber(
+                                    saved?.warnAtDays,
+                                    INVENTORY_WARN_DAYS,
+                                ),
+                            ),
+                        ),
+                        source: saved?.source || "manual",
+                        fromStack: false,
+                    };
+                });
+                return Object.values(byKey).sort((a, b) => {
+                    const rankDiff =
+                        _inventoryStatusRank(a.status) -
+                        _inventoryStatusRank(b.status);
+                    return rankDiff || a.name.localeCompare(b.name);
+                });
+            }
+
+            function _inventoryCompoundByKey(compoundKey) {
+                return inventoryCatalog().find((item) => item.key === compoundKey) || null;
+            }
+
+            function _inventoryContainerLabel(
+                compoundKey,
+                singular = false,
+                entry = null,
+            ) {
+                const meta = entry || loadInventory()[compoundKey] || _inventoryCompoundByKey(compoundKey) || {};
+                const one = String(
+                    meta.containerLabel ||
+                        INVENTORY_CONTAINER_LABELS[compoundKey]?.one ||
+                        "container",
+                )
+                    .trim()
+                    .toLowerCase();
+                return singular ? one : _inventoryPluralize(one);
+            }
+
+            function _inventoryContainerAmount(compoundKey, entry = null) {
+                const saved = _inventoryNumber(entry?.containerAmount, 0);
+                if (saved > 0) return saved;
+                const meta = _inventoryCompoundByKey(compoundKey);
+                return _inventoryNumber(
+                    meta?.containerAmount,
+                    DEFAULT_CONTAINER_AMOUNT[compoundKey] || 10,
+                );
+            }
+
+            function loadInventory() {
+                const raw = _inventoryLoadRaw();
+                const out = {};
+                inventoryCatalog().forEach((item) => {
+                    const saved = raw[item.key] || {};
+                    out[item.key] = {
+                        key: item.key,
+                        name: item.name,
+                        dose: item.dose,
+                        timing: item.timing,
+                        status: item.status,
+                        note: item.note,
+                        source: item.source,
+                        fromStack: item.fromStack,
+                        unit: _inventoryNormalizeUnit(saved.unit || item.unit),
+                        containerLabel:
+                            saved.containerLabel || item.containerLabel || "vial",
+                        containerAmount: +_inventoryNumber(
+                            saved.containerAmount,
+                            item.containerAmount,
+                        ).toFixed(3),
+                        remaining: +_inventoryNumber(saved.remaining, 0).toFixed(3),
+                        weeklyUsage: +_inventoryNumber(
+                            item.fromStack ? item.weeklyUsage : saved.weeklyUsage,
+                            item.weeklyUsage,
+                        ).toFixed(3),
+                        warnAtDays: Math.max(
+                            1,
+                            Math.round(
+                                _inventoryNumber(
+                                    saved.warnAtDays,
+                                    item.warnAtDays || INVENTORY_WARN_DAYS,
+                                ),
+                            ),
+                        ),
+                        lastReorderedAt: saved.lastReorderedAt || "",
+                    };
+                });
+                return out;
+            }
+
+            function _inventoryDoseFor(compoundKey) {
+                const meta = loadInventory()[compoundKey] || _inventoryCompoundByKey(compoundKey);
+                const parsed = _inventoryDoseAmountAndUnit(
+                    meta?.dose || "",
+                    meta?.unit || "mg",
+                );
+                if (parsed && parsed.unit === _inventoryNormalizeUnit(meta?.unit)) {
+                    return parsed.amount;
+                }
+                return _inventoryNumber(DEFAULT_DOSE_MG[compoundKey], 1);
+            }
+
+            function _inventoryWeeklyUsage(compoundKey) {
+                const meta = loadInventory()[compoundKey] || _inventoryCompoundByKey(compoundKey);
+                return _inventoryNumber(meta?.weeklyUsage, 0);
+            }
+
+            function inventoryDaysRemaining(compoundKey) {
+                const inv = loadInventory();
+                const entry = inv[compoundKey];
+                const weeklyUsage = _inventoryWeeklyUsage(compoundKey);
+                if (!entry || weeklyUsage <= 0) return null;
+                return Math.floor((_inventoryNumber(entry.remaining, 0) / weeklyUsage) * 7);
+            }
+
+            function inventoryRunoutDate(compoundKey) {
+                const days = inventoryDaysRemaining(compoundKey);
+                if (days == null) return "";
+                const d = new Date();
+                d.setDate(d.getDate() + days);
+                return d.toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                });
+            }
+
+            function loadInventoryNotify() {
+                try {
+                    return {
+                        ...INVENTORY_NOTIFY_DEFAULTS,
+                        ...JSON.parse(
+                            localStorage.getItem("tp_inventory_notify") || "{}",
+                        ),
+                    };
+                } catch {
+                    return { ...INVENTORY_NOTIFY_DEFAULTS };
+                }
+            }
+
+            function saveInventoryNotify(obj) {
+                localStorage.setItem("tp_inventory_notify", JSON.stringify(obj));
+            }
+
+            function renderInventoryNotifyBtn() {
+                const btn = document.getElementById("inventoryNotifyBtn");
+                if (!btn) return;
+                if (!("Notification" in window)) {
+                    btn.style.display = "none";
+                    return;
+                }
+                const state = loadInventoryNotify();
+                const perm = Notification.permission;
+                if (perm === "granted" && state.enabled) {
+                    btn.textContent = "Alerts on";
+                    btn.style.color = "var(--green)";
+                } else if (perm === "denied") {
+                    btn.textContent = "Alerts blocked";
+                    btn.style.color = "var(--muted)";
+                    btn.title = "Unblock notifications in browser settings";
+                } else {
+                    btn.textContent = "Enable alerts";
+                    btn.style.color = "";
+                    btn.title =
+                        "Low-stock reminders fire when tracked peptides approach run-out";
+                }
+            }
+
+            async function toggleInventoryNotifications() {
+                if (!("Notification" in window)) {
+                    showToast("Notifications not supported in this browser");
+                    return;
+                }
+                const state = loadInventoryNotify();
+                if (state.enabled) {
+                    saveInventoryNotify({ enabled: false, lastNotified: "" });
+                    renderInventoryNotifyBtn();
+                    showToast("Inventory alerts off");
+                    return;
+                }
+                let perm = Notification.permission;
+                if (perm === "default")
+                    perm = await Notification.requestPermission();
+                if (perm !== "granted") {
+                    showToast(
+                        perm === "denied"
+                            ? "Blocked - unblock in browser settings"
+                            : "Permission not granted",
+                    );
+                    renderInventoryNotifyBtn();
+                    return;
+                }
+                saveInventoryNotify({ ...state, enabled: true });
+                renderInventoryNotifyBtn();
+                showToast("Inventory alerts on - reminders follow your current stack");
+                checkInventoryReminder(true);
+            }
+
+            async function checkInventoryReminder(force = false) {
+                renderInventoryNotifyBtn();
+                if (
+                    !("Notification" in window) ||
+                    Notification.permission !== "granted"
+                )
+                    return;
+                const state = loadInventoryNotify();
+                if (!state.enabled) return;
+                const tk = todayKey();
+                if (state.lastNotified === tk && !force) return;
+                const inv = loadInventory();
+                const lowItems = inventoryCatalog()
+                    .map((item) => {
+                        const entry = inv[item.key];
+                        const daysLeft = inventoryDaysRemaining(item.key);
+                        const remaining = _inventoryNumber(entry?.remaining, 0);
+                        const shouldAlert =
+                            item.weeklyUsage > 0 &&
+                            (remaining <= 0 ||
+                                (daysLeft !== null &&
+                                    daysLeft <=
+                                        _inventoryNumber(
+                                            entry?.warnAtDays,
+                                            INVENTORY_WARN_DAYS,
+                                        )));
+                        return {
+                            item,
+                            entry,
+                            daysLeft,
+                            remaining,
+                            shouldAlert,
+                        };
+                    })
+                    .filter((row) => row.shouldAlert)
+                    .sort((a, b) => (a.daysLeft ?? -1) - (b.daysLeft ?? -1));
+                if (!lowItems.length) return;
+                const body = lowItems
+                    .slice(0, 3)
+                    .map((row) =>
+                        row.remaining <= 0
+                            ? `${row.item.name}: out`
+                            : `${row.item.name}: ${row.daysLeft}d left`,
+                    )
+                    .join(" • ");
+                const ok = await showTpNotification("Inventory running low", {
+                    body,
+                    tag: "tp-inventory-" + tk,
+                    requireInteraction: false,
+                });
+                if (ok) saveInventoryNotify({ ...state, lastNotified: tk });
+            }
+
+            function openInventoryAddModal() {
+                const html = `
+    <div style="display:grid;gap:10px;">
+      <div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Peptide name</div>
+        <input id="inventoryAddName" type="text" placeholder="e.g. AOD-9604" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;font-family:inherit;">
+      </div>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;">
+        <div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Unit</div>
+          <select id="inventoryAddUnit" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;font-family:inherit;">
+            <option value="mg">mg</option>
+            <option value="mcg">mcg</option>
+            <option value="IU">IU</option>
+            <option value="g">g</option>
+            <option value="mL">mL</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Container label</div>
+          <input id="inventoryAddContainerLabel" type="text" value="vial" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;font-family:inherit;">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;">
+        <div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Containers on hand</div>
+          <input id="inventoryAddContainers" type="number" min="0" step="0.01" value="1" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;font-family:inherit;">
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Amount per container</div>
+          <input id="inventoryAddContainerAmount" type="number" min="0.01" step="0.01" value="10" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;font-family:inherit;">
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Weekly usage for reminders</div>
+        <input id="inventoryAddWeeklyUsage" type="number" min="0" step="0.01" value="0" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;font-family:inherit;">
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">If this peptide is also in Current Stack, use the same name and the reminder will follow that stack item automatically.</div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitInventoryAdd()">Add peptide</button>
+      </div>
+    </div>`;
+                showModal("Add Peptide to Inventory", html);
+                setTimeout(() => {
+                    document.getElementById("inventoryAddName")?.focus();
+                }, 30);
+            }
+
+            function submitInventoryAdd() {
+                const name = (
+                    document.getElementById("inventoryAddName")?.value || ""
+                ).trim();
+                const unit = _inventoryNormalizeUnit(
+                    document.getElementById("inventoryAddUnit")?.value || "mg",
+                );
+                const containerLabel =
+                    (
+                        document.getElementById("inventoryAddContainerLabel")
+                            ?.value || "vial"
+                    ).trim() || "vial";
+                const containers = parseFloat(
+                    document.getElementById("inventoryAddContainers")?.value || "0",
+                );
+                const containerAmount = parseFloat(
+                    document.getElementById("inventoryAddContainerAmount")?.value ||
+                        "0",
+                );
+                const weeklyUsage = parseFloat(
+                    document.getElementById("inventoryAddWeeklyUsage")?.value || "0",
+                );
+                if (!name) {
+                    showToast("Enter a peptide name", 2500);
+                    return;
+                }
+                if (!isFinite(containers) || containers < 0) {
+                    showToast("Enter a non-negative container count", 2500);
+                    return;
+                }
+                if (!isFinite(containerAmount) || containerAmount <= 0) {
+                    showToast("Enter a positive amount per container", 2500);
+                    return;
+                }
+                if (!isFinite(weeklyUsage) || weeklyUsage < 0) {
+                    showToast("Enter a non-negative weekly usage", 2500);
+                    return;
+                }
+                const key = _inventorySlug(name);
+                const raw = _inventoryLoadRaw();
+                raw[key] = {
+                    ...(raw[key] || {}),
+                    name,
+                    unit,
+                    containerLabel,
+                    containerAmount: +containerAmount.toFixed(3),
+                    remaining: +(containers * containerAmount).toFixed(3),
+                    weeklyUsage: +weeklyUsage.toFixed(3),
+                    warnAtDays: INVENTORY_WARN_DAYS,
+                    source: "manual",
+                    status: "manual",
+                    lastReorderedAt: new Date().toISOString(),
+                };
+                saveInventory(raw);
+                closeModal();
+                renderInventory();
+                renderInventoryManager();
+                checkInventoryReminder();
+                showToast(`${name} added to inventory`, 2500);
+            }
+
+            function deleteManualInventory(compoundKey) {
+                const meta = loadInventory()[compoundKey];
+                if (!meta || meta.fromStack) return;
+                if (
+                    !confirm(
+                        `Remove ${meta.name} from inventory? This only deletes the manual inventory record.`,
+                    )
+                )
+                    return;
+                const raw = _inventoryLoadRaw();
+                delete raw[compoundKey];
+                saveInventory(raw);
+                renderInventory();
+                renderInventoryManager();
+                showToast(`${meta.name} removed`, 2500);
+            }
+
+            function renderInventory() {
+                const body = document.getElementById("inventoryBody");
+                if (!body) return;
+                renderInventoryNotifyBtn();
+                const inv = loadInventory();
+                const rows = inventoryCatalog()
+                    .map((item) => {
+                        const entry = inv[item.key];
+                        const unit = entry?.unit || item.unit || "mg";
+                        const remaining = _inventoryNumber(entry?.remaining, 0);
+                        const containerCount = inventoryContainersRemaining(
+                            item.key,
+                            inv,
+                        );
+                        const weeklyUsage = _inventoryNumber(
+                            entry?.weeklyUsage,
+                            item.weeklyUsage,
+                        );
+                        const daysLeft = inventoryDaysRemaining(item.key);
+                        const runout = inventoryRunoutDate(item.key);
+                        const empty = remaining <= 0;
+                        const low =
+                            weeklyUsage > 0 &&
+                            daysLeft !== null &&
+                            daysLeft <=
+                                _inventoryNumber(
+                                    entry?.warnAtDays,
+                                    INVENTORY_WARN_DAYS,
+                                );
+                        const statusColor = empty
+                            ? "#ef4444"
+                            : weeklyUsage <= 0
+                              ? "var(--muted)"
+                              : low
+                                ? "#eab308"
+                                : "var(--green, #22c55e)";
+                        const statusLabel = empty
+                            ? "Out"
+                            : weeklyUsage <= 0
+                              ? String(item.status || "Tracked")
+                                    .replace(/^./, (s) => s.toUpperCase())
+                              : `${daysLeft}d left`;
+                        const usageLabel =
+                            weeklyUsage > 0
+                                ? `${_inventoryFormatCount(weeklyUsage, 2)} ${unit}/week${runout ? " · runs out " + runout : ""}`
+                                : "Not currently consuming from stack";
+                        return `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-left:3px solid ${statusColor};border-radius:8px;margin-bottom:6px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:${item.fromStack ? "var(--accent)" : "#a78bfa"};flex:none;"></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);">${item.name}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:1px;">${_inventoryFormatCount(remaining, 2)} ${unit} total &middot; ${_inventoryFormatCount(containerCount, 1)} ${_inventoryContainerLabel(item.key, false, entry)} &middot; ${usageLabel}</div>
+        </div>
+        <div style="text-align:right;flex:none;">
+          <div style="font-size:12px;font-weight:700;color:${statusColor};">${statusLabel}</div>
+          <button class="btn btn-ghost" style="font-size:10px;padding:3px 8px;margin-top:3px;" onclick="inventoryQuickAdd('${item.key}')">+ ${_inventoryContainerLabel(item.key, true, entry)}</button>
+        </div>
+      </div>`;
+                    })
+                    .join("");
+                body.innerHTML =
+                    rows ||
+                    '<div style="font-size:12px;color:var(--muted);padding:10px;">No peptides are being tracked yet. Add one in Inventory Manager.</div>';
+            }
+
+            function inventoryQuickAdd(compoundKey) {
+                const inv = loadInventory();
+                const entry = inv[compoundKey];
+                const meta = entry || _inventoryCompoundByKey(compoundKey);
+                if (!meta) return;
+                const labelOne = _inventoryContainerLabel(compoundKey, true, entry);
+                const labelMany = _inventoryContainerLabel(compoundKey, false, entry);
+                const unit = entry?.unit || meta.unit || "mg";
+                const containerAmount = _inventoryContainerAmount(
+                    compoundKey,
+                    entry,
+                );
+                const amt = prompt(
+                    `Add how many ${labelMany} to ${meta.name}? (${_inventoryFormatCount(containerAmount, 2)} ${unit} per ${labelOne})`,
+                    "1",
+                );
+                if (amt == null) return;
+                const containers = parseFloat(amt);
+                if (!isFinite(containers) || containers <= 0) {
+                    showToast("Enter a positive container count", 2500);
+                    return;
+                }
+                const raw = _inventoryLoadRaw();
+                const current = inv[compoundKey] || {};
+                raw[compoundKey] = {
+                    ...(raw[compoundKey] || {}),
+                    name: meta.name,
+                    unit,
+                    containerLabel: _inventoryContainerLabel(
+                        compoundKey,
+                        true,
+                        current,
+                    ),
+                    containerAmount: +containerAmount.toFixed(3),
+                    remaining: +(
+                        _inventoryNumber(current.remaining, 0) +
+                        containers * containerAmount
+                    ).toFixed(3),
+                    weeklyUsage: meta.fromStack
+                        ? _inventoryNumber(current.weeklyUsage, meta.weeklyUsage)
+                        : _inventoryNumber(current.weeklyUsage, meta.weeklyUsage),
+                    warnAtDays: _inventoryNumber(
+                        current.warnAtDays,
+                        INVENTORY_WARN_DAYS,
+                    ),
+                    source: meta.fromStack ? "stack" : "manual",
+                    status: meta.status || current.status || "manual",
+                    dose: meta.dose || current.dose || "",
+                    timing: meta.timing || current.timing || "",
+                    note: meta.note || current.note || "",
+                    lastReorderedAt: new Date().toISOString(),
+                };
+                saveInventory(raw);
+                renderInventory();
+                if (
+                    document.getElementById("inventoryOverlay")?.style.display ===
+                    "flex"
+                ) {
+                    renderInventoryManager();
+                }
+                checkInventoryReminder();
+                showToast(
+                    `${meta.name}: +${_inventoryFormatCount(containers, 1)} ${containers === 1 ? labelOne : labelMany}`,
+                    2500,
+                );
+            }
+
+            function inventoryDecrementOnInjection(compoundKey) {
+                const inv = loadInventory();
+                const entry = inv[compoundKey];
+                if (!entry) return;
+                const dose = _inventoryDoseFor(compoundKey);
+                const was = _inventoryNumber(entry.remaining, 0);
+                const next = Math.max(0, +(was - dose).toFixed(3));
+                const raw = _inventoryLoadRaw();
+                raw[compoundKey] = {
+                    ...(raw[compoundKey] || {}),
+                    ...entry,
+                    remaining: next,
+                };
+                saveInventory(raw);
+                if (was > 0 && next === 0) {
+                    showToast(`${entry.name} is out - reorder soon`, 5000);
+                }
+                renderInventory();
+                if (
+                    document.getElementById("inventoryOverlay")?.style.display ===
+                    "flex"
+                ) {
+                    renderInventoryManager();
+                }
+                checkInventoryReminder();
+            }
+
+            function renderInventoryManager() {
+                const body = document.getElementById("inventoryManagerBody");
+                if (!body) return;
+                const inv = loadInventory();
+                const rows = inventoryCatalog()
+                    .map((item) => {
+                        const entry = inv[item.key];
+                        const unit = entry?.unit || item.unit || "mg";
+                        const remaining = _inventoryNumber(entry?.remaining, 0);
+                        const containerAmount = _inventoryContainerAmount(
+                            item.key,
+                            entry,
+                        );
+                        const containers = inventoryContainersRemaining(
+                            item.key,
+                            inv,
+                        );
+                        const weeklyUsage = _inventoryNumber(
+                            entry?.weeklyUsage,
+                            item.weeklyUsage,
+                        );
+                        const days = inventoryDaysRemaining(item.key);
+                        const labelOne = _inventoryContainerLabel(
+                            item.key,
+                            true,
+                            entry,
+                        );
+                        const labelMany = _inventoryContainerLabel(
+                            item.key,
+                            false,
+                            entry,
+                        );
+                        const sourceLabel = item.fromStack
+                            ? "Current stack"
+                            : "Manual inventory";
+                        const secondaryRow = item.fromStack
+                            ? `<div style="font-size:11px;color:var(--muted);margin-top:6px;">Usage follows stack: ${item.dose || "dose not set"}${item.timing ? " · " + item.timing : ""}${weeklyUsage > 0 ? ` · ${_inventoryFormatCount(weeklyUsage, 2)} ${unit}/week` : " · not currently active"}</div>`
+                            : `<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:8px;">
+          <label style="display:flex;flex-direction:column;gap:4px;">
+            <span style="font-size:11px;color:var(--muted);">Weekly usage (${unit}/week)</span>
+            <input type="number" step="0.01" min="0" id="inv_${item.key}_weeklyUsage" value="${_inventoryFormatCount(weeklyUsage, 2)}" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-family:inherit;">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:4px;">
+            <span style="font-size:11px;color:var(--muted);">Container label</span>
+            <input type="text" id="inv_${item.key}_containerLabel" value="${labelOne}" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-family:inherit;">
+          </label>
+        </div>`;
+                        return `
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <div style="width:12px;height:12px;border-radius:50%;background:${item.fromStack ? "var(--accent)" : "#a78bfa"};"></div>
+          <div style="font-size:14px;font-weight:700;flex:1;">${item.name}</div>
+          <div style="font-size:11px;color:var(--muted);">${sourceLabel}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:end;margin-bottom:8px;">
+          <label style="display:flex;flex-direction:column;gap:4px;">
+            <span style="font-size:11px;color:var(--muted);">${labelMany} on hand</span>
+            <input type="number" step="0.01" min="0" id="inv_${item.key}_containers" value="${_inventoryFormatCount(containers, 2)}" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-family:inherit;">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:4px;">
+            <span style="font-size:11px;color:var(--muted);">${unit} per ${labelOne}</span>
+            <input type="number" step="0.01" min="0.01" id="inv_${item.key}_containerAmount" value="${_inventoryFormatCount(containerAmount, 2)}" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-family:inherit;">
+          </label>
+        </div>
+        ${secondaryRow}
+        <div style="font-size:11px;color:var(--muted);line-height:1.5;margin-top:8px;">
+          ${_inventoryFormatCount(remaining, 2)} ${unit} total${weeklyUsage > 0 ? ` · ~${days === null ? "-" : days} days left · runs out ${inventoryRunoutDate(item.key)}` : " · reminders pause until usage is active"}${entry?.lastReorderedAt ? ` · last updated ${new Date(entry.lastReorderedAt).toLocaleDateString()}` : ""}
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;">
+          ${item.fromStack ? "" : `<button class="btn btn-ghost" style="font-size:12px;padding:8px 12px;" onclick="deleteManualInventory('${item.key}')">Remove</button>`}
+          <button class="btn btn-primary" style="font-size:12px;padding:8px 12px;" onclick="inventorySetValue('${item.key}')">Save</button>
+        </div>
+      </div>`;
+                    })
+                    .join("");
+                body.innerHTML = `
+    <div style="font-size:13px;color:var(--text);line-height:1.55;margin-bottom:14px;">
+      Inventory now follows peptide items from your current stack. Run-out dates are based on current weekly usage, so changing the stack updates the alert math automatically.
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:12px;">
+      <button class="btn btn-ghost" onclick="openInventoryAddModal()">+ Add peptide</button>
+    </div>
+    ${rows || '<div style="font-size:12px;color:var(--muted);padding:10px 0;">No peptides are being tracked yet.</div>'}
+    <div style="background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.2);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--muted);line-height:1.5;margin-top:6px;">
+      Stack-based rows pull usage from Current Stack. Manual rows let you enter a weekly usage directly if the peptide is not in the stack yet.
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+      <button class="btn btn-primary" onclick="closeInventoryManager()">Done</button>
+    </div>`;
+            }
+
+            function inventorySetValue(compoundKey) {
+                const current = loadInventory()[compoundKey];
+                if (!current) return;
+                const containersInput = document.getElementById(
+                    "inv_" + compoundKey + "_containers",
+                );
+                const amountInput = document.getElementById(
+                    "inv_" + compoundKey + "_containerAmount",
+                );
+                if (!containersInput || !amountInput) return;
+                const containers = parseFloat(containersInput.value);
+                const containerAmount = parseFloat(amountInput.value);
+                if (!isFinite(containers) || containers < 0) {
+                    showToast("Enter a non-negative container count", 2500);
+                    return;
+                }
+                if (!isFinite(containerAmount) || containerAmount <= 0) {
+                    showToast("Enter a positive amount per container", 2500);
+                    return;
+                }
+                const raw = _inventoryLoadRaw();
+                const next = {
+                    ...(raw[compoundKey] || {}),
+                    name: current.name,
+                    unit: current.unit,
+                    containerAmount: +containerAmount.toFixed(3),
+                    remaining: +(containers * containerAmount).toFixed(3),
+                    warnAtDays: _inventoryNumber(
+                        current.warnAtDays,
+                        INVENTORY_WARN_DAYS,
+                    ),
+                    source: current.fromStack ? "stack" : "manual",
+                    status: current.status,
+                    dose: current.dose,
+                    timing: current.timing,
+                    note: current.note,
+                    lastReorderedAt: new Date().toISOString(),
+                };
+                if (current.fromStack) {
+                    next.containerLabel = _inventoryContainerLabel(
+                        compoundKey,
+                        true,
+                        current,
+                    );
+                } else {
+                    const weeklyInput = document.getElementById(
+                        "inv_" + compoundKey + "_weeklyUsage",
+                    );
+                    const labelInput = document.getElementById(
+                        "inv_" + compoundKey + "_containerLabel",
+                    );
+                    const weeklyUsage = parseFloat(weeklyInput?.value || "0");
+                    if (!isFinite(weeklyUsage) || weeklyUsage < 0) {
+                        showToast("Enter a non-negative weekly usage", 2500);
+                        return;
+                    }
+                    next.weeklyUsage = +weeklyUsage.toFixed(3);
+                    next.containerLabel =
+                        (labelInput?.value || current.containerLabel || "vial").trim() ||
+                        "vial";
+                }
+                raw[compoundKey] = next;
+                saveInventory(raw);
+                renderInventory();
+                renderInventoryManager();
+                checkInventoryReminder();
+                showToast(
+                    `${current.name}: ${_inventoryFormatCount(containers, 2)} ${_inventoryContainerLabel(compoundKey, containers === 1, loadInventory()[compoundKey])}`,
+                    2500,
+                );
+            }
+
+            // =========================================================
             // MORNING WEIGH-IN NUDGE (v2.11.0)
             // Subtle banner at top of dashboard when it's still morning
             // and no weight has been logged today. Dismissable per-day.
@@ -33601,6 +34597,7 @@ ${parts.join("\n")}
             fitbitHandleRedirect(); // consume ?code= if Fitbit just redirected us back
             checkScheduledReview(); // fire Sunday auto-review if due
             checkInjectionReminder(); // fire injection-day notification if due
+            checkInventoryReminder(); // fire low-stock peptide alert if due
             checkWaterReminder(); // fire hydration reminder if due
             startWaterPoll(); // poll every minute while app is open
             initCollapsibleCards();
