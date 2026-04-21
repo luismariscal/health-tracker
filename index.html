@@ -4767,6 +4767,14 @@
                                 border-bottom: 1px solid var(--border);
                             "
                         ></div>
+                        <div
+                            id="driveBackupRow"
+                            style="
+                                margin-bottom: 6px;
+                                padding-bottom: 6px;
+                                border-bottom: 1px solid var(--border);
+                            "
+                        ></div>
                         <button
                             class="btn btn-ghost"
                             style="
@@ -5076,6 +5084,59 @@
                     </button>
                 </div>
                 <div id="syncSettingsBody"></div>
+            </div>
+        </div>
+
+        <!-- GOOGLE DRIVE BACKUP MODAL (v2.32.9) -->
+        <div
+            id="driveBackupOverlay"
+            style="
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.75);
+                z-index: 310;
+                align-items: center;
+                justify-content: center;
+            "
+        >
+            <div
+                style="
+                    background: var(--surface);
+                    border: 1px solid var(--border);
+                    border-radius: 16px;
+                    padding: 24px;
+                    width: 100%;
+                    max-width: 520px;
+                    max-height: 92vh;
+                    overflow-y: auto;
+                "
+            >
+                <div
+                    style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 14px;
+                    "
+                >
+                    <div style="font-size: 16px; font-weight: 800">
+                        ☁ Google Drive Backup
+                    </div>
+                    <button
+                        onclick="closeDriveBackupSettings()"
+                        style="
+                            background: none;
+                            border: none;
+                            color: var(--muted);
+                            font-size: 20px;
+                            cursor: pointer;
+                        "
+                    >
+                        ✕
+                    </button>
+                </div>
+                <div id="driveBackupSettingsBody"></div>
             </div>
         </div>
 
@@ -9568,8 +9629,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.32.8";
+            const VERSION = "2.32.9";
             const VERSION_CHANGES = [
+                {
+                    version: "2.32.9",
+                    date: "2026-04-21",
+                    summary: "Add Google Drive backup and restore",
+                    details: [
+                        "Added a Google Drive backup workflow that stores the app's sanitized JSON backup in the hidden appDataFolder instead of leaving data only in local storage.",
+                        "Reused the existing safe export and import preview path so Drive restores still run through the same review gate before any overwrite happens.",
+                        "Kept Google Drive OAuth local-only per device and excluded the new Drive backup config from outbound sync and backup payloads.",
+                    ],
+                },
                 {
                     version: "2.32.8",
                     date: "2026-04-21",
@@ -10103,6 +10174,7 @@
             const LOCAL_ONLY_SECRET_KEYS = new Set([
                 "tp_coach_settings",
                 "tp_sync",
+                "tp_drive_backup",
                 "tp_fitbit",
                 "tp_sync_lastSnapshot",
             ]);
@@ -13777,7 +13849,7 @@
                 );
             }
 
-            async function exportData() {
+            async function buildBackupPayload(opts = {}) {
                 const { dump, excluded } = collectSafeStorageDump();
                 const ts = new Date().toISOString();
                 const payload = {
@@ -13788,46 +13860,62 @@
                     data: dump,
                 };
 
-                // v2.22.0 — optional passphrase encryption
-                const enc = loadEncryptionSettings();
                 let outPayload = payload;
                 let suffix = "";
-                if (enc && enc.enabled) {
-                    const prompted = prompt(
-                        "Backup passphrase (this CAN NOT be recovered — write it down):" +
-                            (enc.hint ? "\n\nHint: " + enc.hint : ""),
-                    );
-                    if (prompted == null) {
-                        showToast("Export cancelled");
-                        return;
-                    }
-                    if (!prompted || prompted.length < 6) {
-                        alert(
-                            "Passphrase must be at least 6 characters. Export cancelled.",
+                let encrypted = false;
+                if (opts.respectEncryption !== false) {
+                    const enc = loadEncryptionSettings();
+                    if (enc && enc.enabled) {
+                        const prompted = prompt(
+                            "Backup passphrase (this CAN NOT be recovered — write it down):" +
+                                (enc.hint ? "\n\nHint: " + enc.hint : ""),
                         );
-                        return;
-                    }
-                    try {
-                        outPayload = await encryptPayload(payload, prompted, {
-                            hint: enc.hint || "",
-                        });
-                        suffix = ".enc";
-                    } catch (e) {
-                        alert("Encryption failed: " + e.message);
-                        return;
+                        if (prompted == null) {
+                            showToast("Export cancelled");
+                            return null;
+                        }
+                        if (!prompted || prompted.length < 6) {
+                            alert(
+                                "Passphrase must be at least 6 characters. Export cancelled.",
+                            );
+                            return null;
+                        }
+                        try {
+                            outPayload = await encryptPayload(payload, prompted, {
+                                hint: enc.hint || "",
+                            });
+                            suffix = ".enc";
+                            encrypted = true;
+                        } catch (e) {
+                            alert("Encryption failed: " + e.message);
+                            return null;
+                        }
                     }
                 }
 
-                const blob = new Blob([JSON.stringify(outPayload, null, 2)], {
+                return {
+                    ts,
+                    payload,
+                    outPayload,
+                    encrypted,
+                    fileName: `transformation-backup-v${VERSION}-${ts.slice(0, 10)}${suffix}.json`,
+                    jsonText: JSON.stringify(outPayload, null, 2),
+                };
+            }
+
+            async function exportData() {
+                const backup = await buildBackupPayload();
+                if (!backup) return;
+                const blob = new Blob([backup.jsonText], {
                     type: "application/json",
                 });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
-                a.download = `transformation-backup-v${VERSION}-${ts.slice(0, 10)}${suffix}.json`;
+                a.download = backup.fileName;
                 a.click();
                 URL.revokeObjectURL(url);
-                markExported(ts);
+                markExported(backup.ts);
                 const menu = document.getElementById("backupMenu");
                 if (menu) menu.style.display = "none";
             }
@@ -13837,6 +13925,7 @@
                 const dot = document.getElementById("backupDot");
                 const statusEl = document.getElementById("backupStatus");
                 const autoEl = document.getElementById("autoBackupRow");
+                const driveEl = document.getElementById("driveBackupRow");
                 if (!dot || !statusEl) return;
                 const changes = meta.changesSinceExport || 0;
                 const lastExport = meta.lastExport
@@ -13915,6 +14004,9 @@
                         autoEl.innerHTML = `<button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--muted);" onclick="disconnectAutoBackup()">✕ Disconnect Auto-Backup</button>`;
                     }
                 }
+                if (driveEl && typeof renderDriveBackupRow === "function") {
+                    renderDriveBackupRow();
+                }
             }
 
             function relativeTime(d) {
@@ -13944,49 +14036,59 @@
             let _pendingImportParsed = null; // the parsed backup object awaiting confirmation
             let _pendingImportSource = null; // metadata for telemetry
 
+            async function stageImportPayload(raw, source) {
+                let parsed = JSON.parse(raw);
+
+                // Review note: every restore path lands in the same import preview so
+                // Google Drive restores get the same safety gate as manual JSON imports.
+                if (isEncryptedEnvelope(parsed)) {
+                    const hintLine = parsed.hint ? "\n\nHint: " + parsed.hint : "";
+                    const pass = prompt(
+                        "This backup is encrypted. Enter passphrase to decrypt:" +
+                            hintLine,
+                    );
+                    if (pass == null) return { cancelled: true };
+                    parsed = await decryptPayload(parsed, pass);
+                }
+
+                const data = parsed.data || parsed;
+                if (!data || typeof data !== "object")
+                    throw new Error("Invalid backup file (not an object)");
+                const count = Object.keys(data).filter((k) =>
+                    k.startsWith("tp_"),
+                ).length;
+                if (!count)
+                    throw new Error("No transformation data found in file");
+                _pendingImportParsed = parsed;
+                _pendingImportSource = {
+                    ...(source || {}),
+                    fileSize:
+                        Number(source?.fileSize) > 0
+                            ? Number(source.fileSize)
+                            : raw.length,
+                };
+                openImportPreview();
+                return { ok: true, count };
+            }
+
             function importData(event) {
                 const file = event.target.files[0];
                 if (!file) return;
                 const reader = new FileReader();
                 reader.onload = async (e) => {
                     try {
-                        const raw = e.target.result;
-                        let parsed = JSON.parse(raw);
-
-                        // v2.22.0 — encrypted envelope detection + decrypt
-                        if (isEncryptedEnvelope(parsed)) {
-                            const hintLine = parsed.hint
-                                ? "\n\nHint: " + parsed.hint
-                                : "";
-                            const pass = prompt(
-                                "This backup is encrypted. Enter passphrase to decrypt:" +
-                                    hintLine,
-                            );
-                            if (pass == null) {
-                                event.target.value = "";
-                                return;
-                            }
-                            parsed = await decryptPayload(parsed, pass);
+                        const staged = await stageImportPayload(
+                            e.target.result,
+                            {
+                                fileName: file.name,
+                                fileSize: file.size,
+                                sourceType: "file",
+                            },
+                        );
+                        if (staged?.cancelled) {
+                            event.target.value = "";
+                            return;
                         }
-
-                        const data = parsed.data || parsed;
-                        if (!data || typeof data !== "object")
-                            throw new Error(
-                                "Invalid backup file (not an object)",
-                            );
-                        const count = Object.keys(data).filter((k) =>
-                            k.startsWith("tp_"),
-                        ).length;
-                        if (!count)
-                            throw new Error(
-                                "No transformation data found in file",
-                            );
-                        _pendingImportParsed = parsed;
-                        _pendingImportSource = {
-                            fileName: file.name,
-                            fileSize: file.size,
-                        };
-                        openImportPreview();
                     } catch (err) {
                         alert("Import failed: " + err.message);
                     } finally {
@@ -14336,6 +14438,579 @@
                     closeImportPreview();
                 }
             }
+
+            // =========================================================
+            // GOOGLE DRIVE BACKUP (v2.32.9)
+            // Stores one sanitized backup JSON file in the user's hidden
+            // appDataFolder. OAuth stays local-only per device, and restores
+            // still flow through the import preview before any overwrite.
+            // =========================================================
+            const DRIVE_BACKUP_STORAGE_KEY = "tp_drive_backup";
+            const DRIVE_BACKUP_SCOPE =
+                "https://www.googleapis.com/auth/drive.appdata";
+            const DRIVE_BACKUP_FILENAME = "health-tracker-backup.json";
+            const DRIVE_BACKUP_DEFAULTS = {
+                clientId: "",
+                fileId: "",
+                fileName: DRIVE_BACKUP_FILENAME,
+                lastUploadedAt: "",
+                lastDownloadedAt: "",
+                lastModifiedTime: "",
+                lastError: "",
+                authorizedAt: "",
+            };
+            let _driveIdentityScriptPromise = null;
+
+            function loadDriveBackupConfig() {
+                try {
+                    const raw = localStorage.getItem(DRIVE_BACKUP_STORAGE_KEY);
+                    if (!raw) return { ...DRIVE_BACKUP_DEFAULTS };
+                    return {
+                        ...DRIVE_BACKUP_DEFAULTS,
+                        ...JSON.parse(raw),
+                    };
+                } catch {
+                    return { ...DRIVE_BACKUP_DEFAULTS };
+                }
+            }
+
+            function saveDriveBackupConfig(cfg) {
+                localStorage.setItem(
+                    DRIVE_BACKUP_STORAGE_KEY,
+                    JSON.stringify({
+                        ...DRIVE_BACKUP_DEFAULTS,
+                        ...(cfg || {}),
+                    }),
+                );
+            }
+
+            function isGoogleDriveBackupSupported() {
+                const host = location.hostname || "";
+                return (
+                    location.protocol === "https:" ||
+                    host === "localhost" ||
+                    host === "127.0.0.1"
+                );
+            }
+
+            function getGoogleDriveBackupOrigin() {
+                return location.origin && location.origin !== "null"
+                    ? location.origin
+                    : location.href;
+            }
+
+            async function copyGoogleDriveBackupOrigin() {
+                try {
+                    await navigator.clipboard.writeText(
+                        getGoogleDriveBackupOrigin(),
+                    );
+                    showToast("Copied current origin", 1800);
+                } catch {
+                    alert("Could not copy the current origin.");
+                }
+            }
+
+            function openDriveBackupSettings() {
+                const overlay = document.getElementById("driveBackupOverlay");
+                if (overlay) {
+                    overlay.style.display = "flex";
+                    renderDriveBackupSettings();
+                }
+                const menu = document.getElementById("backupMenu");
+                if (menu) menu.style.display = "none";
+            }
+
+            function closeDriveBackupSettings() {
+                const overlay = document.getElementById("driveBackupOverlay");
+                if (overlay) overlay.style.display = "none";
+            }
+
+            function renderDriveBackupRow() {
+                const row = document.getElementById("driveBackupRow");
+                if (!row) return;
+                const cfg = loadDriveBackupConfig();
+                if (!isGoogleDriveBackupSupported()) {
+                    row.innerHTML = `<div style="font-size:11px;color:var(--muted);padding:6px;">Google Drive backup needs HTTPS or localhost. Use Export JSON if this copy is running from file://.</div>`;
+                    return;
+                }
+                let detail =
+                    "Protect against local storage loss with a hidden backup in your Google account.";
+                if (cfg.fileId) {
+                    detail = `Last upload ${cfg.lastUploadedAt ? relativeTime(new Date(cfg.lastUploadedAt)) : "saved"} · hidden app backup file ready to restore.`;
+                } else if (cfg.clientId) {
+                    detail =
+                        "Connected. Back up now or restore the latest Google Drive copy.";
+                }
+                if (cfg.lastError) detail = cfg.lastError;
+                const detailColor = cfg.lastError ? "#ef4444" : "var(--muted)";
+                row.innerHTML = `
+        <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;text-align:left;font-size:12px;color:var(--accent);" onclick="openDriveBackupSettings()">Google Drive backup…</button>
+        <div style="font-size:11px;color:${detailColor};padding:4px 6px 0;line-height:1.45;">${_escHtml(detail)}</div>`;
+            }
+
+            function _setDriveBackupError(message) {
+                const cfg = loadDriveBackupConfig();
+                cfg.lastError = message || "";
+                saveDriveBackupConfig(cfg);
+                renderBackupStatus();
+                renderDriveBackupSettings();
+            }
+
+            async function ensureGoogleIdentityScript() {
+                if (window.google?.accounts?.oauth2) return window.google;
+                if (_driveIdentityScriptPromise) return _driveIdentityScriptPromise;
+                _driveIdentityScriptPromise = new Promise((resolve, reject) => {
+                    const existing = document.querySelector(
+                        'script[data-google-drive-backup="1"]',
+                    );
+                    const script = existing || document.createElement("script");
+                    script.src = "https://accounts.google.com/gsi/client";
+                    script.async = true;
+                    script.defer = true;
+                    script.dataset.googleDriveBackup = "1";
+                    script.onload = () => {
+                        if (window.google?.accounts?.oauth2) resolve(window.google);
+                        else
+                            reject(
+                                new Error(
+                                    "Google Identity loaded without OAuth helpers.",
+                                ),
+                            );
+                    };
+                    script.onerror = () =>
+                        reject(
+                            new Error("Could not load Google Identity Services."),
+                        );
+                    if (!existing) document.head.appendChild(script);
+                });
+                return _driveIdentityScriptPromise;
+            }
+
+            async function requestDriveBackupAccessToken(opts = {}) {
+                const cfg = loadDriveBackupConfig();
+                const clientId = String(
+                    opts.clientId || cfg.clientId || "",
+                ).trim();
+                if (!clientId)
+                    throw new Error("Add your Google OAuth Client ID first.");
+                if (!isGoogleDriveBackupSupported()) {
+                    throw new Error(
+                        "Google Drive backup needs HTTPS or localhost.",
+                    );
+                }
+                await ensureGoogleIdentityScript();
+                return new Promise((resolve, reject) => {
+                    let settled = false;
+                    const finish = (fn, value) => {
+                        if (settled) return;
+                        settled = true;
+                        clearTimeout(timeoutId);
+                        fn(value);
+                    };
+                    const timeoutId = setTimeout(() => {
+                        finish(
+                            reject,
+                            new Error(
+                                "Google sign-in timed out or was closed before it finished.",
+                            ),
+                        );
+                    }, 60000);
+                    try {
+                        const tokenClient =
+                            window.google.accounts.oauth2.initTokenClient({
+                                client_id: clientId,
+                                scope: DRIVE_BACKUP_SCOPE,
+                                callback: (resp) => {
+                                    if (!resp || resp.error) {
+                                        finish(
+                                            reject,
+                                            new Error(
+                                                resp?.error_description ||
+                                                    resp?.error ||
+                                                    "Google Drive authorization failed.",
+                                            ),
+                                        );
+                                        return;
+                                    }
+                                    const fresh = loadDriveBackupConfig();
+                                    fresh.clientId = clientId;
+                                    fresh.authorizedAt =
+                                        new Date().toISOString();
+                                    fresh.lastError = "";
+                                    saveDriveBackupConfig(fresh);
+                                    finish(resolve, resp.access_token);
+                                },
+                                error_callback: (err) =>
+                                    finish(
+                                        reject,
+                                        new Error(
+                                            err?.message ||
+                                                err?.type ||
+                                                "Google sign-in failed.",
+                                        ),
+                                    ),
+                            });
+                        tokenClient.requestAccessToken({
+                            prompt:
+                                opts.prompt ??
+                                (cfg.authorizedAt ? "" : "consent"),
+                        });
+                    } catch (e) {
+                        finish(reject, e);
+                    }
+                });
+            }
+
+            async function _driveBackupErrorFromResponse(res, prefix) {
+                let detail = "";
+                try {
+                    const json = await res.json();
+                    detail =
+                        json?.error?.message || json?.message || detail || "";
+                } catch {
+                    try {
+                        detail = await res.text();
+                    } catch {}
+                }
+                return new Error(
+                    `${prefix} ${res.status}${detail ? ": " + detail : ""}`,
+                );
+            }
+
+            async function driveBackupRequest(accessToken, url, opts = {}) {
+                const res = await fetch(url, {
+                    method: opts.method || "GET",
+                    headers: {
+                        Authorization: "Bearer " + accessToken,
+                        ...(opts.headers || {}),
+                    },
+                    body: opts.body,
+                });
+                if (!res.ok) {
+                    throw await _driveBackupErrorFromResponse(
+                        res,
+                        "Google Drive",
+                    );
+                }
+                if (opts.responseType === "text") return res.text();
+                if (res.status === 204) return null;
+                return res.json();
+            }
+
+            async function findDriveBackupFile(accessToken) {
+                const query = encodeURIComponent(
+                    `name='${DRIVE_BACKUP_FILENAME}' and trashed=false`,
+                );
+                const data = await driveBackupRequest(
+                    accessToken,
+                    `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&pageSize=10&fields=files(id,name,modifiedTime,size)&q=${query}`,
+                );
+                const files = Array.isArray(data?.files) ? data.files.slice() : [];
+                files.sort((a, b) =>
+                    String(b?.modifiedTime || "").localeCompare(
+                        String(a?.modifiedTime || ""),
+                    ),
+                );
+                return files[0] || null;
+            }
+
+            async function uploadDriveBackupText(accessToken, fileId, text) {
+                const size = new Blob([text]).size;
+                const meta = fileId
+                    ? { name: DRIVE_BACKUP_FILENAME }
+                    : {
+                          name: DRIVE_BACKUP_FILENAME,
+                          parents: ["appDataFolder"],
+                      };
+                const startUrl = fileId
+                    ? `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(fileId)}?uploadType=resumable&fields=id,name,modifiedTime,size`
+                    : "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,modifiedTime,size";
+                const startRes = await fetch(startUrl, {
+                    method: fileId ? "PATCH" : "POST",
+                    headers: {
+                        Authorization: "Bearer " + accessToken,
+                        "Content-Type": "application/json; charset=UTF-8",
+                        "X-Upload-Content-Type":
+                            "application/json; charset=UTF-8",
+                        "X-Upload-Content-Length": String(size),
+                    },
+                    body: JSON.stringify(meta),
+                });
+                if (!startRes.ok) {
+                    throw await _driveBackupErrorFromResponse(
+                        startRes,
+                        "Google Drive upload start",
+                    );
+                }
+                const sessionUrl = startRes.headers.get("Location");
+                if (!sessionUrl) {
+                    throw new Error(
+                        "Google Drive upload session did not return a Location header.",
+                    );
+                }
+                const uploadRes = await fetch(sessionUrl, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json; charset=UTF-8",
+                    },
+                    body: text,
+                });
+                if (!uploadRes.ok) {
+                    throw await _driveBackupErrorFromResponse(
+                        uploadRes,
+                        "Google Drive upload",
+                    );
+                }
+                return uploadRes.json();
+            }
+
+            async function downloadDriveBackupText(accessToken, fileId) {
+                return driveBackupRequest(
+                    accessToken,
+                    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`,
+                    { responseType: "text" },
+                );
+            }
+
+            async function connectDriveBackup() {
+                const input = document.getElementById("driveBackupClientId");
+                const clientId = String(input?.value || "").trim();
+                if (!clientId) {
+                    showToast("Add your Google OAuth Client ID first.", 2200);
+                    return;
+                }
+                const btn = document.getElementById("driveBackupConnectBtn");
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = "Connecting...";
+                }
+                try {
+                    const token = await requestDriveBackupAccessToken({
+                        clientId,
+                        prompt: "consent",
+                    });
+                    const meta = await findDriveBackupFile(token);
+                    const cfg = loadDriveBackupConfig();
+                    cfg.clientId = clientId;
+                    cfg.authorizedAt = new Date().toISOString();
+                    cfg.lastError = "";
+                    cfg.fileId = meta?.id || "";
+                    cfg.fileName = meta?.name || DRIVE_BACKUP_FILENAME;
+                    cfg.lastModifiedTime = meta?.modifiedTime || "";
+                    saveDriveBackupConfig(cfg);
+                    renderBackupStatus();
+                    renderDriveBackupSettings();
+                    showToast(
+                        meta
+                            ? "Google Drive connected — backup found"
+                            : "Google Drive connected",
+                        2400,
+                    );
+                } catch (e) {
+                    _setDriveBackupError(e.message || String(e));
+                    alert("Google Drive connection failed: " + e.message);
+                } finally {
+                    const freshBtn =
+                        document.getElementById("driveBackupConnectBtn");
+                    if (freshBtn) {
+                        freshBtn.disabled = false;
+                        freshBtn.textContent = "Connect Google Drive";
+                    }
+                }
+            }
+
+            async function backupToGoogleDrive() {
+                const cfg = loadDriveBackupConfig();
+                if (!cfg.clientId) {
+                    showToast("Connect Google Drive first.", 2200);
+                    return;
+                }
+                const btn = document.getElementById("driveBackupUploadBtn");
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = "Saving...";
+                }
+                try {
+                    const backup = await buildBackupPayload();
+                    if (!backup) return;
+                    const token = await requestDriveBackupAccessToken();
+                    const existing = await findDriveBackupFile(token);
+                    const saved = await uploadDriveBackupText(
+                        token,
+                        existing?.id || "",
+                        backup.jsonText,
+                    );
+                    const fresh = loadDriveBackupConfig();
+                    fresh.fileId = saved?.id || existing?.id || "";
+                    fresh.fileName = saved?.name || DRIVE_BACKUP_FILENAME;
+                    fresh.lastUploadedAt = backup.ts;
+                    fresh.lastModifiedTime =
+                        saved?.modifiedTime || backup.ts;
+                    fresh.lastError = "";
+                    saveDriveBackupConfig(fresh);
+                    markExported(backup.ts);
+                    renderBackupStatus();
+                    renderDriveBackupSettings();
+                    showToast("Saved backup to Google Drive", 2600);
+                } catch (e) {
+                    _setDriveBackupError(e.message || String(e));
+                    alert("Google Drive backup failed: " + e.message);
+                } finally {
+                    const freshBtn =
+                        document.getElementById("driveBackupUploadBtn");
+                    if (freshBtn) {
+                        freshBtn.disabled = false;
+                        freshBtn.textContent = "Back up now";
+                    }
+                }
+            }
+
+            async function restoreFromGoogleDrive() {
+                const cfg = loadDriveBackupConfig();
+                if (!cfg.clientId) {
+                    showToast("Connect Google Drive first.", 2200);
+                    return;
+                }
+                const btn = document.getElementById("driveBackupRestoreBtn");
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = "Loading...";
+                }
+                try {
+                    const token = await requestDriveBackupAccessToken();
+                    const meta = await findDriveBackupFile(token);
+                    if (!meta) {
+                        throw new Error(
+                            "No Google Drive backup file was found yet.",
+                        );
+                    }
+                    const raw = await downloadDriveBackupText(token, meta.id);
+                    const staged = await stageImportPayload(raw, {
+                        fileName: meta.name + " (Google Drive)",
+                        fileSize: Number(meta.size) || raw.length,
+                        sourceType: "google-drive",
+                    });
+                    if (staged?.cancelled) return;
+                    const fresh = loadDriveBackupConfig();
+                    fresh.fileId = meta.id;
+                    fresh.fileName = meta.name || DRIVE_BACKUP_FILENAME;
+                    fresh.lastDownloadedAt = new Date().toISOString();
+                    fresh.lastModifiedTime = meta.modifiedTime || "";
+                    fresh.lastError = "";
+                    saveDriveBackupConfig(fresh);
+                    renderBackupStatus();
+                    renderDriveBackupSettings();
+                    showToast(
+                        "Backup loaded from Google Drive — review before importing",
+                        3200,
+                    );
+                } catch (e) {
+                    _setDriveBackupError(e.message || String(e));
+                    alert("Google Drive restore failed: " + e.message);
+                } finally {
+                    const freshBtn =
+                        document.getElementById("driveBackupRestoreBtn");
+                    if (freshBtn) {
+                        freshBtn.disabled = false;
+                        freshBtn.textContent = "Restore from Drive";
+                    }
+                }
+            }
+
+            function disconnectDriveBackup() {
+                if (
+                    !confirm(
+                        "Disconnect Google Drive backup on this device? Your hidden Drive backup file stays there, but this browser will stop using it until you reconnect.",
+                    )
+                )
+                    return;
+                saveDriveBackupConfig({ ...DRIVE_BACKUP_DEFAULTS });
+                renderBackupStatus();
+                renderDriveBackupSettings();
+                showToast("Google Drive backup disconnected", 2200);
+            }
+
+            function renderDriveBackupSettings() {
+                const body = document.getElementById(
+                    "driveBackupSettingsBody",
+                );
+                if (!body) return;
+                const cfg = loadDriveBackupConfig();
+                const supported = isGoogleDriveBackupSupported();
+                const origin = _escHtml(getGoogleDriveBackupOrigin());
+                const statusTone = cfg.lastError
+                    ? "#ef4444"
+                    : cfg.fileId
+                      ? "#22c55e"
+                      : cfg.clientId
+                        ? "var(--accent)"
+                        : "#eab308";
+                const statusText = cfg.lastError
+                    ? cfg.lastError
+                    : cfg.fileId
+                      ? `Connected · last backup ${cfg.lastUploadedAt ? relativeTime(new Date(cfg.lastUploadedAt)) : "ready"}`
+                      : cfg.clientId
+                        ? "Connected · no Drive backup saved yet"
+                        : "Not connected yet";
+                body.innerHTML = `
+      <div style="font-size:13px;line-height:1.55;color:var(--text);margin-bottom:14px;">
+        Save one sanitized JSON backup into Google Drive's hidden <strong>app data</strong> folder so you can recover after local storage loss. API keys, GitHub tokens, Fitbit auth, and other local-only secrets stay on this device.
+      </div>
+
+      <div style="background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.25);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;line-height:1.55;">
+        <strong style="color:var(--text);">Current app origin</strong><br>
+        <code style="background:var(--surface2);padding:2px 5px;border-radius:4px;font-size:11px;">${origin}</code>
+        <button class="btn btn-ghost" style="margin-left:8px;font-size:11px;padding:4px 8px;" onclick="copyGoogleDriveBackupOrigin()">Copy</button>
+      </div>
+
+      ${
+          !supported
+              ? `<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.55;color:#ef4444;margin-bottom:14px;">Google Drive backup needs an HTTPS app URL or localhost. This copy appears to be running from <code style="background:var(--surface2);padding:2px 5px;border-radius:4px;">${origin}</code>, so manual Export JSON is the safe fallback here.</div>`
+              : ""
+      }
+
+      <details style="margin-bottom:14px;">
+        <summary style="font-size:12px;color:var(--accent);cursor:pointer;font-weight:700;">One-time Google Cloud setup</summary>
+        <ol style="font-size:12px;color:var(--text);line-height:1.7;margin:10px 0 0 20px;padding:0;">
+          <li>Open <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener" style="color:var(--accent);">Google Cloud Credentials</a>.</li>
+          <li>Create or pick a project, then enable the <strong>Google Drive API</strong>.</li>
+          <li>Create an <strong>OAuth client ID</strong> for a <strong>Web application</strong>.</li>
+          <li>Add the current origin above to <strong>Authorized JavaScript origins</strong>.</li>
+          <li>Copy the client ID and paste it below. No client secret is needed in this app.</li>
+        </ol>
+      </details>
+
+      <div class="field" style="margin-bottom:12px;">
+        <label>Google OAuth Client ID</label>
+        <input id="driveBackupClientId" type="text" autocomplete="off" spellcheck="false" placeholder="1234567890-abc123def456.apps.googleusercontent.com" value="${_escHtml(cfg.clientId || "")}" ${!supported ? "disabled" : ""} />
+      </div>
+
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12px;margin-bottom:14px;">
+        <div style="font-weight:700;color:${statusTone};margin-bottom:4px;">${_escHtml(statusText)}</div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;color:var(--muted);">
+          <div>File</div><div>${_escHtml(cfg.fileName || DRIVE_BACKUP_FILENAME)}</div>
+          <div>Last upload</div><div>${cfg.lastUploadedAt ? _escHtml(new Date(cfg.lastUploadedAt).toLocaleString()) : "—"}</div>
+          <div>Last restore load</div><div>${cfg.lastDownloadedAt ? _escHtml(new Date(cfg.lastDownloadedAt).toLocaleString()) : "—"}</div>
+          <div>Location</div><div>Hidden Google Drive app data folder</div>
+        </div>
+      </div>
+
+      <div class="form-actions" style="justify-content:flex-end;gap:8px;flex-wrap:wrap;">
+        <button id="driveBackupConnectBtn" class="btn btn-primary" onclick="connectDriveBackup()" ${!supported ? "disabled" : ""}>Connect Google Drive</button>
+        <button id="driveBackupUploadBtn" class="btn btn-ghost" onclick="backupToGoogleDrive()" ${!supported || !cfg.clientId ? "disabled" : ""}>Back up now</button>
+        <button id="driveBackupRestoreBtn" class="btn btn-ghost" onclick="restoreFromGoogleDrive()" ${!supported || !cfg.clientId ? "disabled" : ""}>Restore from Drive</button>
+        <button class="btn btn-ghost" style="color:#ef4444;" onclick="disconnectDriveBackup()" ${!cfg.clientId ? "disabled" : ""}>Disconnect</button>
+        <button class="btn btn-ghost" onclick="closeDriveBackupSettings()">Done</button>
+      </div>
+    `;
+            }
+
+            document
+                .getElementById("driveBackupOverlay")
+                .addEventListener("click", (e) => {
+                    if (e.target === e.currentTarget)
+                        closeDriveBackupSettings();
+                });
             document
                 .getElementById("modalOverlay")
                 .addEventListener("click", (e) => {
