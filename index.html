@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.33.0" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.33.1" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -6972,6 +6972,137 @@
                         >. You can also just keep using the Copy workflow — no
                         key required.
                     </div>
+                    <!-- AI provider setup guide (v2.33.1): keep the key and billing
+                         instructions inside Settings so users can finish setup
+                         without having to remember details from chat. -->
+                    <div
+                        style="
+                            background: rgba(0, 212, 255, 0.06);
+                            border: 1px solid rgba(0, 212, 255, 0.22);
+                            border-radius: 8px;
+                            padding: 12px;
+                            margin-bottom: 16px;
+                        "
+                    >
+                        <div
+                            style="
+                                font-size: 11px;
+                                font-weight: 800;
+                                color: var(--accent);
+                                text-transform: uppercase;
+                                margin-bottom: 8px;
+                                letter-spacing: 0.8px;
+                            "
+                        >
+                            How to get your API key
+                        </div>
+                        <div
+                            style="
+                                display: grid;
+                                grid-template-columns: repeat(
+                                    auto-fit,
+                                    minmax(200px, 1fr)
+                                );
+                                gap: 10px;
+                                font-size: 11px;
+                                line-height: 1.55;
+                            "
+                        >
+                            <div
+                                style="
+                                    border: 1px solid var(--border);
+                                    border-radius: 8px;
+                                    padding: 10px;
+                                    background: rgba(255, 255, 255, 0.02);
+                                "
+                            >
+                                <div style="font-weight: 700; margin-bottom: 6px">
+                                    ChatGPT / OpenAI
+                                </div>
+                                <div>
+                                    1. Open
+                                    <a
+                                        href="https://platform.openai.com/api-keys"
+                                        target="_blank"
+                                        rel="noopener"
+                                        style="color: var(--accent)"
+                                        >platform.openai.com/api-keys</a
+                                    >.
+                                </div>
+                                <div>2. Create a new API key and copy it once.</div>
+                                <div>3. Paste it here under OpenAI API Key.</div>
+                                <div
+                                    style="color: var(--muted); margin-top: 6px"
+                                >
+                                    API billing is separate from ChatGPT Plus/Pro.
+                                    First API key may require phone verification.
+                                </div>
+                            </div>
+                            <div
+                                style="
+                                    border: 1px solid var(--border);
+                                    border-radius: 8px;
+                                    padding: 10px;
+                                    background: rgba(255, 255, 255, 0.02);
+                                "
+                            >
+                                <div style="font-weight: 700; margin-bottom: 6px">
+                                    Claude / Anthropic
+                                </div>
+                                <div>
+                                    1. Open
+                                    <a
+                                        href="https://console.anthropic.com/settings/keys"
+                                        target="_blank"
+                                        rel="noopener"
+                                        style="color: var(--accent)"
+                                        >console.anthropic.com/settings/keys</a
+                                    >.
+                                </div>
+                                <div>2. Create a new API key and copy it.</div>
+                                <div>3. Paste it here under Anthropic API Key.</div>
+                                <div
+                                    style="color: var(--muted); margin-top: 6px"
+                                >
+                                    Claude web subscriptions and Claude Console API
+                                    credits are separate.
+                                </div>
+                            </div>
+                            <div
+                                style="
+                                    border: 1px solid var(--border);
+                                    border-radius: 8px;
+                                    padding: 10px;
+                                    background: rgba(255, 255, 255, 0.02);
+                                "
+                            >
+                                <div style="font-weight: 700; margin-bottom: 6px">
+                                    Gemini / Google
+                                </div>
+                                <div>
+                                    1. Open
+                                    <a
+                                        href="https://aistudio.google.com/app/apikey"
+                                        target="_blank"
+                                        rel="noopener"
+                                        style="color: var(--accent)"
+                                        >Google AI Studio API keys</a
+                                    >.
+                                </div>
+                                <div>
+                                    2. Create a key, or import/select a Google Cloud
+                                    project first.
+                                </div>
+                                <div>3. Paste it here under Gemini API Key.</div>
+                                <div
+                                    style="color: var(--muted); margin-top: 6px"
+                                >
+                                    Free tier is available. Paid usage requires Cloud
+                                    Billing on the selected project.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="field" style="margin-bottom: 14px">
                         <label>AI Provider</label>
                         <select
@@ -9688,8 +9819,17 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.33.0";
+            const VERSION = "2.33.1";
             const VERSION_CHANGES = [
+                {
+                    version: "2.33.1",
+                    date: "2026-04-21",
+                    summary: "Add in-app API key setup guide",
+                    details: [
+                        "Added a built-in setup guide inside AI Coach Settings with direct links and short steps for OpenAI, Claude, and Gemini API keys.",
+                        "Included billing notes where users usually get stuck, including OpenAI platform billing, Claude Console credits, and Gemini Cloud Billing.",
+                    ],
+                },
                 {
                     version: "2.33.0",
                     date: "2026-04-21",
