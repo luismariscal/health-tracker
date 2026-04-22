@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.32.8" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.33.0" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -5695,6 +5695,14 @@
                         </button>
                         <button
                             class="btn btn-ghost"
+                            onclick="generateWeeklyReviewWithProvider('gemini')"
+                            style="font-size: 11px; padding: 4px 10px"
+                            title="Refresh this report with Gemini"
+                        >
+                            Gemini
+                        </button>
+                        <button
+                            class="btn btn-ghost"
                             onclick="dismissWeeklyReport()"
                             style="font-size: 11px; padding: 4px 10px"
                         >
@@ -6171,6 +6179,14 @@
                         rel="noopener"
                         style="color: var(--accent)"
                         >ChatGPT</a
+                    >
+                    or
+                    <a
+                        href="https://gemini.google.com"
+                        target="_blank"
+                        rel="noopener"
+                        style="color: var(--accent)"
+                        >Gemini</a
                     >, or add an API key in Settings for inline replies.
                 </div>
                 <div
@@ -6945,6 +6961,14 @@
                             rel="noopener"
                             style="color: var(--accent)"
                             >platform.openai.com</a
+                        >
+                        or
+                        <a
+                            href="https://aistudio.google.com"
+                            target="_blank"
+                            rel="noopener"
+                            style="color: var(--accent)"
+                            >aistudio.google.com</a
                         >. You can also just keep using the Copy workflow — no
                         key required.
                     </div>
@@ -6959,6 +6983,7 @@
                                 Claude (Anthropic)
                             </option>
                             <option value="openai">ChatGPT (OpenAI)</option>
+                            <option value="gemini">Gemini (Google)</option>
                         </select>
                         <div
                             style="
@@ -6967,8 +6992,8 @@
                                 margin-top: 4px;
                             "
                         >
-                            Used for inline coach replies, weekly reports, and
-                            lab PDF extraction.
+                            Used for inline coach replies, weekly reports,
+                            Research Watch, and lab PDF extraction.
                         </div>
                     </div>
                     <div id="coachAnthropicFields">
@@ -7039,6 +7064,40 @@
                                 </option>
                                 <option value="gpt-5.4-nano">
                                     GPT-5.4 nano - lowest cost
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="coachGeminiFields" style="display: none">
+                        <div class="field" style="margin-bottom: 14px">
+                            <label>Gemini API Key</label>
+                            <input
+                                type="password"
+                                id="coachGeminiApiKey"
+                                placeholder="AIza..."
+                                style="width: 100%"
+                                autocomplete="off"
+                            />
+                            <div
+                                style="
+                                    font-size: 10px;
+                                    color: var(--muted);
+                                    margin-top: 4px;
+                                "
+                            >
+                                Get one in Google AI Studio. Review note: keep
+                                Gemini keys local to this browser just like the
+                                other AI provider keys.
+                            </div>
+                        </div>
+                        <div class="field" style="margin-bottom: 14px">
+                            <label>Gemini Model</label>
+                            <select id="coachGeminiModel" style="width: 100%">
+                                <option value="gemini-2.5-flash">
+                                    Gemini 2.5 Flash - recommended balance
+                                </option>
+                                <option value="gemini-2.5-pro">
+                                    Gemini 2.5 Pro - most capable
                                 </option>
                             </select>
                         </div>
@@ -9629,8 +9688,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.32.9";
+            const VERSION = "2.33.0";
             const VERSION_CHANGES = [
+                {
+                    version: "2.33.0",
+                    date: "2026-04-21",
+                    summary: "Add Gemini API as a coach provider option",
+                    details: [
+                        "Added Gemini as a first-class AI Coach provider alongside Claude and ChatGPT, including local-only API key storage and model selection.",
+                        "Routed inline coach replies, weekly report refresh, quick JSON updates, Research Watch, and lab PDF extraction through Gemini's generateContent API where supported.",
+                        "Extended outbound secret filtering to recognize Google-style API keys so Gemini credentials stay out of backups and sync payloads.",
+                    ],
+                },
                 {
                     version: "2.32.9",
                     date: "2026-04-21",
@@ -10188,6 +10257,7 @@
                 /\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b/,
                 /\bgh[pousr]_[A-Za-z0-9_]{20,}\b/,
                 /\bgithub_pat_[A-Za-z0-9_]{20,}\b/,
+                /\bAIza[0-9A-Za-z_-]{20,}\b/,
             ];
 
             function valueLooksLikeSecret(value) {
@@ -13393,7 +13463,7 @@
                 inventoryCard: "Compound and supplement inventory.",
                 injectionTrackerCard: "Next dose, recent injections, and site rotation.",
                 recoveryCard: "Sleep, steps, Fitbit status, and recovery trend.",
-                aiCoachCard: "Ask Claude or ChatGPT about your protocol.",
+                aiCoachCard: "Ask Claude, ChatGPT, or Gemini about your protocol.",
                 vitalsCard: "Blood pressure, resting HR, alerts, and trend.",
                 dtpCard: "Retatrutide dose ladder and titration plan.",
                 macroCalcCard: "Macro targets by phase and weight.",
@@ -17619,7 +17689,7 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                 };
                 const done = () =>
                     showToast(
-                        `✓ Coach briefing copied (${text.length.toLocaleString()} chars) — paste into Claude or ChatGPT`,
+                    `✓ Coach briefing copied (${text.length.toLocaleString()} chars) — paste into Claude, ChatGPT, or Gemini`,
                         4000,
                     );
                 if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -17640,6 +17710,7 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
             const COACH_DEFAULT_ANTHROPIC_MODEL = "claude-opus-4-7";
             const COACH_DEFAULT_ANTHROPIC_LAB_MODEL = "claude-sonnet-4-6";
             const COACH_DEFAULT_OPENAI_MODEL = "gpt-5.4-mini";
+            const COACH_DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 
             const COACH_PRESETS = [
                 { key: "weekly", label: "📊 Weekly Review", primary: true },
@@ -17662,19 +17733,24 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                 localStorage.setItem("tp_coach_settings", JSON.stringify(s));
             }
             function normalizeCoachProvider(provider) {
-                return provider === "openai" ? "openai" : COACH_DEFAULT_PROVIDER;
+                if (provider === "openai") return "openai";
+                if (provider === "gemini") return "gemini";
+                return COACH_DEFAULT_PROVIDER;
             }
             function getCoachProvider(settings = loadCoachSettings()) {
                 return normalizeCoachProvider(settings && settings.provider);
             }
             function getCoachProviderLabel(provider) {
-                return provider === "openai" ? "ChatGPT" : "Claude";
+                if (provider === "openai") return "ChatGPT";
+                if (provider === "gemini") return "Gemini";
+                return "Claude";
             }
             function getCoachKeyForProvider(
                 settings = loadCoachSettings(),
                 provider = getCoachProvider(settings),
             ) {
                 const p = normalizeCoachProvider(provider);
+                if (p === "gemini") return settings.geminiApiKey || "";
                 return p === "openai"
                     ? settings.openaiApiKey || ""
                     : settings.apiKey || "";
@@ -17688,6 +17764,8 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                 purpose = "coach",
             ) {
                 const p = normalizeCoachProvider(provider);
+                if (p === "gemini")
+                    return settings.geminiModel || COACH_DEFAULT_GEMINI_MODEL;
                 if (p === "openai")
                     return settings.openaiModel || COACH_DEFAULT_OPENAI_MODEL;
                 if (purpose === "lab")
@@ -17706,6 +17784,8 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
             }
             function coachKeyLooksValid(provider, key) {
                 if (!key) return false;
+                if (provider === "gemini")
+                    return key.startsWith("AIza") && key.length >= 24;
                 return provider === "openai"
                     ? key.startsWith("sk-")
                     : key.startsWith("sk-ant-");
@@ -18171,6 +18251,22 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                         });
                         text = openaiResponseText(resp) || "(empty reply)";
                         sources = _collectResearchSources(resp);
+                    } else if (provider === "gemini") {
+                        const resp = await geminiCall({
+                            apiKey,
+                            model,
+                            maxTokens: Math.max(settings.maxTokens || 2200, 2600),
+                            system: RESEARCH_WATCH_SYSTEM,
+                            contents: [
+                                {
+                                    role: "user",
+                                    parts: [{ text: prompt }],
+                                },
+                            ],
+                            useGoogleSearch: true,
+                        });
+                        text = geminiResponseText(resp) || "(empty reply)";
+                        sources = _collectResearchSources(resp);
                     } else {
                         const resp = await anthropicCall({
                             apiKey,
@@ -18499,6 +18595,8 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                     "parsed",
                     "json",
                     "arguments",
+                    "candidates",
+                    "parts",
                     "output_text",
                     "text",
                     "content",
@@ -18535,12 +18633,18 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                 error,
             }) {
                 const outputTypes = [];
+                const finishReasons = [];
                 try {
                     (raw?.output || []).forEach((item) => {
                         outputTypes.push(item.type || "item");
                         (item.content || []).forEach((c) =>
                             outputTypes.push(c.type || "content"),
                         );
+                    });
+                    (raw?.candidates || []).forEach((candidate) => {
+                        outputTypes.push("candidate");
+                        if (candidate?.finishReason)
+                            finishReasons.push(candidate.finishReason);
                     });
                 } catch {}
                 const refusal = raw ? openaiResponseRefusal(raw) : "";
@@ -18551,6 +18655,8 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                     status: raw?.status || "",
                     incompleteReason: raw?.incomplete_details?.reason || "",
                     outputTypes,
+                    finishReasons,
+                    blockReason: raw?.promptFeedback?.blockReason || "",
                     refusal,
                     error: error || "",
                     textPreview: String(text || "").slice(0, 1200),
@@ -18651,6 +18757,40 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                     rawResponse = resp;
                     text = openaiResponseText(resp);
                     usage = normalizeOpenaiUsage(resp);
+                } else if (provider === "gemini") {
+                    const request = {
+                        apiKey,
+                        model,
+                        maxTokens,
+                        system,
+                        contents: [
+                            {
+                                role: "user",
+                                parts: [{ text: prompt }],
+                            },
+                        ],
+                        responseMimeType: "application/json",
+                        responseJsonSchema: jsonSchema ? jsonSchema.schema : null,
+                    };
+                    let resp;
+                    try {
+                        resp = await geminiCall(request);
+                    } catch (e) {
+                        if (
+                            !jsonSchema ||
+                            !/schema|json|responseMimeType|responseJsonSchema|generationConfig/i.test(
+                                e.message || "",
+                            )
+                        )
+                            throw e;
+                        resp = await geminiCall({
+                            ...request,
+                            responseJsonSchema: null,
+                        });
+                    }
+                    rawResponse = resp;
+                    text = geminiResponseText(resp);
+                    usage = normalizeGeminiUsage(resp);
                 } else {
                     const resp = await anthropicCall({
                         apiKey,
@@ -18690,8 +18830,31 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                         provider === "openai"
                             ? openaiResponseRefusal(rawResponse)
                             : "";
+                    const blockReason =
+                        provider === "gemini"
+                            ? geminiResponseBlockReason(rawResponse)
+                            : "";
+                    const finishReason =
+                        provider === "gemini"
+                            ? geminiResponseFinishReason(rawResponse)
+                            : "";
                     if (refusal)
                         throw new Error(`${providerLabel} refused: ${refusal}`);
+                    if (blockReason) {
+                        throw new Error(
+                            `${providerLabel} blocked the request: ${blockReason}`,
+                        );
+                    }
+                    if (
+                        provider === "gemini" &&
+                        finishReason &&
+                        finishReason !== "STOP" &&
+                        finishReason !== "MAX_TOKENS"
+                    ) {
+                        throw new Error(
+                            `${providerLabel} finished without readable JSON (${finishReason}).`,
+                        );
+                    }
                     const err = new Error(
                         `${providerLabel} returned unexpected output. Tap "Provider debug clue" below and send me that clue if this repeats.`,
                     );
@@ -19761,6 +19924,10 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                     s.openaiApiKey || "";
                 document.getElementById("coachOpenaiModel").value =
                     s.openaiModel || COACH_DEFAULT_OPENAI_MODEL;
+                document.getElementById("coachGeminiApiKey").value =
+                    s.geminiApiKey || "";
+                document.getElementById("coachGeminiModel").value =
+                    s.geminiModel || COACH_DEFAULT_GEMINI_MODEL;
                 document.getElementById("coachMaxTokens").value =
                     s.maxTokens || 2000;
                 document.getElementById("coachAutoWeekly").checked =
@@ -19782,12 +19949,17 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                 );
                 const openaiFields =
                     document.getElementById("coachOpenaiFields");
+                const geminiFields =
+                    document.getElementById("coachGeminiFields");
                 if (anthropicFields)
                     anthropicFields.style.display =
                         provider === "anthropic" ? "block" : "none";
                 if (openaiFields)
                     openaiFields.style.display =
                         provider === "openai" ? "block" : "none";
+                if (geminiFields)
+                    geminiFields.style.display =
+                        provider === "gemini" ? "block" : "none";
             }
             function closeCoachSettings() {
                 document.getElementById("coachSettingsOverlay").style.display =
@@ -19806,6 +19978,11 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                     .value.trim();
                 const openaiModel =
                     document.getElementById("coachOpenaiModel").value;
+                const geminiApiKey = document
+                    .getElementById("coachGeminiApiKey")
+                    .value.trim();
+                const geminiModel =
+                    document.getElementById("coachGeminiModel").value;
                 const maxTokens =
                     parseInt(
                         document.getElementById("coachMaxTokens").value,
@@ -19827,6 +20004,10 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                     status.innerHTML = `<span style="color:#ef4444;">⚠ OpenAI key should start with "sk-". Double-check and paste again.</span>`;
                     return;
                 }
+                if (geminiApiKey && !coachKeyLooksValid("gemini", geminiApiKey)) {
+                    status.innerHTML = `<span style="color:#ef4444;">⚠ Gemini key should usually start with "AIza". Double-check and paste again.</span>`;
+                    return;
+                }
                 const prev = loadCoachSettings();
                 saveCoachSettingsObj({
                     ...prev,
@@ -19835,12 +20016,19 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                     model,
                     openaiApiKey,
                     openaiModel,
+                    geminiApiKey,
+                    geminiModel,
                     maxTokens,
                     autoWeekly,
                     reviewDay,
                 });
                 renderCoachPresets();
-                const activeKey = provider === "openai" ? openaiApiKey : apiKey;
+                const activeKey =
+                    provider === "openai"
+                        ? openaiApiKey
+                        : provider === "gemini"
+                          ? geminiApiKey
+                          : apiKey;
                 status.innerHTML = activeKey
                     ? `<span style="color:var(--green);">✓ Saved. Inline coach is now using ${getCoachProviderLabel(provider)}.</span>`
                     : `<span style="color:var(--muted);">Saved. Add a ${getCoachProviderLabel(provider)} API key to enable inline replies.</span>`;
@@ -19860,6 +20048,7 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                 localStorage.removeItem("tp_coach_thread");
                 document.getElementById("coachApiKey").value = "";
                 document.getElementById("coachOpenaiApiKey").value = "";
+                document.getElementById("coachGeminiApiKey").value = "";
                 renderCoachPresets();
                 clearCoachReply();
                 document.getElementById("coachSettingsStatus").innerHTML =
@@ -19874,10 +20063,16 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                         ? document
                               .getElementById("coachOpenaiApiKey")
                               .value.trim()
+                        : provider === "gemini"
+                          ? document
+                                .getElementById("coachGeminiApiKey")
+                                .value.trim()
                         : document.getElementById("coachApiKey").value.trim();
                 const model =
                     provider === "openai"
                         ? document.getElementById("coachOpenaiModel").value
+                        : provider === "gemini"
+                          ? document.getElementById("coachGeminiModel").value
                         : document.getElementById("coachModel").value;
                 const status = document.getElementById("coachSettingsStatus");
                 if (!apiKey) {
@@ -19910,6 +20105,20 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                             ],
                         });
                         txt = openaiResponseText(resp);
+                    } else if (provider === "gemini") {
+                        const resp = await geminiCall({
+                            apiKey,
+                            model,
+                            maxTokens: 64,
+                            system: "Reply with exactly: OK",
+                            contents: [
+                                {
+                                    role: "user",
+                                    parts: [{ text: "Connection test." }],
+                                },
+                            ],
+                        });
+                        txt = geminiResponseText(resp);
                     } else {
                         const resp = await anthropicCall({
                             apiKey,
@@ -20010,6 +20219,60 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                 return await resp.json();
             }
 
+            async function geminiCall({
+                apiKey,
+                model,
+                maxTokens,
+                contents,
+                system,
+                responseJsonSchema = null,
+                responseMimeType = "",
+                useGoogleSearch = false,
+            }) {
+                const body = { contents };
+                if (system) {
+                    body.system_instruction = {
+                        parts: [{ text: system }],
+                    };
+                }
+                if (useGoogleSearch) {
+                    // Review note: Research Watch depends on real-time grounding,
+                    // so Gemini requests opt into Google Search explicitly instead
+                    // of pretending the model's base knowledge is current enough.
+                    body.tools = [{ google_search: {} }];
+                }
+                const generationConfig = {};
+                if (Number.isFinite(maxTokens))
+                    generationConfig.maxOutputTokens = maxTokens;
+                if (responseMimeType)
+                    generationConfig.responseMimeType = responseMimeType;
+                if (responseJsonSchema)
+                    generationConfig.responseJsonSchema = responseJsonSchema;
+                if (Object.keys(generationConfig).length) {
+                    body.generationConfig = generationConfig;
+                }
+                const resp = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "content-type": "application/json",
+                            "x-goog-api-key": apiKey,
+                        },
+                        body: JSON.stringify(body),
+                    },
+                );
+                if (!resp.ok) {
+                    let msg = `HTTP ${resp.status}`;
+                    try {
+                        const err = await resp.json();
+                        msg = err.error?.message || err.message || msg;
+                    } catch {}
+                    throw new Error(msg);
+                }
+                return await resp.json();
+            }
+
             function openaiResponseText(resp) {
                 if (resp?.output_text) return String(resp.output_text).trim();
                 const chunks = [];
@@ -20023,6 +20286,16 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                 return chunks.join("").trim();
             }
 
+            function geminiResponseText(resp) {
+                const chunks = [];
+                (resp?.candidates || []).forEach((candidate) => {
+                    (candidate?.content?.parts || []).forEach((part) => {
+                        if (typeof part?.text === "string") chunks.push(part.text);
+                    });
+                });
+                return chunks.join("\n").trim();
+            }
+
             function openaiResponseRefusal(resp) {
                 const chunks = [];
                 (resp?.output || []).forEach((item) => {
@@ -20034,12 +20307,36 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                 return chunks.join("\n").trim();
             }
 
+            function geminiResponseBlockReason(resp) {
+                return (
+                    resp?.promptFeedback?.blockReason ||
+                    resp?.promptFeedback?.block_reason ||
+                    ""
+                );
+            }
+
+            function geminiResponseFinishReason(resp) {
+                return (resp?.candidates || [])
+                    .map((candidate) => candidate?.finishReason || "")
+                    .filter(Boolean)
+                    .join(", ");
+            }
+
             function normalizeOpenaiUsage(resp) {
                 const u = resp?.usage || {};
                 return {
                     input_tokens: u.input_tokens || u.prompt_tokens || 0,
                     output_tokens: u.output_tokens || u.completion_tokens || 0,
                     total_tokens: u.total_tokens || 0,
+                };
+            }
+
+            function normalizeGeminiUsage(resp) {
+                const u = resp?.usageMetadata || {};
+                return {
+                    input_tokens: u.promptTokenCount || 0,
+                    output_tokens: u.candidatesTokenCount || 0,
+                    total_tokens: u.totalTokenCount || 0,
                 };
             }
 
@@ -20061,6 +20358,15 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                         ],
                     },
                 ];
+            }
+
+            function geminiContentsFromThread(messages) {
+                return (messages || [])
+                    .filter((m) => String(m?.content || "").trim())
+                    .map((m) => ({
+                        role: m.role === "assistant" ? "model" : "user",
+                        parts: [{ text: String(m.content || "") }],
+                    }));
             }
 
             async function anthropicStream({
@@ -20219,6 +20525,30 @@ Style:
                             openaiResponseText(resp) || "(empty reply)";
                         thread.messages[streamingIdx].content = fullText;
                         thread.usage = normalizeOpenaiUsage(resp);
+                        saveCoachThread(thread);
+                        showCoachReply({ thread, settings, meta });
+                    } catch (e) {
+                        thread.messages.pop();
+                        saveCoachThread(thread);
+                        showCoachReply({ error: e.message });
+                    }
+                    return;
+                }
+                if (provider === "gemini") {
+                    try {
+                        const resp = await geminiCall({
+                            apiKey,
+                            model,
+                            maxTokens: settings.maxTokens || 2000,
+                            system: COACH_SYSTEM_PROMPT,
+                            contents: geminiContentsFromThread(
+                                thread.messages.slice(0, -1),
+                            ),
+                        });
+                        const fullText =
+                            geminiResponseText(resp) || "(empty reply)";
+                        thread.messages[streamingIdx].content = fullText;
+                        thread.usage = normalizeGeminiUsage(resp);
                         saveCoachThread(thread);
                         showCoachReply({ thread, settings, meta });
                     } catch (e) {
@@ -20739,6 +21069,40 @@ Style:
                     }
                     return;
                 }
+                if (provider === "gemini") {
+                    try {
+                        const resp = await geminiCall({
+                            apiKey,
+                            model,
+                            maxTokens: settings.maxTokens || 2000,
+                            system: COACH_SYSTEM_PROMPT,
+                            contents: [
+                                {
+                                    role: "user",
+                                    parts: [{ text: briefing }],
+                                },
+                            ],
+                        });
+                        report.text =
+                            geminiResponseText(resp) || "(empty reply)";
+                        report.messages = [
+                            { role: "user", content: briefing },
+                            { role: "assistant", content: report.text },
+                        ];
+                        report.usage = normalizeGeminiUsage(resp);
+                        report.streaming = false;
+                        report.chatError = "";
+                        saveWeeklyReport(report);
+                        renderWeeklyReport();
+                        showToast("✓ Weekly report ready");
+                    } catch (e) {
+                        report.text = `⚠ Generation failed: ${e.message}`;
+                        report.streaming = false;
+                        saveWeeklyReport(report);
+                        renderWeeklyReport();
+                    }
+                    return;
+                }
 
                 let lastRender = 0;
                 await anthropicStream({
@@ -20839,6 +21203,33 @@ Style:
                         messages[assistantIdx].content =
                             openaiResponseText(resp) || "(empty reply)";
                         report.chatUsage = normalizeOpenaiUsage(resp);
+                        report.chatStreaming = false;
+                        report.chatUpdatedAt = new Date().toISOString();
+                        saveWeeklyReport(report);
+                        renderWeeklyReport();
+                    } catch (e) {
+                        messages.pop();
+                        report.chatStreaming = false;
+                        report.chatError = e.message || "Chat failed";
+                        saveWeeklyReport(report);
+                        renderWeeklyReport();
+                    }
+                    return;
+                }
+                if (provider === "gemini") {
+                    try {
+                        const resp = await geminiCall({
+                            apiKey,
+                            model,
+                            maxTokens: settings.maxTokens || 2000,
+                            system: COACH_SYSTEM_PROMPT,
+                            contents: geminiContentsFromThread(
+                                messages.slice(0, -1),
+                            ),
+                        });
+                        messages[assistantIdx].content =
+                            geminiResponseText(resp) || "(empty reply)";
+                        report.chatUsage = normalizeGeminiUsage(resp);
                         report.chatStreaming = false;
                         report.chatUpdatedAt = new Date().toISOString();
                         saveWeeklyReport(report);
@@ -21935,13 +22326,13 @@ Style:
             // Security note: the file is sent directly to the selected provider API
             // from the browser using the user's saved API key (tp_coach_settings).
             // Nothing is stored server-side by us. The file never leaves the
-            // browser except to go straight to Anthropic or OpenAI.
+            // browser except to go straight to Anthropic, OpenAI, or Gemini.
             //
             // Cost note: PDFs consume image+text tokens. A typical lab report
             // (2-4 pages) is usually low cost, but long panels can add up.
             // =========================================================
             const LAB_EXTRACT_MAX_MB = 22;
-            // Anthropic/OpenAI review note: provider limits apply to the whole JSON request,
+            // Anthropic/OpenAI/Gemini review note: provider limits apply to the whole JSON request,
             // and base64 adds roughly 33%, so keep the raw file well below the tightest cap.
             const LAB_EXTRACT_MAX_BYTES = LAB_EXTRACT_MAX_MB * 1024 * 1024;
             const LAB_EXTRACT_IMAGE_MIMES = new Set([
@@ -22049,6 +22440,8 @@ Style:
                     },
                 },
             };
+            const LAB_EXTRACT_JSON_SCHEMA =
+                LAB_EXTRACT_OPENAI_TEXT.format.schema;
             const LAB_OVERVIEW_KEY = "tp_labs_overview";
             let _labExtractState = null;
 
@@ -22152,7 +22545,8 @@ Style:
                 // Basic validation
                 const isPdf =
                     /\/pdf$/i.test(file.type) || /\.pdf$/i.test(file.name);
-                // Anthropic/OpenAI review note: both providers support JPEG, PNG, GIF, and WebP.
+                // Provider review note: Anthropic, OpenAI, and Gemini all accept JPEG,
+                // PNG, GIF, and WebP for the browser-side image extraction path.
                 // Reject HEIC/TIFF/SVG/etc. before reading and uploading a file that the API will refuse.
                 const imageMime = _supportedLabImageMime(file);
                 const isImg = !!imageMime;
@@ -22181,7 +22575,7 @@ Style:
                     document.getElementById("labExtractStatus").innerHTML = `
       <div style="padding:14px;background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.25);border-radius:8px;color:#eab308;line-height:1.55;">
         <div style="font-weight:700;margin-bottom:6px;">⚠ AI Coach API key required</div>
-        <div style="font-size:11px;">PDF extraction sends the file directly to ${escapeHtml(providerLabel)} for OCR + structured parsing. Select Claude or ChatGPT and add that API key in the AI Coach card's ⚙ Settings (above), then try again. Free workflow: use "+ Add Result" to enter values manually.</div>
+                <div style="font-size:11px;">PDF extraction sends the file directly to ${escapeHtml(providerLabel)} for OCR + structured parsing. Select Claude, ChatGPT, or Gemini and add that API key in the AI Coach card's ⚙ Settings (above), then try again. Free workflow: use "+ Add Result" to enter values manually.</div>
       </div>`;
                     document.getElementById("labExtractBody").innerHTML = "";
                     document.getElementById("labExtractActions").style.display =
@@ -22388,6 +22782,68 @@ Rules:
                             incomplete ||
                             JSON.stringify(resp).slice(0, 1400),
                         usage: normalizeOpenaiUsage(resp),
+                    };
+                }
+                if (provider === "gemini") {
+                    const parts = [
+                        isPdf
+                            ? {
+                                  inline_data: {
+                                      mime_type: "application/pdf",
+                                      data: base64,
+                                  },
+                              }
+                            : {
+                                  inline_data: {
+                                      mime_type: mediaType,
+                                      data: base64,
+                                  },
+                              },
+                        { text: userText },
+                    ];
+                    let resp;
+                    try {
+                        resp = await geminiCall({
+                            apiKey,
+                            model,
+                            maxTokens: 9000,
+                            system,
+                            contents: [{ role: "user", parts }],
+                            responseMimeType: "application/json",
+                            responseJsonSchema: LAB_EXTRACT_JSON_SCHEMA,
+                        });
+                    } catch (e) {
+                        if (
+                            !/schema|json|responseMimeType|responseJsonSchema|generationConfig/i.test(
+                                e.message || "",
+                            )
+                        ) {
+                            throw e;
+                        }
+                        resp = await geminiCall({
+                            apiKey,
+                            model,
+                            maxTokens: 9000,
+                            system,
+                            contents: [{ role: "user", parts }],
+                            responseMimeType: "application/json",
+                        });
+                    }
+                    const text = geminiResponseText(resp);
+                    const blockReason = geminiResponseBlockReason(resp);
+                    const finishReason = geminiResponseFinishReason(resp);
+                    return {
+                        provider,
+                        providerLabel: getCoachProviderLabel(provider),
+                        raw: resp,
+                        text,
+                        refusal: blockReason || "",
+                        debugText:
+                            text ||
+                            blockReason ||
+                            finishReason ||
+                            JSON.stringify(resp).slice(0, 1400),
+                        usage: normalizeGeminiUsage(resp),
                     };
                 }
 
@@ -32422,7 +32878,7 @@ ${parts.join("\n")}
                         status: "yellow",
                         title: "AI review after data is current",
                         meta: "refresh coach",
-                        body: "After logging today's items, refresh the coach report so Claude or ChatGPT reviews the current red/watch signals.",
+                        body: "After logging today's items, refresh the coach report so Claude, ChatGPT, or Gemini reviews the current red/watch signals.",
                         target: "aiCoachCard",
                         button: "Open AI coach",
                     };
