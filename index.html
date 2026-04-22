@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.33.1" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.34.0" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -6469,6 +6469,83 @@
                                 </button>
                             </div>
                         </div>
+                        <div
+                            style="
+                                background: var(--surface2);
+                                border: 1px solid var(--border);
+                                border-radius: 8px;
+                                padding: 10px;
+                            "
+                        >
+                            <!-- Review note: Quick Capture is preview-first even
+                                 when voice is used. The model may route a single
+                                 note into multiple logs, but nothing is written
+                                 until the user presses Apply. -->
+                            <div
+                                style="
+                                    font-size: 11px;
+                                    font-weight: 800;
+                                    color: var(--text);
+                                    margin-bottom: 6px;
+                                "
+                            >
+                                Quick capture
+                            </div>
+                            <textarea
+                                id="aiQuickCaptureInput"
+                                placeholder="Example: Weight 208.4 this morning, drank 24 oz water, ate 8 oz steak with rice, injected retatrutide 4 mg lower left abdomen at 7:30."
+                                style="
+                                    width: 100%;
+                                    min-height: 88px;
+                                    background: var(--surface);
+                                    border: 1px solid var(--border);
+                                    border-radius: 8px;
+                                    color: var(--text);
+                                    padding: 8px 10px;
+                                    font-size: 12px;
+                                    resize: vertical;
+                                "
+                            ></textarea>
+                            <div
+                                style="
+                                    font-size: 10px;
+                                    color: var(--muted);
+                                    margin-top: 6px;
+                                    line-height: 1.5;
+                                "
+                            >
+                                One note can log weight, water, meals, and peptide
+                                doses. Voice fills this box, then AI previews where
+                                each item will go.
+                            </div>
+                            <div
+                                style="
+                                    display: flex;
+                                    gap: 6px;
+                                    flex-wrap: wrap;
+                                    margin-top: 8px;
+                                "
+                            >
+                                <button
+                                    id="aiQuickCaptureAiBtn"
+                                    class="btn btn-primary"
+                                    onclick="previewAiQuickCaptureWithAi()"
+                                    style="font-size: 11px; padding: 6px 10px"
+                                    title="Uses the selected AI provider to route one note into weight, water, meal, and injection logs."
+                                >
+                                    Preview with AI
+                                </button>
+                                <button
+                                    id="aiQuickCaptureVoiceBtn"
+                                    class="btn btn-ghost"
+                                    onclick="startAiQuickCaptureVoice('aiQuickCaptureVoiceBtn')"
+                                    style="font-size: 11px; padding: 6px 10px"
+                                    title="Dictate one note, then auto-preview it with AI."
+                                >
+                                    Dictate to AI
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     <div
                         id="aiQuickUpdatePreview"
@@ -7942,7 +8019,7 @@
                                 margin-bottom: 4px;
                             "
                         >
-                            🎙️ Voice Log
+                            🎙️ AI Voice Capture
                         </div>
                         <div
                             style="
@@ -7951,15 +8028,17 @@
                                 margin-bottom: 8px;
                             "
                         >
-                            Say: "Log 285 pounds look tight slept 7 hours"
+                            Say one note like: "Weight 208.4, drank 24 oz water,
+                            ate chicken and rice, injected retatrutide 4 mg lower
+                            left abdomen."
                         </div>
                         <button
                             class="btn btn-primary"
-                            onclick="startVoiceLog()"
+                            onclick="startAiQuickCaptureVoice('voiceBtn')"
                             id="voiceBtn"
                             style="font-size: 11px; padding: 5px 10px"
                         >
-                            🎤 Listen
+                            🎤 Capture
                         </button>
                         <div
                             id="voiceResult"
@@ -9819,8 +9898,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.33.1";
+            const VERSION = "2.34.0";
             const VERSION_CHANGES = [
+                {
+                    version: "2.34.0",
+                    date: "2026-04-21",
+                    summary: "Add AI Quick Capture for voice and fast logging",
+                    details: [
+                        "Added a Quick Capture box that can route one note into weight, water, meal, and peptide dose logs with one AI preview.",
+                        "Upgraded Voice Log into AI Voice Capture so speech fills Quick Capture and auto-previews the routed entries.",
+                        "Kept the new capture flow preview-first so nothing is written until Apply is pressed.",
+                    ],
+                },
                 {
                     version: "2.33.1",
                     date: "2026-04-21",
@@ -13615,7 +13704,7 @@
                 siteRotatorCard: "Recommended injection sites by rest time.",
                 correlationCard: "Symptom patterns around compound timing.",
                 journalCard: "Protocol notes, diet changes, and milestones.",
-                powerToolsCard: "Notifications, reports, CSV import, and voice logging.",
+                powerToolsCard: "Notifications, reports, CSV import, and AI voice capture.",
                 labsCard: "Lab uploads, AI overview, trends, and flagged results.",
                 generalTabsCard: "Supplements, nutrition, check-in form, and history.",
                 changeTimelineCard: "Recent protocol changes before stalls or drops.",
@@ -18464,6 +18553,7 @@ Note: Educational research monitoring only. Do not change medications, doses, la
 
             const AI_STACK_UPDATE_SYSTEM = `You convert the user's own stack change request into strict JSON for a local health tracker. Do not recommend, invent, optimize, or change doses. Only extract additions, removals, pauses, or edits the user explicitly requested. If the user asks what they should do instead of stating a change, return no actions and put the clarification in questions. Return only JSON: {"actions":[{"action":"add|remove|pause|update","name":"compound name","matchName":"existing name if editing/removing","dose":"as stated or empty","timing":"as stated or empty","status":"active|weekly|planned|paused|held","start":"YYYY-MM-DD or empty","note":"short user-stated note or empty","confidence":0.0}],"questions":["..."]}.`;
             const AI_MEAL_MACRO_SYSTEM = `You estimate meal macros for a local health tracker. Return only JSON. Use common nutrition estimates when exact labels are not provided, include assumptions, and keep numbers realistic. Do not provide medical advice. JSON shape: {"date":"YYYY-MM-DD or empty","mealName":"short label","slot":"Meal 1|Meal 2|Meal 3|Meal 4|Meal 5 or empty","items":[{"name":"food","quantity":"amount","calories":0,"protein":0,"carbs":0,"fat":0}],"totals":{"calories":0,"protein":0,"carbs":0,"fat":0},"confidence":"low|medium|high","assumptions":["..."]}.`;
+            const AI_QUICK_CAPTURE_SYSTEM = `You convert one quick health-tracker note into strict JSON logs. Return only JSON. Extract only events the user explicitly says already happened or was consumed/administered. Do not recommend, infer protocol changes, or invent values beyond reasonable macro estimates for meals. Convert water to fluid ounces. Convert weight to pounds if the user gives kilograms. Use YYYY-MM-DD dates. If the user does not specify a date, assume today. If time is not stated, leave it empty. For injections, use the provided known compound keys and site keys when possible. JSON shape: {"weights":[{"date":"YYYY-MM-DD or empty","value":0,"note":"optional short note"}],"waters":[{"date":"YYYY-MM-DD or empty","time":"HH:MM or empty","oz":0,"note":"optional short note"}],"meals":[{"date":"YYYY-MM-DD or empty","mealName":"short label","slot":"Meal 1|Meal 2|Meal 3|Meal 4|Meal 5 or empty","items":[{"name":"food","quantity":"amount","calories":0,"protein":0,"carbs":0,"fat":0}],"totals":{"calories":0,"protein":0,"carbs":0,"fat":0},"confidence":"low|medium|high","assumptions":["..."]}],"injections":[{"date":"YYYY-MM-DD or empty","time":"HH:MM or empty","compound":"compound name as stated","compoundKey":"known key or empty","dose":"as stated or empty","site":"known site key or empty","notes":"short note","confidence":0.0}],"questions":["..."]}.`;
             const AI_STACK_UPDATE_SCHEMA = {
                 name: "ai_stack_update",
                 schema: {
@@ -18603,8 +18693,87 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                     ],
                 },
             };
+            const AI_QUICK_CAPTURE_SCHEMA = {
+                name: "ai_quick_capture",
+                schema: {
+                    type: "object",
+                    additionalProperties: false,
+                    properties: {
+                        weights: {
+                            type: "array",
+                            items: {
+                                type: "object",
+                                additionalProperties: false,
+                                properties: {
+                                    date: { type: "string" },
+                                    value: { type: "number" },
+                                    note: { type: "string" },
+                                },
+                                required: ["date", "value", "note"],
+                            },
+                        },
+                        waters: {
+                            type: "array",
+                            items: {
+                                type: "object",
+                                additionalProperties: false,
+                                properties: {
+                                    date: { type: "string" },
+                                    time: { type: "string" },
+                                    oz: { type: "number" },
+                                    note: { type: "string" },
+                                },
+                                required: ["date", "time", "oz", "note"],
+                            },
+                        },
+                        meals: {
+                            type: "array",
+                            items: AI_MEAL_MACRO_SCHEMA.schema,
+                        },
+                        injections: {
+                            type: "array",
+                            items: {
+                                type: "object",
+                                additionalProperties: false,
+                                properties: {
+                                    date: { type: "string" },
+                                    time: { type: "string" },
+                                    compound: { type: "string" },
+                                    compoundKey: { type: "string" },
+                                    dose: { type: "string" },
+                                    site: { type: "string" },
+                                    notes: { type: "string" },
+                                    confidence: { type: "number" },
+                                },
+                                required: [
+                                    "date",
+                                    "time",
+                                    "compound",
+                                    "compoundKey",
+                                    "dose",
+                                    "site",
+                                    "notes",
+                                    "confidence",
+                                ],
+                            },
+                        },
+                        questions: {
+                            type: "array",
+                            items: { type: "string" },
+                        },
+                    },
+                    required: [
+                        "weights",
+                        "waters",
+                        "meals",
+                        "injections",
+                        "questions",
+                    ],
+                },
+            };
             let pendingAiStackUpdate = null;
             let pendingAiMealUpdate = null;
+            let pendingAiQuickCaptureUpdate = null;
 
             function _setAiQuickUpdatePreview(html) {
                 const el = document.getElementById("aiQuickUpdatePreview");
@@ -18616,6 +18785,7 @@ Note: Educational research monitoring only. Do not change medications, doses, la
             function clearAiQuickUpdatePreview() {
                 pendingAiStackUpdate = null;
                 pendingAiMealUpdate = null;
+                pendingAiQuickCaptureUpdate = null;
                 const el = document.getElementById("aiQuickUpdatePreview");
                 if (!el) return;
                 el.style.display = "none";
@@ -19685,6 +19855,7 @@ Return JSON only. Use "add" only when the user names a new item. Use "remove" on
                 }
                 pendingAiStackUpdate = null;
                 pendingAiMealUpdate = null;
+                pendingAiQuickCaptureUpdate = null;
                 _showNoTokenStackPreview(text);
             }
 
@@ -19697,6 +19868,7 @@ Return JSON only. Use "add" only when the user names a new item. Use "remove" on
                 }
                 pendingAiStackUpdate = null;
                 pendingAiMealUpdate = null;
+                pendingAiQuickCaptureUpdate = null;
                 _setAiButtonBusy(
                     "aiStackUpdateAiBtn",
                     true,
@@ -19875,6 +20047,285 @@ Return JSON only. Use "add" only when the user names a new item. Use "remove" on
                 };
             }
 
+            function _normalizeClockTime(value) {
+                const s = String(value || "").trim();
+                if (!s) return "";
+                const m = s.match(/^(\d{1,2}):(\d{2})$/);
+                if (!m) return "";
+                const hh = Number(m[1]);
+                const mm = Number(m[2]);
+                if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return "";
+                return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+            }
+
+            function _normQuickCaptureToken(value) {
+                return String(value || "")
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, "");
+            }
+
+            function _mergeShortNotes(a, b) {
+                const left = _aiCleanText(a, 220);
+                const right = _aiCleanText(b, 220);
+                if (!left) return right;
+                if (!right || left === right) return left;
+                if (left.includes(right)) return left;
+                if (right.includes(left)) return right;
+                return `${left}; ${right}`.slice(0, 220);
+            }
+
+            function _quickCaptureKnownCompounds() {
+                return (INJ_COMPOUNDS || [])
+                    .map((c) => `${c.key} = ${c.name}`)
+                    .join(", ");
+            }
+
+            function _quickCaptureKnownSites() {
+                return (INJ_SITES || [])
+                    .map((s) => `${s.key} = ${s.label}`)
+                    .join(", ");
+            }
+
+            function _buildAiQuickCapturePrompt(userText) {
+                return `Today: ${todayKey()}
+Known injection compounds: ${_quickCaptureKnownCompounds()}
+Known injection sites: ${_quickCaptureKnownSites()}
+Meal slots: ${MEAL_SLOTS.join(", ")}
+
+User quick log note:
+${userText}
+
+Return JSON only. Use today's date above for relative words like today, tonight, this morning, or after lunch.`;
+            }
+
+            function _normalizeQuickCaptureWeights(rawWeights) {
+                return (Array.isArray(rawWeights) ? rawWeights : [])
+                    .map((item) => ({
+                        date: _validIsoDate(item?.date) || todayKey(),
+                        value: _aiClampNumber(item?.value, 1000, 1),
+                        note: _aiCleanText(item?.note, 180),
+                    }))
+                    .filter((item) => item.value > 0)
+                    .slice(0, 4);
+            }
+
+            function _normalizeQuickCaptureWaters(rawWaters) {
+                return (Array.isArray(rawWaters) ? rawWaters : [])
+                    .map((item) => ({
+                        date: _validIsoDate(item?.date) || todayKey(),
+                        time: _normalizeClockTime(item?.time),
+                        oz: _aiClampNumber(item?.oz, 512, 1),
+                        note: _aiCleanText(item?.note, 120),
+                    }))
+                    .filter((item) => item.oz > 0)
+                    .slice(0, 12);
+            }
+
+            function _matchInjectionCompoundKey(rawKey, rawName) {
+                const keyNorm = _normQuickCaptureToken(rawKey);
+                const nameNorm = _normQuickCaptureToken(rawName);
+                const aliases = {
+                    reta: "retatrutide",
+                    reta4: "retatrutide",
+                    retatrutide: "retatrutide",
+                    caber: "cabergoline",
+                    cabergoline: "cabergoline",
+                    hcg: "hcg",
+                };
+                if (aliases[keyNorm]) return aliases[keyNorm];
+                if (aliases[nameNorm]) return aliases[nameNorm];
+                const compounds = INJ_COMPOUNDS || [];
+                const direct =
+                    compounds.find(
+                        (c) =>
+                            _normQuickCaptureToken(c.key) === keyNorm ||
+                            _normQuickCaptureToken(c.name) === keyNorm,
+                    ) ||
+                    compounds.find(
+                        (c) =>
+                            _normQuickCaptureToken(c.key) === nameNorm ||
+                            _normQuickCaptureToken(c.name) === nameNorm,
+                    );
+                if (direct) return direct.key;
+                const fuzzy =
+                    compounds.find((c) =>
+                        nameNorm.includes(_normQuickCaptureToken(c.name)),
+                    ) ||
+                    compounds.find((c) =>
+                        keyNorm.includes(_normQuickCaptureToken(c.key)),
+                    );
+                return fuzzy ? fuzzy.key : "";
+            }
+
+            function _matchInjectionSiteKey(rawSite) {
+                const siteNorm = _normQuickCaptureToken(rawSite);
+                if (!siteNorm) return "";
+                const aliases = {
+                    upperlabd: "abd_ul",
+                    upperleftabd: "abd_ul",
+                    leftupperabdomen: "abd_ul",
+                    upperrabd: "abd_ur",
+                    upperrightabd: "abd_ur",
+                    rightupperabdomen: "abd_ur",
+                    lowerlabd: "abd_ll",
+                    lowerleftabd: "abd_ll",
+                    leftlowerabdomen: "abd_ll",
+                    lowerrabd: "abd_lr",
+                    lowerrightabd: "abd_lr",
+                    rightlowerabdomen: "abd_lr",
+                    lthigh: "thigh_l",
+                    leftthigh: "thigh_l",
+                    rthigh: "thigh_r",
+                    rightthigh: "thigh_r",
+                    ldeltoid: "delt_l",
+                    leftdeltoid: "delt_l",
+                    rdeltoid: "delt_r",
+                    rightdeltoid: "delt_r",
+                    lglute: "glute_l",
+                    leftglute: "glute_l",
+                    rglute: "glute_r",
+                    rightglute: "glute_r",
+                };
+                if (aliases[siteNorm]) return aliases[siteNorm];
+                const site =
+                    (INJ_SITES || []).find(
+                        (s) =>
+                            _normQuickCaptureToken(s.key) === siteNorm ||
+                            _normQuickCaptureToken(s.label) === siteNorm,
+                    ) ||
+                    (INJ_SITES || []).find((s) =>
+                        siteNorm.includes(_normQuickCaptureToken(s.label)),
+                    );
+                return site ? site.key : "";
+            }
+
+            function _normalizeQuickCaptureInjections(rawInjections) {
+                return (Array.isArray(rawInjections) ? rawInjections : [])
+                    .map((item) => ({
+                        date: _validIsoDate(item?.date) || todayKey(),
+                        time: _normalizeClockTime(item?.time),
+                        compound: _aiCleanText(item?.compound, 80),
+                        compoundKey: _matchInjectionCompoundKey(
+                            item?.compoundKey,
+                            item?.compound,
+                        ),
+                        dose: _aiCleanText(item?.dose, 64),
+                        site: _matchInjectionSiteKey(item?.site),
+                        notes: _aiCleanText(item?.notes, 180),
+                        confidence: Math.max(
+                            0,
+                            Math.min(1, Number(item?.confidence) || 0),
+                        ),
+                    }))
+                    .filter((item) => item.compoundKey && item.dose)
+                    .slice(0, 8);
+            }
+
+            function _normalizeAiQuickCapture(parsed) {
+                const root = parsed || {};
+                const meals = (Array.isArray(root.meals) ? root.meals : [])
+                    .map((meal) => _normalizeMealEstimate(meal))
+                    .filter(
+                        (meal) =>
+                            meal.totals.calories ||
+                            meal.totals.protein ||
+                            meal.totals.carbs ||
+                            meal.totals.fat ||
+                            meal.items.length,
+                    )
+                    .slice(0, 8);
+                return {
+                    weights: _normalizeQuickCaptureWeights(root.weights),
+                    waters: _normalizeQuickCaptureWaters(root.waters),
+                    meals,
+                    injections: _normalizeQuickCaptureInjections(
+                        root.injections,
+                    ),
+                    questions: Array.isArray(root.questions)
+                        ? root.questions
+                              .map((q) => _aiCleanText(q, 180))
+                              .filter(Boolean)
+                              .slice(0, 6)
+                        : [],
+                };
+            }
+
+            function _renderAiQuickCapturePreview(record) {
+                const capture = record?.capture || record || {};
+                const sections = [];
+                if ((capture.weights || []).length) {
+                    sections.push(`
+      <div style="margin-bottom:10px;">
+        <div style="font-weight:800;color:var(--text);margin-bottom:4px;">Weight</div>
+        ${capture.weights
+            .map(
+                (item) =>
+                    `<div style="font-size:11px;color:var(--muted);margin:4px 0;">${escapeHtml(item.date)} - ${item.value} lb${item.note ? ` - ${escapeHtml(item.note)}` : ""}</div>`,
+            )
+            .join("")}
+      </div>`);
+                }
+                if ((capture.waters || []).length) {
+                    sections.push(`
+      <div style="margin-bottom:10px;">
+        <div style="font-weight:800;color:var(--text);margin-bottom:4px;">Water</div>
+        ${capture.waters
+            .map(
+                (item) =>
+                    `<div style="font-size:11px;color:var(--muted);margin:4px 0;">${escapeHtml(item.date)}${item.time ? ` ${escapeHtml(item.time)}` : ""} - ${item.oz} oz${item.note ? ` - ${escapeHtml(item.note)}` : ""}</div>`,
+            )
+            .join("")}
+      </div>`);
+                }
+                if ((capture.meals || []).length) {
+                    sections.push(`
+      <div style="margin-bottom:10px;">
+        <div style="font-weight:800;color:var(--text);margin-bottom:4px;">Meals</div>
+        ${capture.meals
+            .map((meal) => {
+                const slot = _plannedMealSlot(meal);
+                return `<div style="border:1px solid var(--border);border-radius:8px;padding:8px;margin:6px 0;background:var(--surface);">
+          <div style="font-weight:700;color:var(--text);">${escapeHtml(meal.mealName)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px;">${escapeHtml(meal.date)} / ${escapeHtml(slot)} - ${Math.round(meal.totals.calories)} kcal, ${meal.totals.protein}P / ${meal.totals.carbs}C / ${meal.totals.fat}F</div>
+        </div>`;
+            })
+            .join("")}
+      </div>`);
+                }
+                if ((capture.injections || []).length) {
+                    sections.push(`
+      <div style="margin-bottom:10px;">
+        <div style="font-weight:800;color:var(--text);margin-bottom:4px;">Peptide doses</div>
+        ${capture.injections
+            .map((item) => {
+                const compound =
+                    (INJ_COMPOUNDS || []).find(
+                        (c) => c.key === item.compoundKey,
+                    )?.name || item.compound || item.compoundKey;
+                const site =
+                    (INJ_SITES || []).find((s) => s.key === item.site)?.label ||
+                    "auto site";
+                return `<div style="font-size:11px;color:var(--muted);margin:4px 0;">${escapeHtml(item.date)}${item.time ? ` ${escapeHtml(item.time)}` : ""} - ${escapeHtml(compound)} ${escapeHtml(item.dose)} - ${escapeHtml(site)}${item.notes ? ` - ${escapeHtml(item.notes)}` : ""}</div>`;
+            })
+            .join("")}
+      </div>`);
+                }
+                const questions = (capture.questions || []).length
+                    ? `<div style="font-size:11px;color:var(--yellow);margin:8px 0;">Questions: ${escapeHtml(capture.questions.join(" | "))}</div>`
+                    : "";
+                _setAiQuickUpdatePreview(`
+      <div style="font-weight:800;color:var(--text);margin-bottom:4px;">Quick capture preview</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">${escapeHtml(record.providerLabel)} routed this note into your trackers. Review before applying.</div>
+      ${sections.join("") || `<div style="font-size:11px;color:var(--muted);margin:8px 0;">No loggable items were recognized.</div>`}
+      ${questions}
+      <div style="font-size:11px;color:var(--muted);margin:8px 0;">Apply writes into the same weight, water, meal, and injection logs the rest of the app already uses.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="applyAiQuickCapture()" style="font-size:11px;padding:6px 10px;" ${sections.length ? "" : "disabled"}>Apply captured logs</button>
+        <button class="btn btn-ghost" onclick="clearAiQuickUpdatePreview()" style="font-size:11px;padding:6px 10px;">Cancel</button>
+      </div>
+    `);
+            }
+
             function _mealSlotHasMacros(row) {
                 if (!row) return false;
                 return !!(
@@ -19959,6 +20410,7 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                 }
                 pendingAiMealUpdate = null;
                 pendingAiStackUpdate = null;
+                pendingAiQuickCaptureUpdate = null;
                 _showNoTokenMealPreview(text);
             }
 
@@ -19971,6 +20423,7 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                 }
                 pendingAiMealUpdate = null;
                 pendingAiStackUpdate = null;
+                pendingAiQuickCaptureUpdate = null;
                 _setAiButtonBusy("aiMealAiBtn", true, "Using AI...");
                 _aiUpdateLoading("Using AI to estimate meal macros...");
                 try {
@@ -19999,10 +20452,7 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                 }
             }
 
-            function applyAiMealMacros() {
-                const record = pendingAiMealUpdate;
-                if (!record || !record.meal) return;
-                const meal = record.meal;
+            function _applyMealLogEntry(meal) {
                 const data = loadMealLog(meal.date);
                 const slot = _plannedMealSlot(meal);
                 const existing = data[slot] || {};
@@ -20012,9 +20462,21 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                 const existingLabel = _aiCleanText(existing.label, 140);
                 data[slot] = {
                     ...existing,
-                    p: _aiClampNumber(Number(existing.p || 0) + meal.totals.protein, 500, 1),
-                    c: _aiClampNumber(Number(existing.c || 0) + meal.totals.carbs, 600, 1),
-                    f: _aiClampNumber(Number(existing.f || 0) + meal.totals.fat, 400, 1),
+                    p: _aiClampNumber(
+                        Number(existing.p || 0) + meal.totals.protein,
+                        500,
+                        1,
+                    ),
+                    c: _aiClampNumber(
+                        Number(existing.c || 0) + meal.totals.carbs,
+                        600,
+                        1,
+                    ),
+                    f: _aiClampNumber(
+                        Number(existing.f || 0) + meal.totals.fat,
+                        400,
+                        1,
+                    ),
                     kcal: _aiClampNumber(
                         Number(existing.kcal || 0) + meal.totals.calories,
                         8000,
@@ -20028,8 +20490,8 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                 };
                 saveMealLog(meal.date, data);
 
-                // Review note: meal estimates update the same daily compliance
-                // record used by the dashboard and coach briefing.
+                // Review note: any AI-routed meal still updates the same
+                // compliance record used by Daily Progress and coach summaries.
                 const comp = loadComplianceForDate(meal.date);
                 comp.protein = _aiClampNumber(
                     Number(comp.protein || 0) + meal.totals.protein,
@@ -20041,6 +20503,79 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                     8000,
                 );
                 saveComplianceForDate(meal.date, comp);
+                return slot;
+            }
+
+            function _setEntryWeight(date, value, note = "") {
+                const entries = getEntries();
+                let entry = entries.find((item) => item.date === date);
+                if (!entry) {
+                    entry = { date };
+                    entries.push(entry);
+                }
+                entry.weight = value;
+                if (note) entry.notes = _mergeShortNotes(entry.notes, note);
+                entries.sort((a, b) => a.date.localeCompare(b.date));
+                saveEntries(entries);
+            }
+
+            function _addWaterForDate(date, oz, time = "", note = "") {
+                const water = loadWater();
+                const dateKey = _validIsoDate(date) || todayKey();
+                const timeKey =
+                    _normalizeClockTime(time) ||
+                    (dateKey === todayKey() ? _injTimeKey(new Date()) : "12:00");
+                if (!water[dateKey]) water[dateKey] = [];
+                water[dateKey].push({
+                    t: timeKey,
+                    oz: +oz,
+                    note: note || "",
+                });
+                saveWater(water);
+                if (dateKey === todayKey()) {
+                    const s = loadWaterSettings();
+                    saveWaterSettings({ ...s, lastDrinkTs: Date.now() });
+                }
+            }
+
+            function _applyQuickCaptureInjection(item) {
+                const log = loadInjLog();
+                const dateKey = _validIsoDate(item.date) || todayKey();
+                const timeKey =
+                    _normalizeClockTime(item.time) ||
+                    (dateKey === todayKey() ? _injTimeKey(new Date()) : "12:00");
+                const siteKey = item.site || recommendNextSite();
+                if (!log[dateKey]) log[dateKey] = {};
+                const existed = !!log[dateKey][item.compoundKey];
+                log[dateKey][item.compoundKey] = {
+                    done: true,
+                    site: siteKey,
+                    dose: item.dose,
+                    time: timeKey,
+                    ts: _injTimestamp(dateKey, timeKey),
+                    notes: item.notes || "",
+                    updatedAt: Date.now(),
+                };
+                saveInjLog(log);
+
+                // Review note: new quick-capture injections should decrement
+                // inventory once when they create a previously-unlogged dose.
+                if (
+                    !existed &&
+                    typeof inventoryDecrementOnInjection === "function"
+                ) {
+                    try {
+                        inventoryDecrementOnInjection(item.compoundKey);
+                    } catch {}
+                }
+                return siteKey;
+            }
+
+            function applyAiMealMacros() {
+                const record = pendingAiMealUpdate;
+                if (!record || !record.meal) return;
+                const meal = record.meal;
+                const slot = _applyMealLogEntry(meal);
 
                 pendingAiMealUpdate = null;
                 const input = document.getElementById("aiMealInput");
@@ -20051,6 +20586,109 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
       <div style="color:var(--muted);">${escapeHtml(meal.mealName)} added to ${escapeHtml(meal.date)} / ${escapeHtml(slot)}. Daily Progress increased by ${meal.totals.protein}g protein and ${Math.round(meal.totals.calories)} kcal.</div>
     `);
                 showToast("Meal macros added to Daily Progress", 2500);
+            }
+
+            async function previewAiQuickCaptureWithAi() {
+                const input = document.getElementById("aiQuickCaptureInput");
+                const text = (input?.value || "").trim();
+                if (!text) {
+                    showToast("Describe the quick log first", 2500);
+                    return;
+                }
+                pendingAiQuickCaptureUpdate = null;
+                pendingAiMealUpdate = null;
+                pendingAiStackUpdate = null;
+                _setAiButtonBusy(
+                    "aiQuickCaptureAiBtn",
+                    true,
+                    "Routing...",
+                );
+                _aiUpdateLoading("Using AI to route quick capture...");
+                try {
+                    const result = await _coachJsonRequest({
+                        system: AI_QUICK_CAPTURE_SYSTEM,
+                        prompt: _buildAiQuickCapturePrompt(text),
+                        maxTokens: 2200,
+                        jsonSchema: AI_QUICK_CAPTURE_SCHEMA,
+                    });
+                    pendingAiQuickCaptureUpdate = {
+                        input: text,
+                        capture: _normalizeAiQuickCapture(result.json),
+                        providerLabel: result.providerLabel,
+                        model: result.model,
+                    };
+                    _renderAiQuickCapturePreview(pendingAiQuickCaptureUpdate);
+                } catch (e) {
+                    _aiUpdateError(
+                        e.message || String(e),
+                        e.debugText ||
+                            localStorage.getItem("tp_ai_quick_update_debug") ||
+                            "",
+                    );
+                } finally {
+                    _setAiButtonBusy("aiQuickCaptureAiBtn", false);
+                }
+            }
+
+            function applyAiQuickCapture() {
+                const record = pendingAiQuickCaptureUpdate;
+                if (!record || !record.capture) return;
+                const capture = record.capture;
+                const applied = [];
+                const skipped = [];
+
+                capture.weights.forEach((item) => {
+                    _setEntryWeight(item.date, item.value, item.note);
+                    applied.push(`Weight ${item.value} lb on ${item.date}`);
+                });
+
+                capture.waters.forEach((item) => {
+                    _addWaterForDate(item.date, item.oz, item.time, item.note);
+                    applied.push(
+                        `Water ${item.oz} oz on ${item.date}${item.time ? " " + item.time : ""}`,
+                    );
+                });
+
+                capture.meals.forEach((meal) => {
+                    const slot = _applyMealLogEntry(meal);
+                    applied.push(`${meal.mealName} to ${meal.date} / ${slot}`);
+                });
+
+                capture.injections.forEach((item) => {
+                    if (!item.compoundKey) {
+                        skipped.push(
+                            `No injection match for ${item.compound || "dose"}`,
+                        );
+                        return;
+                    }
+                    const siteKey = _applyQuickCaptureInjection(item);
+                    const compound =
+                        (INJ_COMPOUNDS || []).find(
+                            (c) => c.key === item.compoundKey,
+                        )?.name || item.compoundKey;
+                    const siteLabel =
+                        (INJ_SITES || []).find((s) => s.key === siteKey)
+                            ?.label || siteKey;
+                    applied.push(
+                        `${compound} ${item.dose} on ${item.date}${item.time ? " " + item.time : ""} (${siteLabel})`,
+                    );
+                });
+
+                pendingAiQuickCaptureUpdate = null;
+                const input = document.getElementById("aiQuickCaptureInput");
+                if (input) input.value = "";
+                render();
+                _setAiQuickUpdatePreview(`
+      <div style="font-weight:800;color:var(--green);margin-bottom:5px;">Quick capture applied</div>
+      <div style="color:var(--muted);">${escapeHtml(applied.join(" | ") || "No changes applied.")}</div>
+      ${skipped.length ? `<div style="color:#ef4444;margin-top:6px;">Skipped: ${escapeHtml(skipped.join(" | "))}</div>` : ""}
+    `);
+                showToast(
+                    applied.length
+                        ? `Quick capture applied (${applied.length})`
+                        : "No logs applied",
+                    2500,
+                );
             }
 
             function openCoachSettings() {
@@ -36561,8 +37199,26 @@ ${parts.join("\n")}
                 event.target.value = "";
             }
 
-            // 12d. Voice Log (Web Speech API)
-            function startVoiceLog() {
+            // 12d. AI Voice Capture (Web Speech API -> AI Quick Capture)
+            function fillAiQuickCaptureInput(text, opts = {}) {
+                const input = document.getElementById("aiQuickCaptureInput");
+                const out = document.getElementById("voiceResult");
+                if (input) input.value = String(text || "").trim();
+                if (out)
+                    out.textContent = text
+                        ? `"${String(text).trim()}"`
+                        : "No transcript captured";
+                const panel = document.getElementById("aiQuickUpdatePanel");
+                if (panel && typeof panel.scrollIntoView === "function") {
+                    panel.scrollIntoView({
+                        behavior: "smooth",
+                        block: "center",
+                    });
+                }
+                if (opts.autoPreview) previewAiQuickCaptureWithAi();
+            }
+
+            function startAiQuickCaptureVoice(buttonId = "voiceBtn") {
                 const R =
                     window.SpeechRecognition || window.webkitSpeechRecognition;
                 if (!R) {
@@ -36573,70 +37229,41 @@ ${parts.join("\n")}
                 rec.lang = "en-US";
                 rec.interimResults = false;
                 const out = document.getElementById("voiceResult");
-                const btn = document.getElementById("voiceBtn");
-                btn.textContent = "🎤 Listening...";
+                const btn = buttonId
+                    ? document.getElementById(buttonId)
+                    : document.getElementById("voiceBtn");
+                if (btn) {
+                    btn.dataset.idleText = btn.dataset.idleText || btn.textContent;
+                    btn.textContent = "🎤 Listening...";
+                    btn.disabled = true;
+                }
+                if (out) {
+                    out.textContent =
+                        "Listening… when you stop talking, AI will preview the logs.";
+                }
                 rec.onresult = (ev) => {
-                    const text = ev.results[0][0].transcript;
-                    out.textContent = '"' + text + '"';
-                    parseVoiceCommand(text);
+                    const text = ev.results?.[0]?.[0]?.transcript || "";
+                    fillAiQuickCaptureInput(text, { autoPreview: true });
                 };
                 rec.onerror = () => {
-                    out.textContent = "Error — try again";
-                    btn.textContent = "🎤 Listen";
+                    if (out) out.textContent = "Voice capture failed — try again";
                 };
                 rec.onend = () => {
-                    btn.textContent = "🎤 Listen";
+                    if (btn) {
+                        btn.textContent =
+                            btn.dataset.idleText || "🎤 Capture";
+                        btn.disabled = false;
+                    }
                 };
                 rec.start();
             }
-            function parseVoiceCommand(text) {
-                const t = text.toLowerCase();
-                // Weight: "log 285 pounds" or "weight 285"
-                const wM = t.match(/(\d{2,3}(?:\.\d)?)\s*(?:pounds?|lbs?|lb)/);
-                const weight = wM ? parseFloat(wM[1]) : null;
-                // Look
-                let look = null;
-                if (/\bflat\b/.test(t)) look = "flat";
-                else if (/\bfull\b/.test(t)) look = "full";
-                else if (/\btight\b/.test(t)) look = "tight";
-                else if (/\bsoft\b/.test(t)) look = "soft";
-                // Sleep
-                const sM = t.match(/(\d{1,2}(?:\.\d)?)\s*(?:hours?|hrs?|hour)/);
-                const sleep = sM ? parseFloat(sM[1]) : null;
-                // Protein
-                const pM = t.match(/(\d{2,3})\s*(?:grams?|g)\s*(?:protein)?/);
-                const protein = pM ? parseInt(pM[1]) : null;
 
-                if (!weight && !look && !sleep && !protein) {
-                    showToast("No values parsed");
-                    return;
-                }
-                const entries = loadEntries();
-                let e = entries.find((x) => x.date === todayKey());
-                if (!e) {
-                    e = { date: todayKey() };
-                    entries.push(e);
-                }
-                if (weight) e.weight = weight;
-                if (look) e.look = look;
-                if (protein) e.protein = protein;
-                saveEntries(entries);
-                if (sleep) {
-                    const key = "tp_compliance_" + todayKey();
-                    let data = {};
-                    try {
-                        data = JSON.parse(localStorage.getItem(key) || "{}");
-                    } catch {}
-                    data.sleep_hours = sleep;
-                    localStorage.setItem(key, JSON.stringify(data));
-                }
-                const parts = [];
-                if (weight) parts.push(weight + "lb");
-                if (look) parts.push(look);
-                if (protein) parts.push(protein + "g P");
-                if (sleep) parts.push(sleep + "h sleep");
-                showToast("✓ Logged: " + parts.join(", "));
-                render();
+            function startVoiceLog() {
+                startAiQuickCaptureVoice("voiceBtn");
+            }
+
+            function parseVoiceCommand(text) {
+                fillAiQuickCaptureInput(text, { autoPreview: true });
             }
 
             // 12e. Stim (caffeine/alcohol)
