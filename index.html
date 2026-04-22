@@ -10041,8 +10041,17 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.35.0";
+            const VERSION = "2.35.1";
             const VERSION_CHANGES = [
+                {
+                    version: "2.35.1",
+                    date: "2026-04-22",
+                    summary: "Repair icon and punctuation mojibake",
+                    details: [
+                        "Added a runtime text-repair layer to recover icon glyphs, emoji, bullets, and punctuation that were mangled by a Windows encoding pass.",
+                        "The repair now watches dynamic UI updates too, so newly rendered cards and modals keep the corrected icons instead of regressing.",
+                    ],
+                },
                 {
                     version: "2.35.0",
                     date: "2026-04-21",
@@ -11721,6 +11730,147 @@
             if (typeof window !== "undefined") {
                 window.buildProtocolOsState = buildProtocolOsState;
                 window.selectWorkflowSummary = selectWorkflowSummary;
+            }
+
+            const _MOJIBAKE_ATTRS = [
+                "placeholder",
+                "title",
+                "aria-label",
+                "alt",
+                "value",
+            ];
+            const _CP1252_BYTE_MAP = {
+                "€": 0x80,
+                "‚": 0x82,
+                "ƒ": 0x83,
+                "„": 0x84,
+                "…": 0x85,
+                "†": 0x86,
+                "‡": 0x87,
+                "ˆ": 0x88,
+                "‰": 0x89,
+                "Š": 0x8a,
+                "‹": 0x8b,
+                "Œ": 0x8c,
+                "Ž": 0x8e,
+                "‘": 0x91,
+                "’": 0x92,
+                "“": 0x93,
+                "”": 0x94,
+                "•": 0x95,
+                "–": 0x96,
+                "—": 0x97,
+                "˜": 0x98,
+                "™": 0x99,
+                "š": 0x9a,
+                "›": 0x9b,
+                "œ": 0x9c,
+                "ž": 0x9e,
+                "Ÿ": 0x9f,
+            };
+            let _mojibakeObserver = null;
+            function _looksLikeMojibake(text) {
+                return (
+                    typeof text === "string" &&
+                    /(?:Ã.|Â.|â.|ðŸ|ï¸)/.test(text)
+                );
+            }
+            function _cp1252ByteForChar(ch) {
+                const code = ch.charCodeAt(0);
+                if (code <= 255) return code;
+                if (Object.prototype.hasOwnProperty.call(_CP1252_BYTE_MAP, ch)) {
+                    return _CP1252_BYTE_MAP[ch];
+                }
+                return null;
+            }
+            function _decodeMojibakeText(text) {
+                if (
+                    !_looksLikeMojibake(text) ||
+                    typeof TextDecoder === "undefined"
+                )
+                    return text;
+                let current = text;
+                for (let i = 0; i < 3; i++) {
+                    if (!_looksLikeMojibake(current)) break;
+                    const bytes = [];
+                    let valid = true;
+                    for (const ch of Array.from(current)) {
+                        const byte = _cp1252ByteForChar(ch);
+                        if (byte == null) {
+                            valid = false;
+                            break;
+                        }
+                        bytes.push(byte);
+                    }
+                    if (!valid) break;
+                    const next = new TextDecoder("utf-8").decode(
+                        new Uint8Array(bytes),
+                    );
+                    if (!next || next === current) break;
+                    current = next;
+                }
+                return current;
+            }
+            function _repairMojibakeNode(node) {
+                if (!node) return;
+                if (node.nodeType === Node.TEXT_NODE) {
+                    const next = _decodeMojibakeText(node.nodeValue || "");
+                    if (next !== node.nodeValue) node.nodeValue = next;
+                    return;
+                }
+                if (node.nodeType !== Node.ELEMENT_NODE) return;
+                const tag = node.tagName;
+                if (tag === "SCRIPT") return;
+                if (tag === "STYLE") {
+                    const next = _decodeMojibakeText(node.textContent || "");
+                    if (next !== node.textContent) node.textContent = next;
+                    return;
+                }
+                _MOJIBAKE_ATTRS.forEach((attr) => {
+                    if (!node.hasAttribute(attr)) return;
+                    const before = node.getAttribute(attr) || "";
+                    const next = _decodeMojibakeText(before);
+                    if (next === before) return;
+                    node.setAttribute(attr, next);
+                    if (attr === "value" && "value" in node) node.value = next;
+                });
+                Array.from(node.childNodes || []).forEach(_repairMojibakeNode);
+            }
+            function initMojibakeRepair() {
+                // Review note: a previous Windows encoding pass mangled many icon glyphs
+                // and punctuation literals in the static HTML. Repairing suspicious UTF-8
+                // mojibake at runtime restores the UI without hand-editing hundreds of
+                // strings, and the observer keeps dynamically rendered sections clean too.
+                _repairMojibakeNode(document.head);
+                _repairMojibakeNode(document.body);
+                if (_mojibakeObserver) return;
+                let busy = false;
+                _mojibakeObserver = new MutationObserver((mutations) => {
+                    if (busy) return;
+                    busy = true;
+                    try {
+                        mutations.forEach((mutation) => {
+                            if (mutation.type === "characterData") {
+                                _repairMojibakeNode(mutation.target);
+                                return;
+                            }
+                            if (mutation.type === "attributes") {
+                                _repairMojibakeNode(mutation.target);
+                                return;
+                            }
+                            mutation.addedNodes.forEach(_repairMojibakeNode);
+                        });
+                    } finally {
+                        busy = false;
+                    }
+                });
+                _mojibakeObserver.observe(document.documentElement, {
+                    subtree: true,
+                    childList: true,
+                    characterData: true,
+                    attributes: true,
+                    attributeFilter: _MOJIBAKE_ATTRS,
+                });
             }
 
             // =========================================================
@@ -38529,6 +38679,7 @@ ${parts.join("\n")}
             // INIT
             // =========================================================
             registerServiceWorker(); // register ./sw.js (https:// or localhost only)
+            initMojibakeRepair();
             render(); // calls renderShoppingList, renderPeakWeek, renderInjectionTracker, renderSuppChecklist, renderMeasurements internally
             restoreBackupHandle(); // restore connected auto-backup file from IndexedDB if present
             renderFitbitStatus();
