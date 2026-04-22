@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.35.0" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.35.4" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -4417,13 +4417,43 @@
             .fab:active {
                 transform: scale(0.92);
             }
+            .voice-fab {
+                display: none;
+                position: fixed;
+                right: 16px;
+                bottom: 146px;
+                min-width: 86px;
+                height: 42px;
+                border-radius: 8px;
+                background: var(--surface2);
+                color: var(--accent);
+                border: 1px solid rgba(0, 212, 255, 0.28);
+                box-shadow:
+                    0 8px 20px rgba(0, 0, 0, 0.45),
+                    0 0 0 2px rgba(0, 212, 255, 0.08);
+                font-size: 12px;
+                font-weight: 800;
+                cursor: pointer;
+                z-index: 90;
+                align-items: center;
+                justify-content: center;
+                padding: 0 12px;
+                line-height: 1;
+                transition: transform 0.15s ease;
+            }
+            .voice-fab:active {
+                transform: scale(0.96);
+            }
             @media (max-width: 560px) {
                 .fab {
                     display: flex;
                 }
+                .voice-fab {
+                    display: flex;
+                }
                 .scroll-top-fab {
                     right: 16px;
-                    bottom: 146px;
+                    bottom: 204px;
                 }
             }
 
@@ -4820,6 +4850,18 @@
                     title="Log water intake"
                 >
                     ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ Water
+                </button>
+                <button
+                    id="topbarAiVoiceBtn"
+                    class="btn btn-ghost"
+                    onclick="startAiQuickCaptureVoiceFromQuickAccess('topbarAiVoiceBtn')"
+                    title="Speak one note and let AI route it into the right logs"
+                    style="
+                        border-color: rgba(0, 212, 255, 0.28);
+                        color: var(--accent);
+                    "
+                >
+                    AI Voice
                 </button>
                 <button class="btn btn-primary" onclick="openCheckin()">
                     + Weekly Check-In
@@ -6629,7 +6671,8 @@
                             >
                                 One note can log weight, water, meals, and peptide
                                 doses. Voice fills this box, then AI previews where
-                                each item will go.
+                                each item will go. You can also start from AI Voice
+                                in the top bar or the phone quick button.
                             </div>
                             <div
                                 style="
@@ -6651,7 +6694,7 @@
                                 <button
                                     id="aiQuickCaptureVoiceBtn"
                                     class="btn btn-ghost"
-                                    onclick="startAiQuickCaptureVoice('aiQuickCaptureVoiceBtn')"
+                                    onclick="startAiQuickCaptureVoiceFromQuickAccess('aiQuickCaptureVoiceBtn')"
                                     style="font-size: 11px; padding: 6px 10px"
                                     title="Dictate one note, then auto-preview it with AI."
                                 >
@@ -8147,7 +8190,7 @@
                         </div>
                         <button
                             class="btn btn-primary"
-                            onclick="startAiQuickCaptureVoice('voiceBtn')"
+                            onclick="startAiQuickCaptureVoiceFromQuickAccess('voiceBtn')"
                             id="voiceBtn"
                             style="font-size: 11px; padding: 5px 10px"
                         >
@@ -9278,6 +9321,18 @@
             <span class="scroll-top-label">Top</span>
         </button>
 
+        <!-- Review note: the quick voice button reuses AI Quick Capture so
+             dictated notes and typed notes stay on one preview/apply path. -->
+        <button
+            id="voiceQuickFab"
+            class="voice-fab"
+            onclick="startAiQuickCaptureVoiceFromQuickAccess('voiceQuickFab')"
+            aria-label="Speak to log with AI"
+            title="Speak to log with AI"
+        >
+            AI Voice
+        </button>
+
         <!-- FLOATING ACTION BUTTON (phone only) -->
         <button
             class="fab"
@@ -10041,8 +10096,17 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.35.3";
+            const VERSION = "2.35.4";
             const VERSION_CHANGES = [
+                {
+                    version: "2.35.4",
+                    date: "2026-04-22",
+                    summary: "Pull AI voice capture into quick access",
+                    details: [
+                        "Added an AI Voice button in the top action bar so spoken logging is one tap away from the main workflow.",
+                        "Added a phone quick button for AI Voice and routed all voice entry points through the same AI Quick Capture preview/apply path.",
+                    ],
+                },
                 {
                     version: "2.35.3",
                     date: "2026-04-22",
@@ -38327,6 +38391,38 @@ ${parts.join("\n")}
             }
 
             // 12d. AI Voice Capture (Web Speech API -> AI Quick Capture)
+            function openAiQuickCaptureArea(opts = {}) {
+                const { scroll = true, behavior = "smooth", block = "center" } =
+                    opts || {};
+                const coachCard = document.getElementById("aiCoachCard");
+                if (coachCard?.classList.contains("card-collapsed")) {
+                    _setCardCollapsed(coachCard, false, true);
+                }
+                const panel = document.getElementById("aiQuickUpdatePanel");
+                if (
+                    scroll &&
+                    panel &&
+                    typeof panel.scrollIntoView === "function"
+                ) {
+                    panel.scrollIntoView({ behavior, block });
+                }
+                return panel;
+            }
+
+            function startAiQuickCaptureVoiceFromQuickAccess(
+                buttonId = "topbarAiVoiceBtn",
+            ) {
+                // Review note: every top-level voice shortcut funnels into the
+                // same AI Quick Capture preview/apply flow so we only maintain
+                // one routing path for spoken notes.
+                openAiQuickCaptureArea({
+                    scroll: true,
+                    behavior: "smooth",
+                    block: "center",
+                });
+                startAiQuickCaptureVoice(buttonId);
+            }
+
             function fillAiQuickCaptureInput(text, opts = {}) {
                 const input = document.getElementById("aiQuickCaptureInput");
                 const out = document.getElementById("voiceResult");
@@ -38335,13 +38431,11 @@ ${parts.join("\n")}
                     out.textContent = text
                         ? `"${String(text).trim()}"`
                         : "No transcript captured";
-                const panel = document.getElementById("aiQuickUpdatePanel");
-                if (panel && typeof panel.scrollIntoView === "function") {
-                    panel.scrollIntoView({
-                        behavior: "smooth",
-                        block: "center",
-                    });
-                }
+                openAiQuickCaptureArea({
+                    scroll: true,
+                    behavior: "smooth",
+                    block: "center",
+                });
                 if (opts.autoPreview) previewAiQuickCaptureWithAi();
             }
 
@@ -38386,7 +38480,7 @@ ${parts.join("\n")}
             }
 
             function startVoiceLog() {
-                startAiQuickCaptureVoice("voiceBtn");
+                startAiQuickCaptureVoiceFromQuickAccess("voiceBtn");
             }
 
             function parseVoiceCommand(text) {
