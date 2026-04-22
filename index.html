@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.35.4" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.35.5" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -10096,8 +10096,17 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.35.4";
+            const VERSION = "2.35.5";
             const VERSION_CHANGES = [
+                {
+                    version: "2.35.5",
+                    date: "2026-04-22",
+                    summary: "Focus injection tracker on today",
+                    details: [
+                        "Cleaned the injection tracker card text paths so logged-dose details and recent history labels stop showing corrupted separator characters.",
+                        "Changed the daily injection workflow to show only compounds due today from the current active stack, while keeping older entries editable in recent history.",
+                    ],
+                },
                 {
                     version: "2.35.4",
                     date: "2026-04-22",
@@ -11779,14 +11788,17 @@
                     typeof loadInjLog === "function" ? loadInjLog()[today] || {} : {};
                 const injectionCompounds =
                     typeof getInjectionCompounds === "function"
-                        ? getInjectionCompounds()
+                        ? getInjectionCompounds({ includePlanned: false })
                         : INJ_COMPOUNDS;
-                const injectionRequired =
-                    typeof isInjDay === "function" &&
-                    injectionCompounds.length &&
-                    isInjDay();
+                const dueInjectionCompounds = injectionCompounds.filter(
+                    (compound) =>
+                        typeof _isInjectionDueOnDate === "function"
+                            ? _isInjectionDueOnDate(compound)
+                            : true,
+                );
+                const injectionRequired = dueInjectionCompounds.length > 0;
                 const injectionLogged = injectionRequired
-                    ? injectionCompounds.filter((compound) =>
+                    ? dueInjectionCompounds.filter((compound) =>
                           isInjLogged(todayLog[compound.key]),
                       ).length
                     : 0;
@@ -11797,7 +11809,7 @@
                     waterPct: waterGoal ? waterTotal / waterGoal : 0,
                     injectionRequired,
                     injectionLogged,
-                    injectionTotal: injectionCompounds.length,
+                    injectionTotal: dueInjectionCompounds.length,
                     guardrails: state.computed.guardrails,
                     proteinIssue: state.computed.proteinIssue,
                     lookPattern: state.computed.lookPattern,
@@ -17319,9 +17331,9 @@
                     return;
                 const state = loadInjNotify();
                 if (!state.enabled) return;
-                const dueCompounds = getInjectionCompounds().filter((compound) =>
-                    _isInjectionDueOnDate(compound),
-                );
+                const dueCompounds = getInjectionCompounds({
+                    includePlanned: false,
+                }).filter((compound) => _isInjectionDueOnDate(compound));
                 if (!dueCompounds.length) return;
                 const tk = todayKey();
                 if (state.lastNotified === tk && !force) return; // already nudged today
@@ -17341,7 +17353,7 @@
                 const ok = await showTpNotification(
                     `${dayName} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â Injection Day`,
                     {
-                        body: `${dueCompounds.map((c) => `${c.name} ${c.dose}`.trim()).join(" + ") || "Injection protocol"} due today. Log in the Injection Tracker.`,
+                        body: `${dueCompounds.map((c) => `${c.name} ${_injectionTrackerDoseLabel(c)}`.trim()).join(" + ") || "Injection protocol"} due today. Log in the Injection Tracker.`,
                         icon: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="%2300d4ff"/><text x="50%" y="58%" text-anchor="middle" font-size="54" fill="white" font-family="Arial">ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°</text></svg>',
                         tag: "tp-injection-" + tk,
                         requireInteraction: false,
@@ -18404,11 +18416,88 @@
                 }).join("");
             }
 
+            function _cleanInjectionTrackerText(text) {
+                return _decodeMojibakeText(String(text || ""))
+                    .replace(/\u00a0/g, " ")
+                    .replace(/\s+/g, " ")
+                    .trim();
+            }
+
+            function _injectionTrackerDoseLabel(compound) {
+                const raw = _cleanInjectionTrackerText(
+                    _protocolDoseSummary(compound?.dose),
+                );
+                if (!raw) return "";
+                if (
+                    /\bx\s*\d+\s*\/\s*week\b|\bweekly\b|\((?:[^)]*(?:sun|mon|tue|wed|thu|fri|sat)[^)]*)\)/i.test(
+                        raw,
+                    )
+                ) {
+                    const leading = raw.match(
+                        /^[\d.]+\s*(?:IU|mcg|ug|mg|mL|ml|g)\b/i,
+                    );
+                    if (leading) return leading[0];
+                }
+                return raw;
+            }
+
+            function _injectionTrackerScheduleLabel(compound) {
+                const cadence = _cleanInjectionTrackerText(
+                    _injectionCadenceLabel(compound),
+                );
+                const timing = _cleanInjectionTrackerText(compound?.timing || "");
+                if (!timing) return cadence;
+                if (
+                    /\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday|sun|mon|tue|wed|thu|fri|sat)\b/i.test(
+                        timing,
+                    )
+                ) {
+                    return cadence;
+                }
+                if (!cadence || cadence === "Daily") return timing;
+                if (timing.toLowerCase() === cadence.toLowerCase()) {
+                    return cadence;
+                }
+                return `${timing} - ${cadence}`;
+            }
+
+            function _injectionTrackerEntryMeta(compound, entry) {
+                const doseLabel =
+                    _cleanInjectionTrackerText(getInjDose(entry, compound?.key)) ||
+                    _injectionTrackerDoseLabel(compound);
+                const site = getInjSite(entry);
+                const siteLabel = site
+                    ? INJ_SITES.find((s) => s.key === site)?.label || site
+                    : "";
+                if (isInjLogged(entry)) {
+                    return [doseLabel, getInjTime(entry), siteLabel]
+                        .map(_cleanInjectionTrackerText)
+                        .filter(Boolean)
+                        .join(" - ");
+                }
+                return [doseLabel, _injectionTrackerScheduleLabel(compound)]
+                    .filter(Boolean)
+                    .join(" - ");
+            }
+
+            function _injectionTrackerHistoryLabel(dateLabel, compound, info) {
+                const site = getInjSite(info);
+                const siteLabel = site
+                    ? INJ_SITES.find((s) => s.key === site)?.label || site
+                    : "";
+                return [dateLabel, compound?.name || "", getInjTime(info), siteLabel]
+                    .map(_cleanInjectionTrackerText)
+                    .filter(Boolean)
+                    .join(" - ");
+            }
+
             function renderInjectionTracker() {
                 const log = loadInjLog();
                 const dk = todayKey();
                 const todayLog = log[dk] || {};
-                const compounds = getInjectionCompounds();
+                const compounds = getInjectionCompounds({
+                    includePlanned: false,
+                });
                 const compoundCatalog = getInjectionCompoundCatalog({
                     includePaused: true,
                     includeHeld: true,
@@ -18517,6 +18606,276 @@
                     : `<span style="font-size:12px;color:var(--muted)">No injections logged yet.</span>`;
                 renderInjectionSiteGuideTargets();
                 renderSiteRotation();
+            }
+
+            function renderInjectionTracker() {
+                const log = loadInjLog();
+                const dk = todayKey();
+                const todayLog = log[dk] || {};
+                const compounds = getInjectionCompounds({
+                    includePlanned: false,
+                });
+                const compoundCatalog = getInjectionCompoundCatalog({
+                    includePaused: true,
+                    includeHeld: true,
+                });
+                // Review note: the daily tracker should stay focused on what is
+                // actually due today from the live stack. Off-day injections can
+                // still be edited from history, but they should not crowd the
+                // main logging surface.
+                const dueToday = compounds.filter((compound) =>
+                    _isInjectionDueOnDate(compound),
+                );
+                const { date: nextDate, days: daysAway, due: nextDue } =
+                    _nextInjectionDue(compounds);
+
+                const banner = document.getElementById("injNextBanner");
+                const badge = document.getElementById("injNextBadge");
+                if (dueToday.length) {
+                    banner.innerHTML = `<div class="inj-next-banner due-today"><span style="font-size:18px">&#128137;</span><div><strong style="color:var(--accent)">Injection day - today</strong><div style="font-size:12px;color:var(--muted);margin-top:2px">${escapeHtml(dueToday.map((compound) => compound.name).join(", "))}</div></div></div>`;
+                    badge.textContent = "Due Today";
+                    badge.style.background = "rgba(0,212,255,0.15)";
+                    badge.style.color = "var(--accent)";
+                    badge.style.border = "1px solid rgba(0,212,255,0.3)";
+                } else if (
+                    nextDate instanceof Date &&
+                    !Number.isNaN(nextDate.getTime())
+                ) {
+                    const nextLabel = nextDate.toLocaleDateString("en-US", {
+                        weekday: "long",
+                        month: "short",
+                        day: "numeric",
+                    });
+                    const subtitle = [
+                        `${daysAway} day${daysAway !== 1 ? "s" : ""} away`,
+                        nextDue.length
+                            ? nextDue.map((compound) => compound.name).join(", ")
+                            : "",
+                    ]
+                        .filter(Boolean)
+                        .join(" - ");
+                    banner.innerHTML = `<div class="inj-next-banner"><span style="font-size:18px">&#9203;</span><div><strong>Next injection: ${escapeHtml(nextLabel)}</strong><div style="font-size:12px;color:var(--muted);margin-top:2px">${escapeHtml(subtitle)}</div></div></div>`;
+                    badge.textContent = `In ${daysAway}d`;
+                    badge.style.background = "rgba(124,58,237,0.12)";
+                    badge.style.color = "#a78bfa";
+                    badge.style.border = "1px solid rgba(124,58,237,0.3)";
+                } else {
+                    banner.innerHTML = `<div class="inj-next-banner"><span style="font-size:18px">&#128138;</span><div><strong>No injection schedule found</strong><div style="font-size:12px;color:var(--muted);margin-top:2px">Add an injectable peptide or medication in Current Stack to see the daily tracker.</div></div></div>`;
+                    badge.textContent = "Inactive";
+                    badge.style.background = "rgba(148,163,184,0.12)";
+                    badge.style.color = "var(--muted)";
+                    badge.style.border = "1px solid rgba(148,163,184,0.3)";
+                }
+
+                const nextDueSummary =
+                    !dueToday.length && nextDue.length && nextDate
+                        ? ` Next up: ${nextDue.map((compound) => compound.name).join(", ")} on ${nextDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}.`
+                        : "";
+                document.getElementById("injCompoundGrid").innerHTML =
+                    dueToday.length
+                        ? dueToday
+                              .map((compound) => {
+                                  const entry = todayLog[compound.key];
+                                  const logged = isInjLogged(entry);
+                                  const site = getInjSite(entry);
+                                  const siteLabel = site
+                                      ? INJ_SITES.find((s) => s.key === site)
+                                            ?.label || ""
+                                      : "";
+                                  const btnClass = logged ? "done" : "log";
+                                  const btnText = logged
+                                      ? `Edit ${siteLabel || "logged dose"}`
+                                      : "Log Dose";
+                                  const meta = _injectionTrackerEntryMeta(
+                                      compound,
+                                      entry,
+                                  );
+                                  return `<div class="inj-item ${logged ? "logged" : ""}">
+      <div class="inj-name" style="color:${compound.color}">${escapeHtml(compound.name)}</div>
+      <div class="inj-dose-label">${escapeHtml(meta)}</div>
+      <button class="inj-btn ${btnClass}" onclick="toggleInj('${compound.key}')">${escapeHtml(btnText)}</button>
+    </div>`;
+                              })
+                              .join("")
+                        : `<div class="supp-empty-note" style="grid-column:1/-1;">${escapeHtml(compounds.length ? `Nothing is due today from your current stack.${nextDueSummary}` : "No injectable peptides or medications are active in the stack yet. Add one in Current Stack and it will appear here automatically.")}</div>`;
+
+                const allDates = Object.keys(log).sort().reverse().slice(0, 8);
+                const histRow = document.getElementById("injHistoryRow");
+                if (!allDates.length) {
+                    histRow.innerHTML = `<span style="font-size:12px;color:var(--muted)">No injections logged yet.</span>`;
+                    renderInjectionSiteGuideTargets();
+                    renderSiteRotation();
+                    return;
+                }
+                const chips = [];
+                allDates.forEach((d) => {
+                    const entry = log[d] || {};
+                    const histDate = new Date(d + "T12:00:00");
+                    const loggedCompounds = compoundCatalog.filter((compound) =>
+                        isInjLogged(entry[compound.key]),
+                    );
+                    const count = loggedCompounds.length;
+                    const dueCount = compounds.filter((compound) =>
+                        _isInjectionDueOnDate(compound, histDate),
+                    ).length;
+                    const cls =
+                        dueCount > 0 && count === dueCount
+                            ? "full"
+                            : count > 0
+                              ? "partial"
+                              : "";
+                    const label = histDate.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                    });
+                    loggedCompounds.forEach((compound) => {
+                        const info = entry[compound.key];
+                        const chipLabel = _injectionTrackerHistoryLabel(
+                            label,
+                            compound,
+                            info,
+                        );
+                        chips.push(
+                            `<button class="inj-hist-chip ${cls}" onclick="openInjectionLogModal(${escapeHtml(JSON.stringify(d))},${escapeHtml(JSON.stringify(compound.key))})" title="Edit ${escapeHtml(compound.name)} on ${escapeHtml(d)}">${escapeHtml(chipLabel)}</button>`,
+                        );
+                    });
+                });
+                histRow.innerHTML = chips.length
+                    ? chips.join("")
+                    : `<span style="font-size:12px;color:var(--muted)">No injections logged yet.</span>`;
+                renderInjectionSiteGuideTargets();
+                renderSiteRotation();
+            }
+
+            function openSitePicker(compoundKey) {
+                pendingInjKey = compoundKey;
+                const compound = getInjectionCompounds({
+                    includePlanned: false,
+                    includePaused: true,
+                    includeHeld: true,
+                }).find((item) => item.key === compoundKey);
+                document.getElementById("sitePickerTitle").textContent = [
+                    "Pick site",
+                    compound ? compound.name : "",
+                ]
+                    .filter(Boolean)
+                    .join(" - ");
+                const used = computeSiteHistory();
+                const recommended = recommendNextSite();
+                document.getElementById("sitePickerGrid").innerHTML = INJ_SITES.map(
+                    (site) => {
+                        const days = daysSince(used[site.key]);
+                        const isRecommended = recommended === site.key;
+                        const color = siteColor(days);
+                        const ageLabel = days != null ? `${days}d` : "--";
+                        const ageSub = days != null ? "days ago" : "unused";
+                        return `<button class="site-pick-btn ${isRecommended ? "recommended" : ""}" onclick="confirmSitePick('${site.key}')">
+      <div style="font-size:12px;font-weight:700;">${escapeHtml(site.label)}${isRecommended ? ' <span style="color:var(--green);font-weight:800">&#9733; NEXT</span>' : ""}</div>
+      <div style="font-size:18px;font-weight:800;color:${color};margin-top:4px;">${escapeHtml(ageLabel)}</div>
+      <div style="font-size:10px;color:${color};">${escapeHtml(ageSub)}</div>
+    </button>`;
+                    },
+                ).join("");
+                document.getElementById("sitePickerOverlay").style.display =
+                    "flex";
+            }
+
+            function renderSiteRotation() {
+                const grid = document.getElementById("siteRotationGrid");
+                if (!grid) return;
+                const used = computeSiteHistory();
+                const recommended = recommendNextSite();
+                grid.innerHTML = INJ_SITES.map((site) => {
+                    const days = daysSince(used[site.key]);
+                    const isRecommended = recommended === site.key;
+                    const color = siteColor(days);
+                    const cls =
+                        days == null
+                            ? "site-pristine"
+                            : days >= 10
+                              ? "site-good"
+                              : days >= 5
+                                ? "site-warn"
+                                : "site-hot";
+                    return `<div class="site-cell ${cls} ${isRecommended ? "recommended" : ""}">
+      <div class="site-cell-label">${escapeHtml(site.label)}</div>
+      <div class="site-cell-days" style="color:${color}">${days != null ? days : "--"}</div>
+      <div class="site-cell-sub">${days != null ? "days ago" : "unused"}</div>
+      ${isRecommended ? '<div class="site-cell-rec">&#9733; recommended</div>' : ""}
+    </div>`;
+                }).join("");
+            }
+
+            async function toggleInjectionNotifications() {
+                if (!("Notification" in window)) {
+                    showToast("Notifications not supported in this browser");
+                    return;
+                }
+                const state = loadInjNotify();
+                if (state.enabled) {
+                    saveInjNotify({ enabled: false });
+                    renderInjectionNotifyBtn();
+                    showToast("Injection reminders off");
+                    return;
+                }
+                let perm = Notification.permission;
+                if (perm === "default") {
+                    perm = await Notification.requestPermission();
+                }
+                if (perm !== "granted") {
+                    showToast(
+                        perm === "denied"
+                            ? "Blocked - unblock notifications in browser settings"
+                            : "Permission not granted",
+                    );
+                    renderInjectionNotifyBtn();
+                    return;
+                }
+                saveInjNotify({ enabled: true });
+                renderInjectionNotifyBtn();
+                showToast(
+                    "Reminders enabled - checks due injections when the app opens",
+                );
+                checkInjectionReminder(true);
+            }
+
+            async function checkInjectionReminder(force = false) {
+                renderInjectionNotifyBtn();
+                if (
+                    !("Notification" in window) ||
+                    Notification.permission !== "granted"
+                ) {
+                    return;
+                }
+                const state = loadInjNotify();
+                if (!state.enabled) return;
+                const dueCompounds = getInjectionCompounds({
+                    includePlanned: false,
+                }).filter((compound) => _isInjectionDueOnDate(compound));
+                if (!dueCompounds.length) return;
+                const tk = todayKey();
+                if (state.lastNotified === tk && !force) return;
+
+                const log = loadInjLog();
+                const today = log[tk] || {};
+                const allDone = dueCompounds.every((compound) =>
+                    isInjLogged(today[compound.key]),
+                );
+                if (allDone && !force) return;
+
+                const dayName = new Date().toLocaleDateString("en-US", {
+                    weekday: "long",
+                });
+                const ok = await showTpNotification(
+                    `${dayName} Injection Day`,
+                    {
+                        body: `${dueCompounds.map((compound) => `${compound.name} ${_injectionTrackerDoseLabel(compound)}`.trim()).join(" + ") || "Injection protocol"} due today. Log in the Injection Tracker.`,
+                        icon: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="%2300d4ff"/><text x="50%" y="58%" text-anchor="middle" font-size="54" fill="white" font-family="Arial">&#128137;</text></svg>',
+                        tag: "tp-injection-" + tk,
+                        requireInteraction: false,
+                    },
+                );
+                if (ok) saveInjNotify({ ...state, lastNotified: tk });
             }
 
             // =========================================================
