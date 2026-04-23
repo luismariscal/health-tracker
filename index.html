@@ -264,6 +264,155 @@
                 width: 100%;
                 max-width: 100%;
             }
+            .workflow-main-summary {
+                border: 1px solid rgba(0, 212, 255, 0.16);
+                background: rgba(13, 15, 20, 0.44);
+                border-radius: 8px;
+                padding: 12px;
+                margin-bottom: 10px;
+            }
+            .workflow-main-title {
+                font-size: 15px;
+                font-weight: 850;
+                color: var(--text);
+                line-height: 1.3;
+            }
+            .workflow-main-body {
+                font-size: 12px;
+                color: var(--muted);
+                line-height: 1.5;
+                margin-top: 5px;
+            }
+            .workflow-main-list {
+                display: grid;
+                gap: 6px;
+                margin-top: 10px;
+            }
+            .workflow-main-list-item {
+                font-size: 11px;
+                color: var(--text);
+                line-height: 1.45;
+                padding: 8px 10px;
+                border-radius: 8px;
+                border: 1px solid var(--border);
+                background: rgba(15, 23, 42, 0.46);
+            }
+            .workflow-main-list-item.pending {
+                border-color: rgba(234, 179, 8, 0.36);
+            }
+            .workflow-main-list-item.done {
+                border-color: rgba(34, 197, 94, 0.28);
+            }
+            .workflow-coach-row {
+                border: 1px solid rgba(167, 139, 250, 0.22);
+                background: rgba(76, 29, 149, 0.08);
+                border-radius: 8px;
+                padding: 12px;
+                margin-bottom: 12px;
+            }
+            .workflow-coach-meta {
+                font-size: 11px;
+                color: var(--muted);
+                line-height: 1.45;
+            }
+            .workflow-coach-preview {
+                font-size: 11px;
+                color: var(--text);
+                line-height: 1.5;
+                margin-top: 8px;
+                padding: 8px 10px;
+                border-radius: 8px;
+                border: 1px solid rgba(167, 139, 250, 0.18);
+                background: rgba(15, 23, 42, 0.42);
+            }
+            .workflow-coach-compose {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto auto;
+                gap: 8px;
+                align-items: stretch;
+                margin-top: 10px;
+            }
+            .workflow-coach-compose input {
+                min-width: 0;
+                width: 100%;
+                background: var(--surface2);
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                color: var(--text);
+                padding: 9px 12px;
+                font-size: 12px;
+            }
+            .workflow-input-strip {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 8px;
+                margin-bottom: 12px;
+            }
+            .workflow-input-chip {
+                border: 1px solid var(--border);
+                background: rgba(13, 15, 20, 0.5);
+                border-radius: 8px;
+                padding: 10px;
+                text-align: left;
+                display: grid;
+                gap: 4px;
+                min-width: 0;
+                cursor: pointer;
+                transition:
+                    border-color 0.18s ease,
+                    transform 0.18s ease,
+                    background 0.18s ease;
+            }
+            .workflow-input-chip:hover {
+                transform: translateY(-1px);
+            }
+            .workflow-input-chip.pending {
+                border-color: rgba(234, 179, 8, 0.34);
+                background: rgba(234, 179, 8, 0.09);
+            }
+            .workflow-input-chip.done {
+                border-color: rgba(34, 197, 94, 0.28);
+                background: rgba(34, 197, 94, 0.08);
+            }
+            .workflow-input-chip.optional {
+                border-color: rgba(148, 163, 184, 0.24);
+            }
+            .workflow-input-chip-label {
+                font-size: 11px;
+                font-weight: 800;
+                color: var(--text);
+                overflow-wrap: anywhere;
+            }
+            .workflow-input-chip-meta {
+                font-size: 11px;
+                color: var(--muted);
+                line-height: 1.45;
+                overflow-wrap: anywhere;
+            }
+            .workflow-zone {
+                display: grid;
+                gap: 12px;
+                margin-bottom: 14px;
+            }
+            .workflow-zone-top {
+                padding: 0 2px;
+            }
+            .workflow-zone-kicker {
+                font-size: 11px;
+                font-weight: 800;
+                color: var(--accent);
+                text-transform: uppercase;
+            }
+            .workflow-zone-sub {
+                font-size: 12px;
+                color: var(--muted);
+                margin-top: 4px;
+                line-height: 1.45;
+            }
+            .workflow-zone-mount {
+                display: grid;
+                gap: 14px;
+            }
             .workflow-pill {
                 border: 1px solid var(--border);
                 background: rgba(13, 15, 20, 0.42);
@@ -390,12 +539,22 @@
                     gap: 8px;
                     margin-bottom: 10px;
                 }
+                .workflow-main-summary,
+                .workflow-coach-row {
+                    padding: 10px;
+                }
                 .workflow-title {
                     font-size: 16px;
                 }
                 .workflow-sub,
                 .workflow-step-body {
                     font-size: 11px;
+                }
+                .workflow-coach-compose {
+                    grid-template-columns: 1fr;
+                }
+                .workflow-coach-compose button {
+                    width: 100%;
                 }
                 .workflow-summary {
                     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5842,8 +6001,55 @@
                         Checking...
                     </div>
                 </div>
+                <div
+                    class="workflow-main-summary"
+                    id="criticalWorkflowMainSummary"
+                ></div>
+                <div class="workflow-coach-row">
+                    <div class="workflow-coach-meta" id="criticalWorkflowCoachMeta">
+                        Ask AI Coach about today's summary or reply to the last thread.
+                    </div>
+                    <div
+                        class="workflow-coach-preview"
+                        id="criticalWorkflowCoachPreview"
+                    ></div>
+                    <div class="workflow-coach-compose">
+                        <input
+                            type="text"
+                            id="workflowCoachInput"
+                            placeholder="Ask AI Coach about today's workflow..."
+                            onkeydown="if (event.key === 'Enter') sendWorkflowCoachReply()"
+                        />
+                        <button
+                            id="workflowCoachSendBtn"
+                            class="btn btn-primary"
+                            onclick="sendWorkflowCoachReply()"
+                            style="font-size: 12px"
+                        >
+                            Ask AI
+                        </button>
+                        <button
+                            class="btn btn-ghost"
+                            onclick="openCriticalWorkflowItem('aiCoachCard')"
+                            style="font-size: 12px"
+                        >
+                            Open AI Coach
+                        </button>
+                    </div>
+                </div>
+                <div class="workflow-input-strip" id="criticalWorkflowInputs"></div>
                 <div class="workflow-summary" id="criticalWorkflowSummary"></div>
                 <div class="workflow-grid" id="criticalWorkflowSteps"></div>
+            </div>
+            <div class="workflow-zone" id="workflowInputZone">
+                <div class="workflow-zone-top">
+                    <div class="workflow-zone-kicker">Daily input flow</div>
+                    <div class="workflow-zone-sub">
+                        Log today's actions here first, then use the rest of the
+                        dashboard for context and review.
+                    </div>
+                </div>
+                <div class="workflow-zone-mount" id="workflowInputZoneMount"></div>
             </div>
 
             <!-- SECTION CONTROLS (v2.31.1) -->
@@ -10257,8 +10463,19 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.36.2";
+            const VERSION = "2.36.3";
             const VERSION_CHANGES = [
+                {
+                    version: "2.36.3",
+                    date: "2026-04-23",
+                    summary:
+                        "Move the daily workflow to the top and fix split-dose injection slots",
+                    details: [
+                        "Added a top workflow hub with one main summary, inline AI Coach follow-up, and quick actions for today's weight, doses, water, food, exercise, and vitals.",
+                        "Moved the daily input cards directly under the workflow hub so logging flows top to bottom before the deeper review cards.",
+                        "Locked the injection editor to explicit scheduled dose times so split-dose compounds like KLOW80 stop generating extra log slots from fuzzy timing text.",
+                    ],
+                },
                 {
                     version: "2.36.2",
                     date: "2026-04-23",
@@ -11736,6 +11953,7 @@
             function saveEntries(entries) {
                 localStorage.setItem("tp_entries", JSON.stringify(entries));
                 bumpChangeCount();
+                scheduleWorkflowRefresh();
             }
             function _normalizeStackEntry(entry) {
                 const next = { ...(entry || {}) };
@@ -11867,6 +12085,7 @@
                 const normalized = (arr || []).map(_normalizeStackEntry);
                 localStorage.setItem("tp_stack", JSON.stringify(normalized));
                 bumpChangeCount();
+                scheduleWorkflowRefresh();
                 if (typeof renderInjectionTracker === "function")
                     renderInjectionTracker();
                 if (typeof renderSiteRotation === "function")
@@ -11901,6 +12120,7 @@
             function saveTraining(arr) {
                 localStorage.setItem("tp_training", JSON.stringify(arr));
                 bumpChangeCount();
+                scheduleWorkflowRefresh();
             }
 
             function loadSymptoms() {
@@ -12326,9 +12546,312 @@
                 };
             }
 
+            function _workflowTodayDoseProgress(dateKey = todayKey()) {
+                const dateObj = new Date(`${dateKey}T12:00:00`);
+                const todayLog =
+                    typeof loadInjLog === "function" ? loadInjLog()[dateKey] || {} : {};
+                const dueCompounds =
+                    typeof getInjectionCompounds === "function"
+                        ? getInjectionCompounds({ includePlanned: false }).filter(
+                              (compound) =>
+                                  typeof _isInjectionDueOnDate === "function"
+                                      ? _isInjectionDueOnDate(compound, dateObj)
+                                      : true,
+                          )
+                        : [];
+                let total = 0;
+                let logged = 0;
+                dueCompounds.forEach((compound) => {
+                    _injectionDoseSlots(compound, dateObj).forEach((slot) => {
+                        total += 1;
+                        if (isInjLogged(todayLog[compound.key], slot.slotId)) {
+                            logged += 1;
+                        }
+                    });
+                });
+                return { total, logged, dueCompounds };
+            }
+
+            function _workflowTodayMealStats(dateKey = todayKey()) {
+                const data =
+                    typeof loadMealLog === "function" ? loadMealLog(dateKey) || {} : {};
+                const slots = Array.isArray(MEAL_SLOTS) ? MEAL_SLOTS : Object.keys(data);
+                const filled = slots.filter((slot) => {
+                    const meal = data[slot] || {};
+                    return ["p", "c", "f", "kcal", "label"].some((key) => {
+                        const value = meal[key];
+                        return (
+                            value != null &&
+                            String(value).trim() !== "" &&
+                            String(value).trim() !== "0"
+                        );
+                    });
+                }).length;
+                const protein = slots.reduce(
+                    (sum, slot) => sum + (parseInt(data[slot]?.p, 10) || 0),
+                    0,
+                );
+                return { filled, protein };
+            }
+
+            function _workflowTodayTrainingCount(dateKey = todayKey()) {
+                return (loadTraining() || []).filter(
+                    (session) => session && session.date === dateKey,
+                ).length;
+            }
+
+            function _workflowTodayVitalsCount(dateKey = todayKey()) {
+                return (typeof loadVitals === "function" ? loadVitals() : []).filter(
+                    (reading) => reading && reading.date === dateKey,
+                ).length;
+            }
+
+            function _workflowDailyInputItems(stateLike) {
+                const state = _coerceProtocolOsState(stateLike);
+                const workflow = selectWorkflowSummary(state);
+                const dateKey = state.domains.today || todayKey();
+                const entries = state.domains.entries || loadEntries();
+                const closeout = computeTodayCloseoutStatus({
+                    entries,
+                    date: dateKey,
+                });
+                const dose = _workflowTodayDoseProgress(dateKey);
+                const meals = _workflowTodayMealStats(dateKey);
+                const trainingCount = _workflowTodayTrainingCount(dateKey);
+                const vitalsCount = _workflowTodayVitalsCount(dateKey);
+                const weightCheck = (closeout.checks || []).find(
+                    (check) => check.key === "weight",
+                );
+                const remainingWater = Math.max(
+                    0,
+                    Math.round((workflow.waterGoal || 0) - (workflow.waterTotal || 0)),
+                );
+                return [
+                    {
+                        key: "weight",
+                        label: "Weight / check-in",
+                        meta: weightCheck?.ok
+                            ? weightCheck.detail
+                            : "Log today's weight",
+                        state: weightCheck?.ok ? "done" : "pending",
+                        action: "quickLog",
+                        summary: weightCheck?.ok ? "" : "weight is not logged yet",
+                    },
+                    {
+                        key: "doses",
+                        label: "Doses",
+                        meta: dose.total
+                            ? `${dose.logged}/${dose.total} dose slots logged`
+                            : "Nothing due today",
+                        state: dose.total
+                            ? dose.logged >= dose.total
+                                ? "done"
+                                : "pending"
+                            : "optional",
+                        target: "injectionTrackerCard",
+                        summary:
+                            dose.total && dose.logged < dose.total
+                                ? `${dose.total - dose.logged} dose slot${dose.total - dose.logged === 1 ? "" : "s"} still open`
+                                : "",
+                    },
+                    {
+                        key: "water",
+                        label: "Water",
+                        meta: `${Math.round(workflow.waterTotal || 0)}/${workflow.waterGoal || 0} oz`,
+                        state:
+                            workflow.waterPct >= 1
+                                ? "done"
+                                : workflow.waterTotal > 0
+                                  ? "pending"
+                                  : "pending",
+                        target: "waterCard",
+                        summary:
+                            workflow.waterPct >= 1
+                                ? ""
+                                : `${remainingWater} oz still to target`,
+                    },
+                    {
+                        key: "meals",
+                        label: "Food",
+                        meta: `${meals.filled}/${Array.isArray(MEAL_SLOTS) ? MEAL_SLOTS.length : 5} meals filled - ${meals.protein}g protein`,
+                        state: meals.filled ? "done" : "pending",
+                        target: "mealLogCard",
+                        summary: meals.filled
+                            ? ""
+                            : "food log has not been started today",
+                    },
+                    {
+                        key: "training",
+                        label: "Exercise",
+                        meta: trainingCount
+                            ? `${trainingCount} session${trainingCount === 1 ? "" : "s"} logged`
+                            : "Log only if you trained",
+                        state: trainingCount ? "done" : "optional",
+                        action: "training",
+                        summary: "",
+                    },
+                    {
+                        key: "vitals",
+                        label: "Vitals",
+                        meta: vitalsCount
+                            ? `${vitalsCount} reading${vitalsCount === 1 ? "" : "s"} today`
+                            : "BP / resting HR optional",
+                        state: vitalsCount ? "done" : "optional",
+                        target: "vitalsCard",
+                        summary: "",
+                    },
+                ];
+            }
+
+            function _workflowCoachPreviewData() {
+                const thread =
+                    typeof loadCoachThread === "function" ? loadCoachThread() : null;
+                const settings =
+                    typeof loadCoachSettings === "function"
+                        ? loadCoachSettings()
+                        : null;
+                if (!thread?.messages?.length) {
+                    return {
+                        meta: hasCoachKey()
+                            ? `No active AI thread - ${coachProviderStatus(settings)}`
+                            : "No API key yet - Settings can enable inline AI replies",
+                        preview:
+                            "Ask about today's workflow, or open AI Coach for presets, research watch, and quick capture.",
+                    };
+                }
+                const lastAssistant = [...thread.messages]
+                    .reverse()
+                    .find(
+                        (message) =>
+                            message?.role === "assistant" &&
+                            String(message.content || "").trim(),
+                    );
+                const lastUser = [...thread.messages]
+                    .reverse()
+                    .find(
+                        (message) =>
+                            message?.role === "user" &&
+                            String(message.content || "").trim(),
+                    );
+                const preset = Array.isArray(COACH_PRESETS)
+                    ? COACH_PRESETS.find((item) => item.key === thread.promptKey)
+                    : null;
+                const previewText = String(
+                    (lastAssistant || lastUser)?.content || "",
+                )
+                    .replace(/\s+/g, " ")
+                    .trim();
+                return {
+                    meta: `${preset?.label || "Coach thread"} - ${coachProviderStatus(settings)}`,
+                    preview: previewText
+                        ? previewText.length > 220
+                            ? previewText.slice(0, 217) + "..."
+                            : previewText
+                        : "Thread is open. Ask a follow-up about the items above.",
+                };
+            }
+
+            function renderWorkflowCoachPreview() {
+                const metaEl = document.getElementById("criticalWorkflowCoachMeta");
+                const previewEl = document.getElementById(
+                    "criticalWorkflowCoachPreview",
+                );
+                if (!metaEl || !previewEl) return;
+                const preview = _workflowCoachPreviewData();
+                metaEl.textContent = preview.meta;
+                previewEl.textContent = preview.preview;
+            }
+
+            async function sendWorkflowCoachReply() {
+                const input = document.getElementById("workflowCoachInput");
+                const question = String(input?.value || "").trim();
+                if (!question) return;
+                input.value = "";
+                if (!hasCoachKey()) {
+                    const customInput = document.getElementById("coachCustomInput");
+                    if (customInput) customInput.value = question;
+                    await submitCustomCoachQuestion();
+                    renderWorkflowCoachPreview();
+                    return;
+                }
+                const thread =
+                    typeof loadCoachThread === "function" ? loadCoachThread() : null;
+                if (thread?.messages?.length) {
+                    const followupInput = document.getElementById("coachFollowup");
+                    if (followupInput) followupInput.value = question;
+                    await sendCoachFollowup();
+                } else {
+                    const customInput = document.getElementById("coachCustomInput");
+                    if (customInput) customInput.value = question;
+                    await submitCustomCoachQuestion();
+                }
+                renderWorkflowCoachPreview();
+            }
+
+            function openWorkflowInputActionFromButton(button) {
+                const action = String(button?.dataset?.workflowAction || "");
+                const target = String(button?.dataset?.workflowTarget || "");
+                if (action === "quickLog" && typeof openQuickLog === "function") {
+                    openQuickLog();
+                    return;
+                }
+                if (action === "training" && typeof openTrainingModal === "function") {
+                    openTrainingModal();
+                    return;
+                }
+                if (target) openCriticalWorkflowItem(target);
+            }
+
+            function mountWorkflowInputZone() {
+                const mount = document.getElementById("workflowInputZoneMount");
+                const zone = document.getElementById("workflowInputZone");
+                if (!mount || !zone) return;
+                const orderedIds = [
+                    "todayCloseout",
+                    "injectionTrackerCard",
+                    "waterCard",
+                    "mealLogCard",
+                    "trainingCard",
+                    "vitalsCard",
+                ];
+                let moved = 0;
+                orderedIds.forEach((id) => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    mount.appendChild(el);
+                    moved += 1;
+                });
+                zone.style.display = moved ? "" : "none";
+            }
+
+            let _workflowRefreshHandle = null;
+            function scheduleWorkflowRefresh() {
+                if (typeof window === "undefined") return;
+                if (_workflowRefreshHandle) {
+                    window.cancelAnimationFrame(_workflowRefreshHandle);
+                }
+                _workflowRefreshHandle = window.requestAnimationFrame(() => {
+                    _workflowRefreshHandle = null;
+                    if (!document.getElementById("criticalWorkflowCard")) return;
+                    try {
+                        const state = buildProtocolOsState(getEntries());
+                        renderCriticalWorkflow(state);
+                        if (typeof renderTodayCloseout === "function") {
+                            renderTodayCloseout(state.domains.entries || getEntries());
+                        }
+                        mountWorkflowInputZone();
+                    } catch {}
+                });
+            }
+
             if (typeof window !== "undefined") {
                 window.buildProtocolOsState = buildProtocolOsState;
                 window.selectWorkflowSummary = selectWorkflowSummary;
+                window.sendWorkflowCoachReply = sendWorkflowCoachReply;
+                window.openWorkflowInputActionFromButton =
+                    openWorkflowInputActionFromButton;
+                window.mountWorkflowInputZone = mountWorkflowInputZone;
+                window.scheduleWorkflowRefresh = scheduleWorkflowRefresh;
             }
 
             const _MOJIBAKE_ATTRS = [
@@ -12596,6 +13119,7 @@
                 renderJournal();
                 renderPowerTools();
                 renderWaterCard();
+                mountWorkflowInputZone();
                 initCollapsibleCards();
                 refreshCollapsiblePreviews();
                 checkMilestoneUnlocks(entries, cw);
@@ -18080,6 +18604,7 @@
             function saveWater(obj) {
                 localStorage.setItem("tp_water", JSON.stringify(obj));
                 bumpChangeCount();
+                scheduleWorkflowRefresh();
             }
 
             function loadWaterSettings() {
@@ -18675,6 +19200,7 @@
             function saveInjLog(obj) {
                 localStorage.setItem("tp_inj", JSON.stringify(obj));
                 bumpChangeCount();
+                scheduleWorkflowRefresh();
             }
 
             function _injNormalizeDoseEntry(entry, index = 0) {
@@ -18833,6 +19359,46 @@
                     : `dose-${index + 1}`;
             }
 
+            function _extractStructuredScheduleTimes(value) {
+                const seen = new Set();
+                const results = [];
+                const addClock = (raw) => {
+                    const text = String(raw || "").trim();
+                    if (!text) return;
+                    const match = text.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i);
+                    if (!match) return;
+                    let hour = Number(match[1]);
+                    const minute = Number(match[2]);
+                    const meridiem = String(match[3] || "").toUpperCase();
+                    if (!Number.isInteger(hour) || !Number.isInteger(minute)) return;
+                    if (meridiem === "PM" && hour < 12) hour += 12;
+                    if (meridiem === "AM" && hour === 12) hour = 0;
+                    const normalized = _parseScheduleTime(
+                        `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
+                    );
+                    if (!normalized || seen.has(normalized)) return;
+                    seen.add(normalized);
+                    results.push(normalized);
+                };
+                if (Array.isArray(value)) {
+                    value.forEach(addClock);
+                } else {
+                    const source = String(value || "");
+                    (
+                        source.match(/\b\d{1,2}:\d{2}(?:\s*(?:AM|PM))?\b/gi) || []
+                    ).forEach(addClock);
+                }
+                return results.sort((a, b) => a.localeCompare(b));
+            }
+
+            function _injectionScheduledTimes(compound) {
+                const structured = _extractStructuredScheduleTimes(
+                    compound?.scheduleTimes,
+                );
+                if (structured.length) return structured;
+                return _normalizeScheduleTimes(compound?.scheduleTimes, compound);
+            }
+
             function _injectionDoseSlots(
                 compound,
                 date = new Date(),
@@ -18841,10 +19407,10 @@
                 const dateObj = date instanceof Date ? date : new Date(date);
                 const dueToday = _isInjectionDueOnDate(compound, dateObj);
                 if (!dueToday && !options.includeOffDay) return [];
-                const times = _normalizeScheduleTimes(
-                    compound?.scheduleTimes,
-                    compound,
-                );
+                // Review note: the injection editor must honor only the explicit
+                // schedule slots saved on the stack item. Fuzzy timing parsing
+                // here can invent extra AM/PM doses and break split-dose editing.
+                const times = _injectionScheduledTimes(compound);
                 const splitDose = _protocolSplitDose(compound?.dose);
                 const baseDose =
                     _cleanInjectionTrackerText(
@@ -23902,6 +24468,7 @@ Style:
                         JSON.stringify(thread),
                     );
                 else localStorage.removeItem("tp_coach_thread");
+                renderWorkflowCoachPreview();
             }
 
             async function runCoachTurn(thread, meta) {
@@ -36621,6 +37188,13 @@ ${parts.join("\n")}
                 const state = _coerceProtocolOsState(stateLike);
                 const card = document.getElementById("criticalWorkflowCard");
                 if (!card) return;
+                const dateKey = state.domains.today || todayKey();
+                const workflow = selectWorkflowSummary(state);
+                const closeout = computeTodayCloseoutStatus({
+                    entries: state.domains.entries || loadEntries(),
+                    date: dateKey,
+                });
+                const inputItems = _workflowDailyInputItems(state);
                 const safety = _workflowSafetyStep(state);
                 const today = _workflowTodayStep(state);
                 const labs = _workflowLabsStep(state);
@@ -36656,6 +37230,51 @@ ${parts.join("\n")}
                         : "First priority is clear. Keep logging before making protocol changes.";
                 }
 
+                const openInputs = inputItems.filter(
+                    (item) => item.state === "pending" && item.summary,
+                );
+                const mainSummary = document.getElementById(
+                    "criticalWorkflowMainSummary",
+                );
+                if (mainSummary) {
+                    const title = openInputs.length
+                        ? `${openInputs.length} input${openInputs.length === 1 ? "" : "s"} still need attention today.`
+                        : "Today's core workflow is in good shape.";
+                    const body = openInputs.length
+                        ? `Daily closeout is ${closeout.okCount}/${closeout.total}. Log the open items below before using the rest of the dashboard to interpret trends or change the stack.`
+                        : `Daily closeout is ${closeout.okCount}/${closeout.total}. Core inputs are current, so the rest of the dashboard is ready for review and AI interpretation.`;
+                    const listItems = openInputs.length
+                        ? openInputs.slice(0, 4)
+                        : inputItems.filter((item) => item.state === "done").slice(0, 3);
+                    mainSummary.innerHTML = `
+    <div class="workflow-main-title">${_escHtml(title)}</div>
+    <div class="workflow-main-body">${_escHtml(body)}</div>
+    <div class="workflow-main-list">${listItems
+        .map(
+            (item) =>
+                `<div class="workflow-main-list-item ${_escHtml(item.state)}">${_escHtml(
+                    `${item.label}: ${item.summary || item.meta}`,
+                )}</div>`,
+        )
+        .join("")}</div>`;
+                }
+
+                const inputsEl = document.getElementById("criticalWorkflowInputs");
+                if (inputsEl) {
+                    inputsEl.innerHTML = inputItems
+                        .map((item) => {
+                            const actionAttr = _escHtml(item.action || "");
+                            const targetAttr = _escHtml(item.target || "");
+                            return `<button type="button" class="workflow-input-chip ${_escHtml(item.state)}" data-workflow-action="${actionAttr}" data-workflow-target="${targetAttr}" onclick="openWorkflowInputActionFromButton(this)">
+      <span class="workflow-input-chip-label">${_escHtml(item.label)}</span>
+      <span class="workflow-input-chip-meta">${_escHtml(item.meta)}</span>
+    </button>`;
+                        })
+                        .join("");
+                }
+
+                renderWorkflowCoachPreview();
+
                 document.getElementById("criticalWorkflowSummary").innerHTML = `
     <div class="workflow-pill">
       <div class="workflow-pill-label">First</div>
@@ -36667,7 +37286,9 @@ ${parts.join("\n")}
     </div>
     <div class="workflow-pill">
       <div class="workflow-pill-label">Today</div>
-      <div class="workflow-pill-value">${_escHtml(today.meta)}</div>
+      <div class="workflow-pill-value">${_escHtml(
+          `${closeout.okCount}/${closeout.total} closeout + ${Math.round(workflow.waterTotal || 0)}/${workflow.waterGoal || 0} oz`,
+      )}</div>
     </div>
     <div class="workflow-pill">
       <div class="workflow-pill-label">Labs</div>
@@ -38331,6 +38952,7 @@ ${parts.join("\n")}
             function saveVitalsArr(arr) {
                 localStorage.setItem("tp_vitals", JSON.stringify(arr));
                 bumpChangeCount();
+                scheduleWorkflowRefresh();
             }
 
             let vitalsCoachFocusDate = null;
@@ -38941,6 +39563,7 @@ ${parts.join("\n")}
             function saveMealLog(date, data) {
                 localStorage.setItem("tp_meals_" + date, JSON.stringify(data));
                 bumpChangeCount();
+                scheduleWorkflowRefresh();
             }
 
             function renderMealLog() {
