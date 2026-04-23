@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.35.7" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.35.8" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -47,12 +47,15 @@
                 margin: 0;
                 padding: 0;
             }
+            html,
             body {
                 background: var(--bg);
                 color: var(--text);
                 font-family: "Segoe UI", system-ui, sans-serif;
                 font-size: 14px;
                 line-height: 1.5;
+                max-width: 100%;
+                overflow-x: hidden;
             }
 
             /* LAYOUT */
@@ -66,11 +69,15 @@
                 position: sticky;
                 top: 0;
                 z-index: 100;
+                box-sizing: border-box;
+                width: 100%;
+                max-width: 100%;
             }
             .topbar-left {
                 display: flex;
                 align-items: center;
                 gap: 12px;
+                min-width: 0;
             }
             .logo {
                 font-size: 18px;
@@ -112,11 +119,13 @@
             }
 
             .main {
-                width: min(1120px, calc(100% - 40px));
+                max-width: 1280px;
                 margin: 0 auto;
-                padding: 24px 0 28px;
+                padding: 24px;
                 display: grid;
                 gap: 20px;
+                box-sizing: border-box;
+                width: 100%;
             }
 
             /* CARDS */
@@ -190,9 +199,6 @@
                 background:
                     linear-gradient(135deg, rgba(0, 212, 255, 0.08), transparent 36%),
                     var(--surface);
-                width: 100%;
-                max-width: 1120px;
-                margin: 0 auto;
             }
             .workflow-top {
                 display: flex;
@@ -248,8 +254,8 @@
                 background: rgba(34, 197, 94, 0.1);
             }
             .workflow-summary {
-                display: flex;
-                flex-wrap: wrap;
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
                 gap: 8px;
                 margin-bottom: 12px;
             }
@@ -259,7 +265,6 @@
                 border-radius: 8px;
                 padding: 9px 10px;
                 min-width: 0;
-                flex: 1 1 calc((100% - 24px) / 4);
             }
             .workflow-pill-label {
                 font-size: 10px;
@@ -274,9 +279,18 @@
                 overflow-wrap: anywhere;
             }
             .workflow-grid {
-                display: flex;
-                flex-wrap: wrap;
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
                 gap: 10px;
+            }
+            @media (min-width: 1180px) {
+                /* Review note: keep the top workflow on a stable four-column rail on
+                   wide screens. The auto-fit experiment in v2.35.7 looked fine in one
+                   environment but broke badly in the packaged desktop shell. */
+                .workflow-summary,
+                .workflow-grid {
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                }
             }
             .workflow-step {
                 border: 1px solid var(--border);
@@ -289,7 +303,6 @@
                 flex-direction: column;
                 gap: 8px;
                 border-left-width: 3px;
-                flex: 1 1 calc((100% - 30px) / 4);
             }
             .workflow-step.red {
                 border-left-color: var(--red);
@@ -378,20 +391,20 @@
                     font-size: 11px;
                 }
                 .workflow-summary {
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
                     gap: 6px;
                 }
                 .workflow-pill {
                     padding: 8px;
-                    flex-basis: calc((100% - 6px) / 2);
                 }
                 .workflow-grid {
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
                     gap: 8px;
                 }
                 .workflow-step {
                     min-height: 0;
                     padding: 10px;
                     gap: 6px;
-                    flex-basis: calc((100% - 8px) / 2);
                 }
                 .workflow-step-title {
                     font-size: 12px;
@@ -409,9 +422,8 @@
                 }
             }
             @media (max-width: 340px) {
-                .workflow-pill,
-                .workflow-step {
-                    flex-basis: 100%;
+                .workflow-grid {
+                    grid-template-columns: 1fr;
                 }
             }
 
@@ -10102,8 +10114,17 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.35.7";
+            const VERSION = "2.35.8";
             const VERSION_CHANGES = [
+                {
+                    version: "2.35.8",
+                    date: "2026-04-22",
+                    summary: "Recover desktop layout after containment regression",
+                    details: [
+                        "Backed out the unstable desktop workflow containment experiment and restored the last stable four-column workflow layout.",
+                        "Added a viewport reset guard so packaged desktop shells cannot keep the dashboard stuck on a stale horizontal offset after an update.",
+                    ],
+                },
                 {
                     version: "2.35.7",
                     date: "2026-04-22",
@@ -12002,6 +12023,25 @@
                     _mojibakeRepairTimer = null;
                     initMojibakeRepair();
                 }, delay);
+            }
+            function resetHorizontalViewportOffset() {
+                // Review note: packaged desktop shells can preserve a stale horizontal
+                // scroll position after a bad layout update. Force the app back to x=0
+                // so the dashboard stays anchored on the left edge after refreshes.
+                if (typeof window === "undefined" || typeof document === "undefined")
+                    return;
+                const y = window.scrollY || window.pageYOffset || 0;
+                window.scrollTo(0, y);
+                if (document.documentElement)
+                    document.documentElement.scrollLeft = 0;
+                if (document.body) document.body.scrollLeft = 0;
+            }
+            function scheduleViewportReset() {
+                if (typeof window === "undefined") return;
+                window.requestAnimationFrame(() => {
+                    resetHorizontalViewportOffset();
+                    window.requestAnimationFrame(resetHorizontalViewportOffset);
+                });
             }
 
             // =========================================================
@@ -39199,6 +39239,7 @@ ${parts.join("\n")}
             scheduleMojibakeRepair(80);
             scheduleMojibakeRepair(1200);
             render(); // calls renderShoppingList, renderPeakWeek, renderInjectionTracker, renderSuppChecklist, renderMeasurements internally
+            scheduleViewportReset();
             restoreBackupHandle(); // restore connected auto-backup file from IndexedDB if present
             renderFitbitStatus();
             fitbitHandleRedirect(); // consume ?code= if Fitbit just redirected us back
@@ -39214,12 +39255,17 @@ ${parts.join("\n")}
             window.addEventListener("focus", () => {
                 refreshDailyDateBoundary(false);
                 checkAppVersionFreshness({ silent: true });
+                scheduleViewportReset();
             });
             window.addEventListener("load", () => {
                 scheduleMojibakeRepair(0);
+                scheduleViewportReset();
             });
             document.addEventListener("visibilitychange", () => {
-                if (!document.hidden) refreshDailyDateBoundary(false);
+                if (!document.hidden) {
+                    refreshDailyDateBoundary(false);
+                    scheduleViewportReset();
+                }
             });
             // v2.5.0: kick off cross-device sync if the user has already connected a gist
             renderSyncStatusChip();
