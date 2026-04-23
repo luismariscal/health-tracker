@@ -10257,8 +10257,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.36.1";
+            const VERSION = "2.36.2";
             const VERSION_CHANGES = [
+                {
+                    version: "2.36.2",
+                    date: "2026-04-23",
+                    summary: "Clean up notification and reminder copy",
+                    details: [
+                        "Replaced mojibake-prone notification and reminder labels with ASCII-only copy across Power Tools, hydration reminders, and injection reminders.",
+                        "Cleaned the water reminder modal and prompt text so settings and notifications read correctly again on desktop and mobile.",
+                        "Kept this pass scoped to the notification surface so reminder behavior stays the same while the text gets stable again.",
+                    ],
+                },
                 {
                     version: "2.36.1",
                     date: "2026-04-22",
@@ -40023,6 +40033,355 @@ ${parts.join("\n")}
                     icon: "",
                 });
             }
+
+            const NOTIFICATION_COPY = Object.freeze({
+                notSupported: "Not supported in this browser.",
+                notEnabled: "Not enabled.",
+                enabled: "Enabled",
+                blocked: "Blocked",
+                blockedSettings: "Blocked (change in browser settings)",
+                blockedUnblock: "Blocked - unblock notifications in browser settings",
+                remindersOn: "Reminders on",
+                enableReminders: "Enable reminders",
+                remindMe: "Remind me",
+                notificationsEnabled: "Notifications enabled",
+                waterRemindersOff: "Water reminders off",
+                waterReminderTitle: "Time to hydrate",
+                waterSettingsTitle: "Water Settings",
+                waterClosedHint:
+                    "For reminders when the app is closed: install to home screen (Install in the top bar, or on iOS use Share > Add to Home Screen). Chrome-installed PWAs additionally support periodic background sync for tab-closed pings; on other platforms, reminders fire whenever the app is open.",
+            });
+
+            function syncNotificationSurfaceCopy() {
+                const cardTitle = document.querySelector(
+                    "#powerToolsCard > .card-title",
+                );
+                if (cardTitle) cardTitle.textContent = "Power Tools";
+                const notificationHeading = document.querySelector(
+                    "#powerToolsCard .power-tools-grid > div:first-child > div:first-child",
+                );
+                if (notificationHeading) {
+                    notificationHeading.textContent = "Notifications";
+                }
+            }
+            syncNotificationSurfaceCopy();
+
+            // Review note: notification surfaces are high-frequency and were one of
+            // the first places mojibake resurfaced. Reassign the live functions with
+            // ASCII-only copy so future encoding hiccups do not leak back into the UI.
+            renderPowerTools = function () {
+                syncNotificationSurfaceCopy();
+                const status = document.getElementById("notifStatus");
+                if (status) {
+                    if (!("Notification" in window)) {
+                        status.textContent = NOTIFICATION_COPY.notSupported;
+                    } else if (Notification.permission === "granted") {
+                        status.textContent = NOTIFICATION_COPY.enabled;
+                    } else if (Notification.permission === "denied") {
+                        status.textContent = NOTIFICATION_COPY.blockedSettings;
+                    } else {
+                        status.textContent = NOTIFICATION_COPY.notEnabled;
+                    }
+                }
+
+                const stimSummary = document.getElementById("stimSummary");
+                if (stimSummary) {
+                    let stim = {};
+                    try {
+                        stim = JSON.parse(
+                            localStorage.getItem("tp_stim_" + todayKey()) || "{}",
+                        );
+                    } catch {
+                        stim = {};
+                    }
+                    stimSummary.textContent = `Today: ${stim.caffeine || 0}mg caff | ${stim.alcohol || 0} drinks`;
+                }
+
+                const cardioSummary = document.getElementById("cardioSummary");
+                if (cardioSummary) {
+                    let cardio = [];
+                    try {
+                        cardio = JSON.parse(
+                            localStorage.getItem("tp_cardio") || "[]",
+                        );
+                    } catch {
+                        cardio = [];
+                    }
+                    const last = cardio.slice(-1)[0];
+                    cardioSummary.textContent = last
+                        ? `Last: ${last.date} | ${last.type} | ${last.min}min`
+                        : "No cardio logged yet";
+                }
+
+                const dexaSummary = document.getElementById("dexaSummary");
+                if (dexaSummary) {
+                    let dexa = [];
+                    try {
+                        dexa = JSON.parse(
+                            localStorage.getItem("tp_dexa") || "[]",
+                        );
+                    } catch {
+                        dexa = [];
+                    }
+                    const last = dexa.slice(-1)[0];
+                    dexaSummary.textContent = last
+                        ? `Last: ${last.date} | ${last.bf}% BF | ${last.lean} lb lean`
+                        : "No scans logged yet";
+                }
+            };
+
+            enableNotifications = function () {
+                if (!("Notification" in window)) {
+                    showToast("Not supported");
+                    return;
+                }
+                Notification.requestPermission().then((permission) => {
+                    renderPowerTools();
+                    if (permission === "granted") {
+                        showToast(NOTIFICATION_COPY.notificationsEnabled);
+                    }
+                });
+            };
+
+            testNotification = function () {
+                if (Notification.permission !== "granted") {
+                    enableNotifications();
+                    return;
+                }
+                new Notification("Transformation Protocol", {
+                    body: "Test notification working.",
+                    icon: "",
+                });
+            };
+
+            renderInjectionNotifyBtn = function () {
+                const btn = document.getElementById("injNotifyBtn");
+                if (!btn) return;
+                if (!("Notification" in window)) {
+                    btn.style.display = "none";
+                    return;
+                }
+                const state = loadInjNotify();
+                const perm = Notification.permission;
+                if (perm === "granted" && state.enabled) {
+                    btn.textContent = NOTIFICATION_COPY.remindersOn;
+                    btn.style.color = "var(--green)";
+                } else if (perm === "denied") {
+                    btn.textContent = NOTIFICATION_COPY.blocked;
+                    btn.title = "Unblock in browser settings";
+                    btn.style.color = "var(--muted)";
+                } else {
+                    btn.textContent = NOTIFICATION_COPY.enableReminders;
+                    btn.style.color = "";
+                    btn.title = "";
+                }
+            };
+
+            renderWaterNotifyBtn = function () {
+                const btn = document.getElementById("waterNotifyBtn");
+                if (!btn) return;
+                if (!("Notification" in window)) {
+                    btn.style.display = "none";
+                    return;
+                }
+                const settings = loadWaterSettings();
+                const perm = Notification.permission;
+                if (perm === "granted" && settings.remindersEnabled) {
+                    btn.textContent = `${NOTIFICATION_COPY.remindersOn} ${settings.intervalMin}m`;
+                    btn.style.color = "var(--green)";
+                    btn.title = `Reminders between ${settings.wakeStart}-${settings.wakeEnd}`;
+                } else if (perm === "denied") {
+                    btn.textContent = NOTIFICATION_COPY.blocked;
+                    btn.title = "Unblock notifications in browser settings";
+                    btn.style.color = "var(--muted)";
+                } else {
+                    btn.textContent = NOTIFICATION_COPY.remindMe;
+                    btn.style.color = "";
+                    btn.title = "Turn on hydration reminders";
+                }
+            };
+
+            toggleWaterReminders = async function () {
+                if (!("Notification" in window)) {
+                    showToast("Notifications not supported in this browser");
+                    return;
+                }
+                const settings = loadWaterSettings();
+                if (settings.remindersEnabled) {
+                    saveWaterSettings({
+                        ...settings,
+                        remindersEnabled: false,
+                    });
+                    renderWaterNotifyBtn();
+                    showToast(NOTIFICATION_COPY.waterRemindersOff);
+                    return;
+                }
+                let perm = Notification.permission;
+                if (perm === "default") {
+                    perm = await Notification.requestPermission();
+                }
+                if (perm !== "granted") {
+                    showToast(
+                        perm === "denied"
+                            ? NOTIFICATION_COPY.blockedUnblock
+                            : "Permission not granted",
+                    );
+                    renderWaterNotifyBtn();
+                    return;
+                }
+                saveWaterSettings({
+                    ...settings,
+                    remindersEnabled: true,
+                    lastReminderTs: 0,
+                });
+                renderWaterNotifyBtn();
+                const bg = await tryRegisterPeriodicSync(
+                    "water-reminder",
+                    (settings.intervalMin || 90) * 60 * 1000,
+                );
+                showToast(
+                    bg
+                        ? "Water reminders on - background sync active"
+                        : `Water reminders on - every ${settings.intervalMin}m (while app is open)`,
+                );
+                checkWaterReminder(true);
+            };
+
+            checkWaterReminder = async function (force = false) {
+                renderWaterNotifyBtn();
+                if (
+                    !("Notification" in window) ||
+                    Notification.permission !== "granted"
+                ) {
+                    return;
+                }
+                const settings = loadWaterSettings();
+                if (!settings.remindersEnabled) return;
+                if (!isWithinWakingHours() && !force) return;
+
+                const now = Date.now();
+                const intervalMs = (settings.intervalMin || 90) * 60 * 1000;
+                const lastReminder = settings.lastReminderTs || 0;
+                const entries = todayWaterEntries();
+                const lastEntry = entries[entries.length - 1];
+                let lastDrink = settings.lastDrinkTs || 0;
+                if (!lastDrink && lastEntry) {
+                    const [hh, mm] = lastEntry.t.split(":").map(Number);
+                    const d = new Date();
+                    d.setHours(hh, mm, 0, 0);
+                    lastDrink = d.getTime();
+                }
+                const sinceDrink = now - lastDrink;
+                const sinceReminder = now - lastReminder;
+
+                if (!force && sinceReminder < intervalMs) return;
+                if (!force && lastDrink && sinceDrink < intervalMs * 0.5)
+                    return;
+
+                const total = entries.reduce(
+                    (sum, entry) => sum + (+entry.oz || 0),
+                    0,
+                );
+                if (!force && total >= (settings.goalOz || 100)) return;
+
+                const remaining = Math.max(
+                    0,
+                    (settings.goalOz || 100) - total,
+                );
+                const hoursSince = lastDrink
+                    ? Math.round((sinceDrink / 3600000) * 10) / 10
+                    : null;
+                const bodyBits = [
+                    `${fmtWater(total, settings.unit)} / ${fmtWater(settings.goalOz || 100, settings.unit)} so far today.`,
+                ];
+                if (remaining > 0) {
+                    bodyBits.push(
+                        `${fmtWater(remaining, settings.unit)} to goal.`,
+                    );
+                }
+                if (hoursSince != null && hoursSince >= 1) {
+                    bodyBits.push(`Last drink ${hoursSince}h ago.`);
+                }
+
+                const ok = await showTpNotification(
+                    NOTIFICATION_COPY.waterReminderTitle,
+                    {
+                        body: bodyBits.join(" "),
+                        icon: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="%230ea5e9"/><text x="50%" y="62%" text-anchor="middle" font-size="42" fill="white" font-family="Arial">W</text></svg>',
+                        badge: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><text x="50%" y="65%" text-anchor="middle" font-size="24" fill="black">W</text></svg>',
+                        tag: "tp-water-reminder",
+                        renotify: true,
+                        requireInteraction: false,
+                    },
+                );
+                if (ok) {
+                    saveWaterSettings({ ...settings, lastReminderTs: now });
+                }
+            };
+
+            openWaterSettings = function () {
+                let overlay = document.getElementById("waterSettingsOverlay");
+                if (!overlay) {
+                    overlay = document.createElement("div");
+                    overlay.id = "waterSettingsOverlay";
+                    overlay.style.cssText =
+                        "display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:320;align-items:center;justify-content:center;";
+                    overlay.innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+          <div style="font-size:16px;font-weight:800;">${NOTIFICATION_COPY.waterSettingsTitle}</div>
+          <button onclick="closeWaterSettings()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">x</button>
+        </div>
+        <div id="waterSettingsBody"></div>
+      </div>`;
+                    overlay.addEventListener("click", (event) => {
+                        if (event.target === overlay) closeWaterSettings();
+                    });
+                    document.body.appendChild(overlay);
+                }
+                renderWaterSettings();
+                overlay.style.display = "flex";
+            };
+
+            renderWaterSettings = function () {
+                const body = document.getElementById("waterSettingsBody");
+                const settings = loadWaterSettings();
+                body.innerHTML = `
+    <div class="form-grid">
+      <div class="field">
+        <label>Daily goal</label>
+        <div style="display:grid;grid-template-columns:1fr 90px;gap:6px;width:100%;align-items:stretch;">
+          <input type="number" class="ws-num" id="ws_goal" value="${settings.goalOz || 100}" step="1" min="20" inputmode="numeric" style="min-width:0;width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:16px;">
+          <select id="ws_unit" style="width:90px;max-width:90px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 4px;font-size:13px;">
+            <option value="oz" ${settings.unit === "oz" ? "selected" : ""}>oz</option>
+            <option value="ml" ${settings.unit === "ml" ? "selected" : ""}>ml</option>
+          </select>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">Common targets: 64oz (half-gallon), 100oz (3L), 128oz (gallon). On GLP-1s, lean higher.</div>
+      </div>
+      <div class="field">
+        <label>Reminder interval (minutes)</label>
+        <input type="number" id="ws_interval" value="${settings.intervalMin}" step="15" min="30" max="240" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;">
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">How often to ping you between waking hours.</div>
+      </div>
+      <div class="field">
+        <label>Waking hours</label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="time" id="ws_wakeStart" value="${settings.wakeStart}" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;">
+          <span style="color:var(--muted);">to</span>
+          <input type="time" id="ws_wakeEnd" value="${settings.wakeEnd}" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;">
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">No reminders outside this window.</div>
+      </div>
+    </div>
+    <div style="margin-top:14px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;font-size:11px;color:var(--muted);line-height:1.5;">
+      ${NOTIFICATION_COPY.waterClosedHint}
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="closeWaterSettings()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveWaterSettingsFromModal()">Save</button>
+    </div>`;
+            };
 
             // 12b. PDF Report (print-friendly)
             function openPrintReport() {
