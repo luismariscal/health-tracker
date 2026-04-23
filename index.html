@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.35.5" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.35.6" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -112,7 +112,7 @@
             }
 
             .main {
-                max-width: 1400px;
+                max-width: 1280px;
                 margin: 0 auto;
                 padding: 24px;
                 display: grid;
@@ -273,6 +273,15 @@
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
                 gap: 10px;
+            }
+            @media (min-width: 1180px) {
+                /* Review note: the top workflow reads better on wide screens when
+                   it stays on a stable four-column rail instead of stretching
+                   individual cards across oversized tracks. */
+                .workflow-summary,
+                .workflow-grid {
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                }
             }
             .workflow-step {
                 border: 1px solid var(--border);
@@ -10096,8 +10105,17 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.35.5";
+            const VERSION = "2.35.6";
             const VERSION_CHANGES = [
+                {
+                    version: "2.35.6",
+                    date: "2026-04-22",
+                    summary: "Tighten desktop workflow containment",
+                    details: [
+                        "Reduced the main desktop rail so top-level cards stop feeling edge-to-edge on large screens.",
+                        "Locked the Critical-First summary and action rows to stable four-column tracks on wide screens so the layout stays visually contained.",
+                    ],
+                },
                 {
                     version: "2.35.5",
                     date: "2026-04-22",
