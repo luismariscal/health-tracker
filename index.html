@@ -6377,10 +6377,11 @@
                             style="font-size: 11px; color: var(--muted)"
                         ></span>
                         <button
+                            id="fitbitActionBtn"
                             class="btn btn-ghost"
-                            onclick="openFitbitSettings()"
+                            onclick="fitbitPrimaryAction()"
                             style="font-size: 11px; padding: 4px 10px"
-                            title="Connect Fitbit for auto-sync"
+                            title="Connect Fitbit and manage sync"
                         >
                             ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ Fitbit
                         </button>
@@ -7052,7 +7053,10 @@
                             margin-bottom: 18px;
                         "
                     >
-                        <div style="font-size: 16px; font-weight: 800">
+                        <div
+                            id="fitbitModalTitle"
+                            style="font-size: 16px; font-weight: 800"
+                        >
                             ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ Fitbit Integration
                         </div>
                         <button
@@ -7070,6 +7074,7 @@
                     </div>
                     <div id="fitbitConnected" style="display: none">
                         <div
+                            id="fitbitConnectedBanner"
                             style="
                                 background: rgba(34, 197, 94, 0.08);
                                 border: 1px solid rgba(34, 197, 94, 0.3);
@@ -7083,6 +7088,7 @@
                             ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ Connected ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â <span id="fitbitExpiry"></span>
                         </div>
                         <div
+                            id="fitbitConnectedCopy"
                             style="
                                 margin-bottom: 14px;
                                 font-size: 12px;
@@ -7096,6 +7102,7 @@
                         </div>
                         <div class="form-actions" style="margin-bottom: 14px">
                             <button
+                                id="fitbitSyncTodayBtn"
                                 class="btn btn-primary"
                                 onclick="fitbitSyncToday()"
                             >
@@ -7141,6 +7148,7 @@
                     </div>
                     <div id="fitbitNotConnected">
                         <div
+                            id="fitbitSetupBanner"
                             style="
                                 background: rgba(234, 179, 8, 0.08);
                                 border: 1px solid rgba(234, 179, 8, 0.3);
@@ -7159,6 +7167,7 @@
                         </div>
                         <details style="margin-bottom: 14px">
                             <summary
+                                id="fitbitSetupSummary"
                                 style="
                                     font-size: 12px;
                                     color: var(--accent);
@@ -7245,6 +7254,7 @@
                         ></div>
                         <div class="form-actions">
                             <button
+                                id="fitbitConnectBtn"
                                 class="btn btn-primary"
                                 onclick="fitbitConnect()"
                             >
@@ -10247,8 +10257,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.36.0";
+            const VERSION = "2.36.1";
             const VERSION_CHANGES = [
+                {
+                    version: "2.36.1",
+                    date: "2026-04-22",
+                    summary: "Upgrade Fitbit integration with auto-sync and resting HR import",
+                    details: [
+                        "Cleaned up the Fitbit connection flow inside Recovery & Activity so the setup and sync UI reads clearly again.",
+                        "Fitbit connections now request heartrate access for new logins and pull resting HR alongside weight, steps, and sleep when the API provides it.",
+                        "Connected Fitbit accounts now auto-refresh on app open or focus when the last sync is stale, while manual logs remain the source of truth.",
+                    ],
+                },
                 {
                     version: "2.36.0",
                     date: "2026-04-22",
@@ -24675,12 +24695,15 @@ Style:
                 if (existing && existing.weekKey === weekKey) return; // already have this week's
                 generateWeeklyReview(false);
             }
-
             // =========================================================
-            // FITBIT INTEGRATION ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â OAuth2 PKCE
+            // FITBIT INTEGRATION - OAuth2 PKCE
+            // Review note: Fitbit sync only writes Fitbit-owned rows or
+            // empty slots. Manual entries remain the source of truth.
             // =========================================================
-            const FITBIT_SCOPES = "weight activity sleep";
+            const FITBIT_SCOPES = "weight activity sleep heartrate";
             const FITBIT_REDIRECT_KEY = "tp_fitbit_pkce";
+            const FITBIT_AUTOSYNC_MINUTES = 180;
+            let fitbitSyncInFlight = null;
 
             function loadFitbit() {
                 try {
@@ -24696,7 +24719,7 @@ Style:
             }
 
             function fitbitRedirectUri() {
-                // Strip query/hash so the uri matches the one registered in Fitbit's app dashboard
+                // Strip query/hash so the URL matches the callback registered in Fitbit.
                 return location.origin + location.pathname;
             }
 
@@ -24721,29 +24744,115 @@ Style:
                 return { verifier, challenge };
             }
 
+            function fitbitPrimaryAction() {
+                openFitbitSettings();
+            }
+
+            function _fitbitSetText(id, text) {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            }
+
+            function _fitbitDescribeScope(data) {
+                if (!data?.scope) return "";
+                return /\bheartrate\b/i.test(data.scope)
+                    ? "Weight, steps, sleep, and resting HR are available."
+                    : "Weight, steps, and sleep are available. Reconnect to add resting HR.";
+            }
+
+            function _fitbitModalBannerText(data) {
+                const parts = ["Connected"];
+                if (data.lastSync) {
+                    const last = new Date(data.lastSync);
+                    if (!isNaN(last)) parts.push("last sync " + relativeTime(last));
+                }
+                if (data.expiresAt) {
+                    const exp = new Date(data.expiresAt);
+                    if (!isNaN(exp)) {
+                        const remaining = Math.max(
+                            0,
+                            Math.round((exp - Date.now()) / 60000),
+                        );
+                        parts.push(`token refresh window ${remaining} min`);
+                    }
+                }
+                return parts.join(" - ");
+            }
+
+            function _fitbitSummaryText(summary) {
+                if (!summary) return "";
+                const parts = [];
+                if (typeof summary.weightLb === "number") {
+                    parts.push(`${summary.weightLb.toFixed(1)} lb`);
+                }
+                if (typeof summary.steps === "number") {
+                    parts.push(`${summary.steps.toLocaleString()} steps`);
+                }
+                if (typeof summary.sleepHours === "number") {
+                    parts.push(`${summary.sleepHours.toFixed(1)}h sleep`);
+                }
+                if (typeof summary.restingHr === "number") {
+                    parts.push(`${Math.round(summary.restingHr)} bpm`);
+                }
+                return parts.join(" | ");
+            }
+
+            function _fitbitBuildRangeKeys(days) {
+                const keys = [];
+                for (let i = 0; i < days; i++) {
+                    const d = new Date();
+                    d.setDate(d.getDate() - i);
+                    keys.push(_dateKeyLocal(d));
+                }
+                return keys;
+            }
+
             function openFitbitSettings() {
                 const data = loadFitbit();
-                document.getElementById("fitbitCurrentUrl").textContent =
-                    fitbitRedirectUri();
                 const connected = !!data.accessToken;
+                _fitbitSetText("fitbitModalTitle", "Fitbit Integration");
+                _fitbitSetText("fitbitSyncTodayBtn", "Sync Today");
+                _fitbitSetText("fitbitConnectBtn", "Connect Fitbit");
+                _fitbitSetText("fitbitSetupSummary", "One-time setup");
+                const closeBtn = document.querySelector(
+                    '#fitbitSettingsOverlay button[onclick="closeFitbitSettings()"]',
+                );
+                if (closeBtn) closeBtn.textContent = "x";
+                _fitbitSetText(
+                    "fitbitConnectedCopy",
+                    "Sync pulls weight, steps, sleep, and resting HR into the dashboard. Connected accounts auto-refresh on app open when data is stale.",
+                );
+                _fitbitSetText(
+                    "fitbitSetupBanner",
+                    "Fitbit OAuth requires this app to be hosted on a real URL. file:// redirects will not work.",
+                );
+                _fitbitSetText("fitbitCurrentUrl", fitbitRedirectUri());
+
+                const banner = document.getElementById("fitbitConnectedBanner");
+                if (banner) {
+                    banner.textContent = connected
+                        ? _fitbitModalBannerText(data)
+                        : "";
+                }
+
+                const scopeNote = document.getElementById("fitbitConnectStatus");
+                if (scopeNote) {
+                    scopeNote.innerHTML = connected
+                        ? `<span style="color:var(--muted);">${escapeHtml(_fitbitDescribeScope(data))}</span>`
+                        : "";
+                }
+
                 document.getElementById("fitbitConnected").style.display =
                     connected ? "block" : "none";
                 document.getElementById("fitbitNotConnected").style.display =
                     connected ? "none" : "block";
                 document.getElementById("fitbitClientId").value =
                     data.clientId || "";
-                document.getElementById("fitbitConnectStatus").innerHTML = "";
-                document.getElementById("fitbitSyncLog").style.display = "none";
-                if (connected) {
-                    const exp = data.expiresAt
-                        ? new Date(data.expiresAt)
-                        : null;
-                    const remaining = exp
-                        ? Math.max(0, Math.round((exp - Date.now()) / 60000))
-                        : 0;
-                    document.getElementById("fitbitExpiry").textContent = exp
-                        ? `token expires in ${remaining} min${data.lastSync ? " ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· last sync " + relativeTime(new Date(data.lastSync)) : ""}`
-                        : "ready";
+
+                const pre = document.getElementById("fitbitSyncLog");
+                if (pre) {
+                    pre.style.display = "none";
+                    pre.textContent = "";
                 }
                 document.getElementById("fitbitSettingsOverlay").style.display =
                     "flex";
@@ -24753,12 +24862,14 @@ Style:
                     "none";
             }
             function copyFitbitUrl() {
-                const u = fitbitRedirectUri();
-                if (navigator.clipboard?.writeText)
+                const url = fitbitRedirectUri();
+                if (navigator.clipboard?.writeText) {
                     navigator.clipboard
-                        .writeText(u)
-                        .then(() => showToast("ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ Redirect URL copied"));
-                else showToast(u);
+                        .writeText(url)
+                        .then(() => showToast("Fitbit redirect URL copied"));
+                    return;
+                }
+                showToast(url, 5000);
             }
 
             async function fitbitConnect() {
@@ -24767,11 +24878,13 @@ Style:
                     .value.trim();
                 const status = document.getElementById("fitbitConnectStatus");
                 if (!clientId) {
-                    status.innerHTML = `<span style="color:#ef4444;">Paste your Client ID first.</span>`;
+                    status.innerHTML =
+                        '<span style="color:#ef4444;">Paste your Client ID first.</span>';
                     return;
                 }
                 if (location.protocol === "file:") {
-                    status.innerHTML = `<span style="color:#ef4444;">Running from file:// won't work ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â host this file on a URL first.</span>`;
+                    status.innerHTML =
+                        '<span style="color:#ef4444;">Running from file:// will not work. Host the app on a real URL first.</span>';
                     return;
                 }
                 const { verifier, challenge } = await fitbitPkcePair();
@@ -24798,11 +24911,11 @@ Style:
                 if (err) {
                     showToast(`Fitbit auth failed: ${err}`, 5000);
                     history.replaceState({}, "", fitbitRedirectUri());
-                    return;
+                    return true;
                 }
-                if (!code) return;
+                if (!code) return false;
                 const pending = sessionStorage.getItem(FITBIT_REDIRECT_KEY);
-                if (!pending) return;
+                if (!pending) return false;
                 sessionStorage.removeItem(FITBIT_REDIRECT_KEY);
                 const { verifier, clientId } = JSON.parse(pending);
                 history.replaceState({}, "", fitbitRedirectUri());
@@ -24825,10 +24938,11 @@ Style:
                         },
                     );
                     const j = await resp.json();
-                    if (!resp.ok)
+                    if (!resp.ok) {
                         throw new Error(
                             j.errors?.[0]?.message || `HTTP ${resp.status}`,
                         );
+                    }
                     const now = Date.now();
                     saveFitbit({
                         clientId,
@@ -24837,23 +24951,34 @@ Style:
                         expiresAt: now + (j.expires_in || 28800) * 1000,
                         userId: j.user_id,
                         connectedAt: now,
+                        scope: j.scope || FITBIT_SCOPES,
                     });
+                    try {
+                        await fitbitSyncRange(7, {
+                            silent: true,
+                            suppressToast: true,
+                        });
+                    } catch (syncError) {
+                        console.warn("Fitbit initial backfill failed", syncError);
+                    }
                     renderFitbitStatus();
-                    showToast("ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ Fitbit connected ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â try Sync Today", 4000);
                     openFitbitSettings();
+                    showToast("Fitbit connected and recent data synced", 4000);
                 } catch (e) {
                     showToast(
                         `Fitbit token exchange failed: ${e.message}`,
                         6000,
                     );
                 }
+                return true;
             }
 
             async function fitbitRefreshIfNeeded() {
                 const data = loadFitbit();
                 if (!data.refreshToken) throw new Error("Not connected");
-                if (data.expiresAt && Date.now() < data.expiresAt - 60000)
+                if (data.expiresAt && Date.now() < data.expiresAt - 60000) {
                     return data.accessToken;
+                }
                 const body = new URLSearchParams();
                 body.set("client_id", data.clientId);
                 body.set("grant_type", "refresh_token");
@@ -24870,10 +24995,13 @@ Style:
                 );
                 const j = await resp.json();
                 if (!resp.ok) {
-                    // Refresh failed ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â require reconnect
-                    saveFitbit({ clientId: data.clientId });
+                    saveFitbit({
+                        clientId: data.clientId,
+                        lastSync: data.lastSync,
+                        lastSyncSummary: data.lastSyncSummary,
+                    });
                     renderFitbitStatus();
-                    throw new Error("Refresh token expired ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â reconnect Fitbit");
+                    throw new Error("Refresh token expired. Reconnect Fitbit.");
                 }
                 const now = Date.now();
                 const updated = {
@@ -24881,6 +25009,7 @@ Style:
                     accessToken: j.access_token,
                     refreshToken: j.refresh_token,
                     expiresAt: now + (j.expires_in || 28800) * 1000,
+                    scope: j.scope || data.scope || FITBIT_SCOPES,
                 };
                 saveFitbit(updated);
                 return updated.accessToken;
@@ -24897,7 +25026,7 @@ Style:
                 if (!resp.ok) {
                     const body = await resp.text();
                     throw new Error(
-                        `Fitbit ${path} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ HTTP ${resp.status}: ${body.slice(0, 120)}`,
+                        `Fitbit ${path} HTTP ${resp.status}: ${body.slice(0, 120)}`,
                     );
                 }
                 return resp.json();
@@ -24914,81 +25043,109 @@ Style:
                 bumpChangeCount();
             }
 
+            function _fitbitUpsertWeightEntry(dateKey, lb) {
+                const entries = loadEntries();
+                const existing = entries.find((e) => e.date === dateKey);
+                if (!existing) {
+                    entries.push({
+                        date: dateKey,
+                        weight: +lb.toFixed(1),
+                        protein: null,
+                        water: null,
+                        notes: "Fitbit",
+                    });
+                    entries.sort((a, b) => a.date.localeCompare(b.date));
+                    saveEntries(entries);
+                    return;
+                }
+                if (existing.notes === "Fitbit") {
+                    existing.weight = +lb.toFixed(1);
+                    saveEntries(entries);
+                }
+            }
+
+            function _fitbitUpsertVitals(dateKey, restingHr) {
+                if (!Number.isFinite(restingHr) || restingHr <= 0) return;
+                const arr = loadVitals();
+                const existing = arr.find((v) => v.date === dateKey);
+                if (!existing) {
+                    arr.push({
+                        date: dateKey,
+                        sbp: null,
+                        dbp: null,
+                        hr: Math.round(restingHr),
+                        source: "fitbit",
+                    });
+                    arr.sort((a, b) => a.date.localeCompare(b.date));
+                    saveVitalsArr(arr);
+                    return;
+                }
+                // Review note: never overwrite a manual vitals row with a
+                // Fitbit-only heart-rate import. Only refresh rows Fitbit owns.
+                if (existing.source === "fitbit") {
+                    existing.hr = Math.round(restingHr);
+                    saveVitalsArr(arr);
+                }
+            }
+
             async function fitbitSyncDate(dateKey, log) {
                 const addLog = (msg) => {
                     if (log) log.push(msg);
                 };
-                const patch = {};
+                const compliancePatch = {};
+                const summary = {};
 
-                // Weight ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â latest entry on or before dateKey (1d window)
                 try {
                     const wj = await fitbitFetch(
                         `/1/user/-/body/log/weight/date/${dateKey}.json`,
                     );
-                    const w = (wj.weight || [])[0];
-                    if (w && w.weight) {
-                        // Fitbit returns weight in lb when accept-language=en_US
-                        const lb = parseFloat(w.weight);
-                        if (!isNaN(lb)) {
-                            // Append to tp_entries if this date not already logged from Fitbit
-                            const entries = loadEntries();
-                            const existing = entries.find(
-                                (e) => e.date === dateKey,
-                            );
-                            if (!existing) {
-                                entries.push({
-                                    date: dateKey,
-                                    weight: +lb.toFixed(1),
-                                    protein: null,
-                                    water: null,
-                                    notes: "Fitbit",
-                                });
-                                entries.sort((a, b) =>
-                                    a.date.localeCompare(b.date),
-                                );
-                                saveEntries(entries);
-                            } else if (existing.notes === "Fitbit") {
-                                existing.weight = +lb.toFixed(1);
-                                saveEntries(entries);
-                            }
-                            addLog(`ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ weight ${lb.toFixed(1)} lb`);
-                        }
+                    const weightLog = Array.isArray(wj.weight) ? wj.weight[0] : null;
+                    const lb = Number(weightLog?.weight);
+                    if (Number.isFinite(lb) && lb > 0) {
+                        _fitbitUpsertWeightEntry(dateKey, lb);
+                        summary.weightLb = +lb.toFixed(1);
+                        addLog(`Weight ${lb.toFixed(1)} lb`);
                     } else {
-                        addLog(`ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· no weight logged ${dateKey}`);
+                        addLog(`No weight on ${dateKey}`);
                     }
                 } catch (e) {
-                    addLog(`ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â weight: ${e.message}`);
+                    addLog(`Weight error: ${e.message}`);
                 }
 
-                // Steps
                 try {
                     const aj = await fitbitFetch(
                         `/1/user/-/activities/date/${dateKey}.json`,
                     );
-                    const steps = aj.summary?.steps;
-                    if (typeof steps === "number") {
-                        patch.steps = steps;
-                        addLog(`ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ steps ${steps.toLocaleString()}`);
+                    const steps = Number(aj.summary?.steps);
+                    if (Number.isFinite(steps) && steps >= 0) {
+                        compliancePatch.steps = steps;
+                        summary.steps = steps;
+                        addLog(`Steps ${steps.toLocaleString()}`);
+                    }
+                    const restingHr = Number(aj.summary?.restingHeartRate);
+                    if (Number.isFinite(restingHr) && restingHr > 0) {
+                        compliancePatch.resting_hr = Math.round(restingHr);
+                        summary.restingHr = Math.round(restingHr);
+                        _fitbitUpsertVitals(dateKey, restingHr);
+                        addLog(`Resting HR ${Math.round(restingHr)} bpm`);
                     }
                 } catch (e) {
-                    addLog(`ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â steps: ${e.message}`);
+                    addLog(`Activity error: ${e.message}`);
                 }
 
-                // Sleep
                 try {
                     const sj = await fitbitFetch(
                         `/1.2/user/-/sleep/date/${dateKey}.json`,
                     );
-                    const main =
-                        (sj.sleep || []).find((s) => s.isMainSleep) ||
-                        (sj.sleep || [])[0];
-                    if (main) {
-                        const hours = +(main.minutesAsleep / 60).toFixed(1);
-                        patch.sleep_hours = hours;
-                        // Map Fitbit efficiency ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ 1..5 quality approximation
-                        if (typeof main.efficiency === "number") {
-                            const eff = main.efficiency;
-                            patch.sleep_quality =
+                    const sleeps = Array.isArray(sj.sleep) ? sj.sleep : [];
+                    const main = sleeps.find((s) => s.isMainSleep) || sleeps[0];
+                    if (main && Number.isFinite(Number(main.minutesAsleep))) {
+                        const hours = +(Number(main.minutesAsleep) / 60).toFixed(1);
+                        compliancePatch.sleep_hours = hours;
+                        summary.sleepHours = hours;
+                        if (Number.isFinite(Number(main.efficiency))) {
+                            const eff = Number(main.efficiency);
+                            compliancePatch.sleep_quality =
                                 eff >= 95
                                     ? 5
                                     : eff >= 90
@@ -24999,58 +25156,117 @@ Style:
                                           ? 2
                                           : 1;
                         }
-                        addLog(`ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ sleep ${hours}h (eff ${main.efficiency}%)`);
+                        addLog(
+                            `Sleep ${hours.toFixed(1)}h${Number.isFinite(Number(main.efficiency)) ? ` (eff ${Number(main.efficiency)}%)` : ""}`,
+                        );
+                    } else {
+                        addLog(`No sleep on ${dateKey}`);
                     }
                 } catch (e) {
-                    addLog(`ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â sleep: ${e.message}`);
+                    addLog(`Sleep error: ${e.message}`);
                 }
 
-                if (Object.keys(patch).length)
-                    setComplianceForDate(dateKey, patch);
-                return patch;
-            }
-
-            async function fitbitSyncToday() {
-                const pre = document.getElementById("fitbitSyncLog");
-                pre.style.display = "block";
-                pre.textContent = "Syncing todayÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦\n";
-                const log = [];
-                try {
-                    const today = todayKey();
-                    await fitbitSyncDate(today, log);
-                    pre.textContent = log.join("\n");
-                    const data = loadFitbit();
-                    saveFitbit({ ...data, lastSync: new Date().toISOString() });
-                    renderFitbitStatus();
-                    render();
-                    showToast("ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ Fitbit synced");
-                } catch (e) {
-                    pre.textContent = "Error: " + e.message;
+                if (Object.keys(compliancePatch).length) {
+                    setComplianceForDate(dateKey, compliancePatch);
                 }
+                return { patch: compliancePatch, summary };
             }
 
-            async function fitbitSyncRange(days) {
-                const pre = document.getElementById("fitbitSyncLog");
-                pre.style.display = "block";
-                pre.textContent = `Syncing last ${days} daysÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦\n`;
-                const out = [];
-                try {
-                    for (let i = 0; i < days; i++) {
-                        const d = new Date();
-                        d.setDate(d.getDate() - i);
-                        const key = _dateKeyLocal(d);
+            async function _fitbitRunSync(dateKeys, options = {}) {
+                if (fitbitSyncInFlight) return fitbitSyncInFlight;
+                fitbitSyncInFlight = (async () => {
+                    const dates = [...new Set((dateKeys || []).filter(Boolean))];
+                    const pre = document.getElementById("fitbitSyncLog");
+                    const showLog = !options.silent && !!pre;
+                    const lines = [];
+                    let selectedSummary = null;
+                    if (showLog) {
+                        pre.style.display = "block";
+                        pre.textContent =
+                            options.header ||
+                            (dates.length === 1
+                                ? `Syncing ${dates[0]}...`
+                                : `Syncing ${dates.length} days...`);
+                    }
+                    for (const dateKey of dates) {
                         const log = [];
-                        await fitbitSyncDate(key, log);
-                        out.push(`${key}: ${log.join(" ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "(nothing)"}`);
-                        pre.textContent = out.join("\n");
+                        const result = await fitbitSyncDate(dateKey, log);
+                        const line = `${dateKey}: ${log.join(" | ") || "no Fitbit data"}`;
+                        lines.push(line);
+                        if (!selectedSummary && dateKey === todayKey()) {
+                            selectedSummary = result.summary;
+                        }
+                        if (!selectedSummary && _fitbitSummaryText(result.summary)) {
+                            selectedSummary = result.summary;
+                        }
+                        if (showLog) {
+                            pre.textContent = lines.join("\n");
+                        }
                     }
                     const data = loadFitbit();
-                    saveFitbit({ ...data, lastSync: new Date().toISOString() });
+                    saveFitbit({
+                        ...data,
+                        lastSync: new Date().toISOString(),
+                        lastSyncSummary:
+                            _fitbitSummaryText(selectedSummary) ||
+                            (dates.length === 1
+                                ? `Synced ${dates[0]}`
+                                : `Synced ${dates.length} days`),
+                    });
                     renderFitbitStatus();
                     render();
-                    showToast(`ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ Fitbit synced ${days} days`);
+                    if (!options.suppressToast) {
+                        showToast(
+                            dates.length === 1
+                                ? "Fitbit synced"
+                                : `Fitbit synced ${dates.length} days`,
+                        );
+                    }
+                    return { dates, lines, summary: selectedSummary };
+                })();
+                try {
+                    return await fitbitSyncInFlight;
+                } finally {
+                    fitbitSyncInFlight = null;
+                }
+            }
+
+            async function fitbitSyncToday(options = {}) {
+                return _fitbitRunSync([todayKey()], {
+                    header: `Syncing ${todayKey()}...`,
+                    ...options,
+                });
+            }
+
+            async function fitbitSyncRange(days, options = {}) {
+                return _fitbitRunSync(_fitbitBuildRangeKeys(days), {
+                    header: `Syncing last ${days} days...`,
+                    ...options,
+                });
+            }
+
+            function fitbitShouldAutoSync(now = new Date()) {
+                const data = loadFitbit();
+                if (!data.accessToken) return false;
+                if (!data.lastSync) return true;
+                const last = new Date(data.lastSync);
+                if (isNaN(last)) return true;
+                if (_dateKeyLocal(last) !== _dateKeyLocal(now)) return true;
+                return now - last >= FITBIT_AUTOSYNC_MINUTES * 60000;
+            }
+
+            async function fitbitAutoSyncIfNeeded() {
+                if (!fitbitShouldAutoSync()) return false;
+                try {
+                    await fitbitSyncToday({
+                        silent: true,
+                        suppressToast: true,
+                    });
+                    return true;
                 } catch (e) {
-                    pre.textContent += "\nError: " + e.message;
+                    console.warn("Fitbit auto-sync failed", e);
+                    renderFitbitStatus();
+                    return false;
                 }
             }
 
@@ -25059,8 +25275,9 @@ Style:
                     !confirm(
                         "Disconnect Fitbit? Your existing logged data stays intact.",
                     )
-                )
+                ) {
                     return;
+                }
                 localStorage.removeItem("tp_fitbit");
                 renderFitbitStatus();
                 closeFitbitSettings();
@@ -25068,15 +25285,32 @@ Style:
             }
 
             function renderFitbitStatus() {
-                const el = document.getElementById("fitbitStatus");
-                if (!el) return;
+                const statusEl = document.getElementById("fitbitStatus");
+                const actionBtn = document.getElementById("fitbitActionBtn");
                 const data = loadFitbit();
+                if (actionBtn) {
+                    actionBtn.textContent = data.accessToken
+                        ? "Manage Fitbit"
+                        : "Connect Fitbit";
+                    actionBtn.title = data.accessToken
+                        ? "Open Fitbit sync and settings"
+                        : "Connect Fitbit and manage sync";
+                }
+                if (!statusEl) return;
                 if (!data.accessToken) {
-                    el.textContent = "";
+                    statusEl.textContent =
+                        "Connect Fitbit to pull weight, steps, sleep, and resting HR into the dashboard.";
                     return;
                 }
-                const last = data.lastSync ? new Date(data.lastSync) : null;
-                el.innerHTML = `<span style="color:var(--green);">ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ ${last ? "synced " + relativeTime(last) : "connected"}</span>`;
+                const parts = ["Fitbit connected"];
+                if (data.lastSync) {
+                    const last = new Date(data.lastSync);
+                    if (!isNaN(last)) {
+                        parts.push("synced " + relativeTime(last));
+                    }
+                }
+                if (data.lastSyncSummary) parts.push(data.lastSyncSummary);
+                statusEl.textContent = parts.join(" | ");
             }
 
             function showToast(msg, duration = 2500) {
@@ -40297,7 +40531,12 @@ ${parts.join("\n")}
             scheduleViewportReset();
             restoreBackupHandle(); // restore connected auto-backup file from IndexedDB if present
             renderFitbitStatus();
-            fitbitHandleRedirect(); // consume ?code= if Fitbit just redirected us back
+            (async function initFitbitIntegration() {
+                try {
+                    const handledRedirect = await fitbitHandleRedirect();
+                    if (!handledRedirect) await fitbitAutoSyncIfNeeded();
+                } catch {}
+            })();
             checkScheduledReview(); // fire Sunday auto-review if due
             checkInjectionReminder(); // fire injection-day notification if due
             checkInventoryReminder(); // fire low-stock peptide alert if due
@@ -40311,6 +40550,7 @@ ${parts.join("\n")}
                 refreshDailyDateBoundary(false);
                 checkAppVersionFreshness({ silent: true });
                 scheduleViewportReset();
+                fitbitAutoSyncIfNeeded().catch(() => {});
             });
             window.addEventListener("load", () => {
                 scheduleMojibakeRepair(0);
@@ -40320,6 +40560,7 @@ ${parts.join("\n")}
                 if (!document.hidden) {
                     refreshDailyDateBoundary(false);
                     scheduleViewportReset();
+                    fitbitAutoSyncIfNeeded().catch(() => {});
                 }
             });
             // v2.5.0: kick off cross-device sync if the user has already connected a gist
