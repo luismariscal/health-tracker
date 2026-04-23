@@ -24,7 +24,7 @@
             content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Transformation" />
-        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.35.9" />
+        <link id="pwaManifest" rel="manifest" href="manifest.json?v=2.36.0" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <style>
             :root {
@@ -990,6 +990,86 @@
                 background: rgba(148, 163, 184, 0.12);
                 border-color: rgba(148, 163, 184, 0.24);
                 color: var(--muted);
+            }
+            .stack-timing-main {
+                font-weight: 700;
+            }
+            .stack-timing-sub {
+                font-size: 11px;
+                color: var(--muted);
+                margin-top: 4px;
+                line-height: 1.35;
+            }
+            .stack-schedule-box {
+                grid-column: 1 / -1;
+                background: rgba(15, 23, 42, 0.42);
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                padding: 12px;
+            }
+            .stack-schedule-row {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-top: 8px;
+            }
+            .stack-day-btn,
+            .stack-time-add-btn,
+            .stack-time-remove-btn {
+                border-radius: 8px;
+                border: 1px solid var(--border);
+                background: var(--surface2);
+                color: var(--muted);
+                font: inherit;
+                cursor: pointer;
+                transition: all 0.15s;
+            }
+            .stack-day-btn {
+                min-width: 42px;
+                padding: 8px 10px;
+                font-size: 12px;
+                font-weight: 800;
+            }
+            .stack-day-btn.is-selected {
+                background: rgba(0, 212, 255, 0.12);
+                color: var(--accent);
+                border-color: rgba(0, 212, 255, 0.32);
+            }
+            .stack-time-add-btn,
+            .stack-time-remove-btn {
+                padding: 7px 10px;
+                font-size: 12px;
+                font-weight: 700;
+            }
+            .stack-time-add-btn:hover,
+            .stack-time-remove-btn:hover,
+            .stack-day-btn:hover {
+                border-color: rgba(0, 212, 255, 0.32);
+                color: var(--text);
+            }
+            .stack-time-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-top: 8px;
+            }
+            .stack-time-row input {
+                flex: 1;
+            }
+            .stack-field-help {
+                font-size: 11px;
+                color: var(--muted);
+                margin-top: 6px;
+                line-height: 1.4;
+            }
+            .stack-schedule-preview {
+                margin-top: 10px;
+                padding: 8px 10px;
+                border-radius: 8px;
+                background: rgba(0, 212, 255, 0.08);
+                border: 1px solid rgba(0, 212, 255, 0.2);
+                font-size: 12px;
+                color: var(--text);
             }
 
             /* MACROS */
@@ -2557,6 +2637,41 @@
                 color: var(--muted);
                 border: 1px solid var(--border);
                 cursor: default;
+            }
+            .inj-slot-list {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                margin-top: 4px;
+            }
+            .inj-slot-row {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto;
+                gap: 8px;
+                align-items: center;
+                padding: 10px;
+                border-radius: 8px;
+                background: rgba(15, 23, 42, 0.38);
+                border: 1px solid rgba(148, 163, 184, 0.14);
+            }
+            .inj-slot-copy {
+                min-width: 0;
+            }
+            .inj-slot-title {
+                font-size: 12px;
+                font-weight: 800;
+                color: var(--text);
+            }
+            .inj-slot-meta {
+                font-size: 11px;
+                color: var(--muted);
+                margin-top: 2px;
+                line-height: 1.35;
+            }
+            .inj-slot-row .inj-btn {
+                margin-top: 0;
+                min-width: 132px;
+                padding: 8px 12px;
             }
             .inj-history-row {
                 display: flex;
@@ -9421,7 +9536,7 @@
                     border-radius: 16px;
                     padding: 28px;
                     width: 100%;
-                    max-width: 520px;
+                    max-width: 640px;
                     max-height: 90vh;
                     overflow-y: auto;
                 "
@@ -9750,9 +9865,20 @@
                         <label>Dose</label>
                         <input id="injLogDose" type="text" placeholder="4 mg" />
                     </div>
+                    <div class="field" id="injLogSlotField">
+                        <label>Dose Slot</label>
+                        <select
+                            id="injLogSlot"
+                            onchange="onInjectionLogSlotChange()"
+                        ></select>
+                    </div>
                     <div class="field">
                         <label>Date</label>
-                        <input id="injLogDate" type="date" />
+                        <input
+                            id="injLogDate"
+                            type="date"
+                            onchange="onInjectionLogDateChange()"
+                        />
                     </div>
                     <div class="field">
                         <label>Time</label>
@@ -10121,8 +10247,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.35.9";
+            const VERSION = "2.36.0";
             const VERSION_CHANGES = [
+                {
+                    version: "2.36.0",
+                    date: "2026-04-22",
+                    summary: "Add structured weekly schedules and split-dose injection logging",
+                    details: [
+                        "Current Stack now stores exact weekdays and dose times separately from free-text timing so weekly compounds and twice-daily peptides stay consistent across the app.",
+                        "Injection Tracker now renders one logging row per due dose slot, which lets morning and evening injections be logged independently without overwriting each other.",
+                        "Daily workflow was simplified so the tracker focuses on what is actually due today, while history still keeps each logged dose editable by date and slot.",
+                    ],
+                },
                 {
                     version: "2.35.9",
                     date: "2026-04-22",
@@ -10894,6 +11030,240 @@
                 return _normalizeStackRoute(item?.route, item) === "injection";
             }
 
+            const WEEKDAY_LABELS_SHORT = [
+                "Sun",
+                "Mon",
+                "Tue",
+                "Wed",
+                "Thu",
+                "Fri",
+                "Sat",
+            ];
+            const WEEKDAY_TOKEN_MAP = {
+                sun: 0,
+                sunday: 0,
+                mon: 1,
+                monday: 1,
+                tue: 2,
+                tues: 2,
+                tuesday: 2,
+                wed: 3,
+                wednesday: 3,
+                thu: 4,
+                thur: 4,
+                thurs: 4,
+                thursday: 4,
+                fri: 5,
+                friday: 5,
+                sat: 6,
+                saturday: 6,
+            };
+
+            function _parseScheduleDayToken(token) {
+                if (Number.isInteger(token) && token >= 0 && token <= 6) {
+                    return token;
+                }
+                const clean = String(token || "")
+                    .trim()
+                    .toLowerCase();
+                if (!clean) return null;
+                if (/^[0-6]$/.test(clean)) return Number(clean);
+                return Number.isInteger(WEEKDAY_TOKEN_MAP[clean])
+                    ? WEEKDAY_TOKEN_MAP[clean]
+                    : null;
+            }
+
+            function _normalizeScheduleDays(value, item = null) {
+                const days = new Set();
+                const addDay = (token) => {
+                    const day = _parseScheduleDayToken(token);
+                    if (day != null) days.add(day);
+                };
+                if (Array.isArray(value)) {
+                    value.forEach(addDay);
+                } else if (value != null && String(value).trim()) {
+                    String(value)
+                        .split(/[^A-Za-z0-9]+/)
+                        .filter(Boolean)
+                        .forEach(addDay);
+                }
+                if (!days.size) {
+                    const matches =
+                        String(item?.timing || "")
+                            .toLowerCase()
+                            .match(
+                                /\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday|sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)\b/g,
+                            ) || [];
+                    matches.forEach(addDay);
+                }
+                if (
+                    !days.size &&
+                    String(item?.status || "").toLowerCase() === "weekly"
+                ) {
+                    // Review note: keep the legacy Thu/Sun fallback for older saved
+                    // weekly entries until the user picks explicit weekdays.
+                    days.add(4);
+                    days.add(0);
+                }
+                return [...days].sort((a, b) => a - b);
+            }
+
+            function _parseScheduleTime(value) {
+                const match = String(value || "")
+                    .trim()
+                    .match(/^(\d{1,2}):(\d{2})$/);
+                if (!match) return "";
+                const hour = Number(match[1]);
+                const minute = Number(match[2]);
+                if (
+                    !Number.isInteger(hour) ||
+                    !Number.isInteger(minute) ||
+                    hour < 0 ||
+                    hour > 23 ||
+                    minute < 0 ||
+                    minute > 59
+                ) {
+                    return "";
+                }
+                return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+            }
+
+            function _extractScheduleTimesFromText(text, item = null) {
+                const seen = new Set();
+                const results = [];
+                const addTime = (raw) => {
+                    const normalized = _parseScheduleTime(raw);
+                    if (!normalized || seen.has(normalized)) return;
+                    seen.add(normalized);
+                    results.push(normalized);
+                };
+                const source = String(text || "");
+                (source.match(/\b\d{1,2}:\d{2}\b/g) || []).forEach(addTime);
+                if (_stackIsInjectable(item)) {
+                    const lower = source.toLowerCase();
+                    if (/\b(first meal|breakfast)\b/.test(lower)) addTime("06:00");
+                    if (/\b(morning|wake|waking)\b/.test(lower)) addTime("05:00");
+                    if (/\b(lunch|midday|noon)\b/.test(lower)) addTime("12:00");
+                    if (/\b(evening|dinner)\b/.test(lower)) addTime("18:00");
+                    if (/\b(22:00|nightly|night|bedtime|pre-bed|pre bed)\b/.test(lower))
+                        addTime("22:00");
+                }
+                return results.sort((a, b) => a.localeCompare(b));
+            }
+
+            function _normalizeScheduleTimes(value, item = null) {
+                const seen = new Set();
+                const results = [];
+                const addTime = (raw) => {
+                    const normalized = _parseScheduleTime(raw);
+                    if (!normalized || seen.has(normalized)) return;
+                    seen.add(normalized);
+                    results.push(normalized);
+                };
+                if (Array.isArray(value)) {
+                    value.forEach(addTime);
+                } else if (value != null && String(value).trim()) {
+                    _extractScheduleTimesFromText(value, item).forEach(addTime);
+                }
+                if (!results.length && item) {
+                    _extractScheduleTimesFromText(item?.timing || "", item).forEach(
+                        addTime,
+                    );
+                }
+                return results.sort((a, b) => a.localeCompare(b));
+            }
+
+            function _formatScheduleTimeLabel(time) {
+                const normalized = _parseScheduleTime(time);
+                if (!normalized) return "";
+                const [hours, minutes] = normalized.split(":").map(Number);
+                const suffix = hours >= 12 ? "PM" : "AM";
+                const twelve = hours % 12 || 12;
+                return `${twelve}:${String(minutes).padStart(2, "0")} ${suffix}`;
+            }
+
+            function _formatScheduleDayList(days = []) {
+                return (days || [])
+                    .map((day) => WEEKDAY_LABELS_SHORT[day] || "")
+                    .filter(Boolean)
+                    .join("/");
+            }
+
+            function _stackScheduleSummary(item) {
+                const days = _normalizeScheduleDays(item?.scheduleDays, item);
+                const times = _normalizeScheduleTimes(item?.scheduleTimes, item);
+                const dayLabel = days.length ? _formatScheduleDayList(days) : "";
+                const timeLabel = times.length
+                    ? times.map(_formatScheduleTimeLabel).join(" + ")
+                    : "";
+                if (dayLabel && timeLabel) return `${dayLabel} - ${timeLabel}`;
+                if (dayLabel) return dayLabel;
+                if (timeLabel) return timeLabel;
+                return "";
+            }
+
+            function _stackTimingContainsExtraInstruction(raw = "") {
+                const stripped = String(raw || "")
+                    .toLowerCase()
+                    .replace(
+                        /\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday|sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)\b/g,
+                        " ",
+                    )
+                    .replace(/\b\d{1,2}:\d{2}\b/g, " ")
+                    .replace(
+                        /\b(am|pm|daily|weekly|morning|nightly|night|bedtime|pre-bed|pre bed|evening|first meal|breakfast|lunch|midday|noon)\b/g,
+                        " ",
+                    )
+                    .replace(/[&/+(),-]/g, " ")
+                    .replace(/\s+/g, " ")
+                    .trim();
+                return !!stripped;
+            }
+
+            function _stackTimingSecondaryText(item) {
+                const raw = String(item?.timing || "").trim();
+                const summary = _stackScheduleSummary(item);
+                if (!raw) return "";
+                if (!summary) return raw;
+                const normalizedRaw = raw.toLowerCase().replace(/\s+/g, " ").trim();
+                const normalizedSummary = summary
+                    .toLowerCase()
+                    .replace(/\s+/g, " ")
+                    .trim();
+                if (normalizedRaw === normalizedSummary) return "";
+                return _stackTimingContainsExtraInstruction(raw) ? raw : "";
+            }
+
+            function _stackStatusBadgeLabel(item) {
+                const status = String(item?.status || "").toLowerCase();
+                const days = _normalizeScheduleDays(item?.scheduleDays, item);
+                const times = _normalizeScheduleTimes(item?.scheduleTimes, item);
+                if (days.length) return _formatScheduleDayList(days);
+                if (status === "active" && times.length > 1) {
+                    return `${times.length}x Daily`;
+                }
+                return {
+                    active: "Daily",
+                    weekly: "Weekly",
+                    planned: "Planned",
+                    paused: "Paused",
+                    held: "Held",
+                }[status] || (status ? status.charAt(0).toUpperCase() + status.slice(1) : "Planned");
+            }
+
+            function _stackTimeInputRowsMarkup(times = []) {
+                const list = times.length ? times : [""];
+                return list
+                    .map(
+                        (time, index) => `
+        <div class="stack-time-row">
+          <input type="time" class="stack-time-input" value="${escapeHtml(time || "")}" onchange="syncStackSchedulePreview()">
+          <button type="button" class="stack-time-remove-btn" onclick="removeStackTimeRow(this)" ${list.length === 1 ? "disabled" : ""}>Remove</button>
+        </div>`,
+                    )
+                    .join("");
+            }
+
             function _stackCategorySort(category) {
                 return {
                     peptide: 0,
@@ -10956,7 +11326,16 @@
                         route: item.route || defaults.route || "injection",
                         status: item.status || "active",
                         timing: item.timing || "",
+                        scheduleDays: _normalizeScheduleDays(
+                            item.scheduleDays,
+                            item,
+                        ),
+                        scheduleTimes: _normalizeScheduleTimes(
+                            item.scheduleTimes,
+                            item,
+                        ),
                         start: item.start || "",
+                        note: item.note || "",
                     });
                 });
                 if (compounds.length) {
@@ -10979,6 +11358,8 @@
                     route: rule.route,
                     status: "active",
                     timing: "",
+                    scheduleDays: [],
+                    scheduleTimes: [],
                     start: "",
                 }));
             }
@@ -11020,6 +11401,8 @@
                     name: "Retatrutide",
                     dose: "4 mg x 2/week (Thu/Sun) = 8 mg weekly",
                     timing: "Thursday & Sunday",
+                    scheduleDays: [4, 0],
+                    scheduleTimes: ["21:00"],
                     status: "weekly",
                     start: "2026-03-12",
                     category: "peptide",
@@ -11029,6 +11412,7 @@
                     name: "KLOW80",
                     dose: "2 mg AM + 2 mg PM = 4 mg/day",
                     timing: "Morning + 22:00",
+                    scheduleTimes: ["05:00", "22:00"],
                     status: "active",
                     start: "2026-03-30",
                     note: "GHK-Cu 50mg / KPV 10mg / BPC-157 10mg / TB-500 10mg",
@@ -11039,6 +11423,7 @@
                     name: "Tesamorelin",
                     dose: "2 mg nightly",
                     timing: "Fasted at 22:00",
+                    scheduleTimes: ["22:00"],
                     status: "active",
                     start: "2026-04-03",
                     category: "peptide",
@@ -11057,6 +11442,7 @@
                     name: "MOTS-c",
                     dose: "2 mg daily",
                     timing: "Morning",
+                    scheduleTimes: ["05:00"],
                     status: "active",
                     start: "2026-04-10",
                     category: "peptide",
@@ -11075,6 +11461,8 @@
                     name: "Cabergoline",
                     dose: "0.25 mg",
                     timing: "Thursday & Sunday",
+                    scheduleDays: [4, 0],
+                    scheduleTimes: ["21:00"],
                     status: "weekly",
                     start: "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â",
                 },
@@ -11082,6 +11470,8 @@
                     name: "HCG",
                     dose: "500 IU",
                     timing: "Thursday & Sunday",
+                    scheduleDays: [4, 0],
+                    scheduleTimes: ["21:00"],
                     status: "planned",
                     start: "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â",
                 },
@@ -11321,6 +11711,11 @@
                 const next = { ...(entry || {}) };
                 next.category = _normalizeStackCategory(next.category, next);
                 next.route = _normalizeStackRoute(next.route, next);
+                next.scheduleDays = _normalizeScheduleDays(next.scheduleDays, next);
+                next.scheduleTimes = _normalizeScheduleTimes(
+                    next.scheduleTimes,
+                    next,
+                );
                 return next;
             }
             function loadStack() {
@@ -11442,6 +11837,10 @@
                 const normalized = (arr || []).map(_normalizeStackEntry);
                 localStorage.setItem("tp_stack", JSON.stringify(normalized));
                 bumpChangeCount();
+                if (typeof renderInjectionTracker === "function")
+                    renderInjectionTracker();
+                if (typeof renderSiteRotation === "function")
+                    renderSiteRotation();
                 if (typeof renderInventory === "function") renderInventory();
                 if (typeof renderSuppChecklist === "function")
                     renderSuppChecklist();
@@ -11667,12 +12066,27 @@
                 const status = String(item?.status || "planned").toLowerCase();
                 const category = _normalizeStackCategory(item?.category, item);
                 const route = _normalizeStackRoute(item?.route, item);
+                const scheduleDays = _normalizeScheduleDays(
+                    item?.scheduleDays,
+                    item,
+                );
+                const scheduleTimes = _normalizeScheduleTimes(
+                    item?.scheduleTimes,
+                    item,
+                );
                 return {
                     id: _protocolOsStackId(item, index),
                     index,
                     name: String(item?.name || "").trim(),
                     dose: String(item?.dose || "").trim(),
                     timing: String(item?.timing || "").trim(),
+                    scheduleDays,
+                    scheduleTimes,
+                    scheduleLabel: _stackScheduleSummary({
+                        ...item,
+                        scheduleDays,
+                        scheduleTimes,
+                    }),
                     status,
                     statusLabel:
                         STACK_STATUS_LABELS[status] ||
@@ -14144,9 +14558,42 @@
                 const timing = String(entry?.timing || "").trim();
                 const status = String(entry?.status || "").toLowerCase();
                 const lower = timing.toLowerCase();
+                const scheduleDays = _normalizeScheduleDays(
+                    entry?.scheduleDays,
+                    entry,
+                );
+                const scheduleTimes = _normalizeScheduleTimes(
+                    entry?.scheduleTimes,
+                    entry,
+                );
                 if (entry?.active === false) return [];
                 if (["paused", "held"].includes(status)) return [];
                 if (status === "planned") return [];
+                if (scheduleDays.length) {
+                    const label = _formatScheduleDayList(scheduleDays);
+                    if (scheduleTimes.length) {
+                        return [
+                            {
+                                time: `${label} - ${scheduleTimes.map(_formatScheduleTimeLabel).join(" + ")}`,
+                                special: true,
+                            },
+                        ];
+                    }
+                    return [{ time: label, special: true }];
+                }
+                if (scheduleTimes.length) {
+                    const splitDose = _protocolSplitDose(entry.dose);
+                    return scheduleTimes.map((time, index) => ({
+                        time,
+                        special: false,
+                        doseOverride:
+                            splitDose && scheduleTimes.length === 2
+                                ? index === 0
+                                    ? splitDose.morning || ""
+                                    : splitDose.night || ""
+                                : "",
+                    }));
+                }
                 if (
                     status === "weekly" ||
                     /\b(thursday|sunday|thu|sun)\b/.test(lower)
@@ -14295,6 +14742,17 @@
                           "badge-planned",
                           s.status,
                       ];
+                      const badgeLabel = _stackStatusBadgeLabel(s);
+                      const scheduleDays = _normalizeScheduleDays(
+                          s.scheduleDays,
+                          s,
+                      );
+                      const timingMain =
+                          _stackScheduleSummary(s) || s.timing || "";
+                      const timingSub = _stackTimingSecondaryText(s);
+                      const badgeClass = scheduleDays.length
+                          ? "badge-weekly"
+                          : cls;
                       const rowIndex =
                           Number.isFinite(s.index) && s.index >= 0
                               ? s.index
@@ -14307,8 +14765,8 @@
             </div>
             ${s.note ? `<div style="font-size:11px;color:var(--muted);margin-top:6px">${escapeHtml(s.note)}</div>` : ""}</td>
           <td>${escapeHtml(s.dose || "")}</td>
-          <td>${escapeHtml(s.timing || "")}</td>
-          <td><span class="badge ${cls}">${escapeHtml(label)}</span></td>
+          <td>${timingMain ? `<div class="stack-timing-main">${escapeHtml(timingMain)}</div>` : `<span style="color:var(--muted)">-</span>`}${timingSub ? `<div class="stack-timing-sub">${escapeHtml(timingSub)}</div>` : ""}</td>
+          <td><span class="badge ${badgeClass}">${escapeHtml(badgeLabel || label)}</span></td>
           <td style="color:var(--muted)">${escapeHtml(s.start || "")}</td>
           <td style="white-space:nowrap" onclick="event.stopPropagation()">
             <button class="stack-edit-btn" onclick="openStackEdit(${rowIndex})" title="Edit">Edit</button>
@@ -14435,6 +14893,85 @@
                 },
             ];
 
+            function toggleStackDay(button) {
+                if (!button) return;
+                button.classList.toggle("is-selected");
+                syncStackSchedulePreview();
+            }
+
+            function _selectedStackScheduleDays() {
+                return [...document.querySelectorAll("#stackDayPicker .stack-day-btn.is-selected")]
+                    .map((button) => Number(button.dataset.day))
+                    .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)
+                    .sort((a, b) => a - b);
+            }
+
+            function _selectedStackScheduleTimes() {
+                return [...document.querySelectorAll("#stackTimeList .stack-time-input")]
+                    .map((input) => _parseScheduleTime(input.value))
+                    .filter(Boolean)
+                    .sort((a, b) => a.localeCompare(b));
+            }
+
+            function _refreshStackTimeButtons() {
+                const rows = [
+                    ...document.querySelectorAll("#stackTimeList .stack-time-row"),
+                ];
+                rows.forEach((row) => {
+                    const removeBtn = row.querySelector(".stack-time-remove-btn");
+                    if (removeBtn) removeBtn.disabled = rows.length === 1;
+                });
+                const addBtn = document.getElementById("stackTimeAddBtn");
+                if (addBtn) {
+                    addBtn.textContent =
+                        rows.length > 1
+                            ? "+ Add another dose time"
+                            : "+ Add 2nd dose time";
+                }
+            }
+
+            function addStackTimeRow(value = "") {
+                const list = document.getElementById("stackTimeList");
+                if (!list) return;
+                list.insertAdjacentHTML(
+                    "beforeend",
+                    `<div class="stack-time-row">
+        <input type="time" class="stack-time-input" value="${escapeHtml(value || "")}" onchange="syncStackSchedulePreview()">
+        <button type="button" class="stack-time-remove-btn" onclick="removeStackTimeRow(this)">Remove</button>
+      </div>`,
+                );
+                _refreshStackTimeButtons();
+                syncStackSchedulePreview();
+            }
+
+            function removeStackTimeRow(button) {
+                const list = document.getElementById("stackTimeList");
+                if (!list || !button) return;
+                const rows = list.querySelectorAll(".stack-time-row");
+                if (rows.length <= 1) {
+                    const input = rows[0]?.querySelector(".stack-time-input");
+                    if (input) input.value = "";
+                } else {
+                    button.closest(".stack-time-row")?.remove();
+                }
+                _refreshStackTimeButtons();
+                syncStackSchedulePreview();
+            }
+
+            function syncStackSchedulePreview() {
+                const preview = document.getElementById("stackSchedulePreview");
+                if (!preview) return;
+                const summary = _stackScheduleSummary({
+                    status: document.getElementById("se_status")?.value || "active",
+                    route: document.getElementById("se_route")?.value || "oral",
+                    scheduleDays: _selectedStackScheduleDays(),
+                    scheduleTimes: _selectedStackScheduleTimes(),
+                });
+                preview.innerHTML = summary
+                    ? `<strong>Schedule preview:</strong> ${escapeHtml(summary)}`
+                    : "Schedule preview: daily / free-text timing only";
+            }
+
             function openStackEdit(idx, defaults = null) {
                 const stack = loadStack();
                 const defaultCategory = _normalizeStackCategory(
@@ -14455,9 +14992,16 @@
                               note: "",
                               category: defaultCategory,
                               route: defaultRoute,
+                              scheduleDays: [],
+                              scheduleTimes: [],
                           })
                         : _normalizeStackEntry(stack[idx]);
                 const isNew = idx === -1;
+                const scheduleDays = _normalizeScheduleDays(s.scheduleDays, s);
+                const scheduleTimes = _normalizeScheduleTimes(
+                    s.scheduleTimes,
+                    s,
+                );
                 document.getElementById("stackModalTitle").textContent = isNew
                     ? `Add ${_stackCategoryLabel(s.category)}`
                     : `Edit - ${s.name}`;
@@ -14495,7 +15039,7 @@
         </select>
       </div>
       <div class="field"><label>Route</label>
-        <select id="se_route">
+        <select id="se_route" onchange="syncStackSchedulePreview()">
           ${Object.entries(STACK_ROUTE_META)
               .map(
                   ([key, label]) =>
@@ -14506,10 +15050,25 @@
       </div>
       <div class="field" style="grid-column:1/-1"><label>Dose</label>
         <input id="se_dose" value="${escapeHtml(s.dose || "")}" placeholder="e.g. 250 mcg daily / 100 mg / 1 tablet"></div>
-      <div class="field" style="grid-column:1/-1"><label>Timing</label>
-        <input id="se_timing" value="${escapeHtml(s.timing || "")}" placeholder="e.g. With first meal / 22:00 / Thu & Sun"></div>
+      <div class="stack-schedule-box">
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);">Specific days / dose times</label>
+        <div class="stack-field-help">Pick exact weekdays for weekly compounds and add dose times when a peptide runs once or twice a day.</div>
+        <div class="stack-schedule-row" id="stackDayPicker">
+          ${WEEKDAY_LABELS_SHORT.map(
+              (label, day) =>
+                  `<button type="button" class="stack-day-btn ${scheduleDays.includes(day) ? "is-selected" : ""}" data-day="${day}" onclick="toggleStackDay(this)">${label}</button>`,
+          ).join("")}
+        </div>
+        <div id="stackTimeList">${_stackTimeInputRowsMarkup(scheduleTimes)}</div>
+        <div class="stack-schedule-row">
+          <button type="button" class="stack-time-add-btn" id="stackTimeAddBtn" onclick="addStackTimeRow()">+ Add 2nd dose time</button>
+        </div>
+        <div class="stack-schedule-preview" id="stackSchedulePreview"></div>
+      </div>
+      <div class="field" style="grid-column:1/-1"><label>Timing / instructions</label>
+        <input id="se_timing" value="${escapeHtml(s.timing || "")}" placeholder="e.g. With first meal / fasted nightly / rotate sites"></div>
       <div class="field"><label>Status</label>
-        <select id="se_status">
+        <select id="se_status" onchange="syncStackSchedulePreview()">
           ${["active", "weekly", "planned", "paused", "held"]
               .map(
                   (o) =>
@@ -14525,15 +15084,17 @@
       </div>
     </div>
     <div class="form-actions" style="margin-top:16px">
-      <!-- Review note: category and route are explicit here so the live stack
-           can drive Peptides, Supplements, Medications, and Injection Log
-           without regex guesswork putting cabergoline back in the wrong lane. -->
+      <!-- Review note: category/route stay explicit, and weekdays/times are now
+           stored separately from free-text timing so Current Stack and Injection
+           Tracker can agree on the exact same daily schedule. -->
       <button class="btn btn-primary" onclick="saveStackEdit(${idx})">Save</button>
       <button class="btn btn-ghost" onclick="closeStackEdit()">Cancel</button>
       ${idx !== -1 ? `<button class="btn btn-danger" onclick="deleteStackItem(${idx});closeStackEdit()" style="margin-left:auto">Delete</button>` : ""}
     </div>`;
                 const overlay = document.getElementById("stackModalOverlay");
                 overlay.style.display = "flex";
+                _refreshStackTimeButtons();
+                syncStackSchedulePreview();
             }
 
             // Pre-fill the add-compound form from a preset
@@ -14566,13 +15127,30 @@
                     alert("Compound name is required.");
                     return;
                 }
+                const status = document.getElementById("se_status").value;
+                const category = document.getElementById("se_category").value;
+                const route = document.getElementById("se_route").value;
+                const scheduleDays = _selectedStackScheduleDays();
+                const scheduleTimes = _selectedStackScheduleTimes();
+                const timingInput =
+                    document.getElementById("se_timing").value.trim();
                 const entry = {
                     name,
                     dose: document.getElementById("se_dose").value.trim(),
-                    timing: document.getElementById("se_timing").value.trim(),
-                    status: document.getElementById("se_status").value,
-                    category: document.getElementById("se_category").value,
-                    route: document.getElementById("se_route").value,
+                    timing:
+                        timingInput ||
+                        _stackScheduleSummary({
+                            status,
+                            category,
+                            route,
+                            scheduleDays,
+                            scheduleTimes,
+                        }),
+                    scheduleDays,
+                    scheduleTimes,
+                    status,
+                    category,
+                    route,
                     start:
                         document.getElementById("se_start").value.trim() || "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â",
                     note: document.getElementById("se_note").value.trim(),
@@ -17263,6 +17841,13 @@
             }
 
             function _injectionWeekdaySet(compound) {
+                const structuredDays = _normalizeScheduleDays(
+                    compound?.scheduleDays,
+                    compound,
+                );
+                if (structuredDays.length) {
+                    return new Set(structuredDays);
+                }
                 const text = String(compound?.timing || "").toLowerCase();
                 const status = String(compound?.status || "").toLowerCase();
                 const map = {
@@ -18062,16 +18647,109 @@
                 bumpChangeCount();
             }
 
-            function isInjLogged(entry) {
-                return (
-                    entry === true ||
-                    (entry && typeof entry === "object" && entry.done)
-                );
+            function _injNormalizeDoseEntry(entry, index = 0) {
+                if (!entry || typeof entry !== "object") return null;
+                const time =
+                    _parseScheduleTime(entry.time) ||
+                    (entry.ts ? _injTimeKey(new Date(entry.ts)) : "");
+                return {
+                    slotId:
+                        String(
+                            entry.slotId ||
+                                entry.slotKey ||
+                                (time ? `dose-${time.replace(":", "")}` : `dose-${index + 1}`),
+                        ) || `dose-${index + 1}`,
+                    label: String(entry.label || "").trim(),
+                    done: entry.done !== false,
+                    site: entry.site || "",
+                    dose: entry.dose || "",
+                    time,
+                    ts:
+                        Number(entry.ts) ||
+                        _injTimestamp(
+                            _injDateKey(),
+                            time || _injTimeKey(new Date()),
+                        ),
+                    notes: entry.notes || "",
+                    updatedAt: Number(entry.updatedAt) || Date.now(),
+                };
             }
-            function getInjSite(entry) {
-                return entry && typeof entry === "object" ? entry.site : null;
+
+            function _injDoseEntries(entry) {
+                if (entry === true) {
+                    return [
+                        _injNormalizeDoseEntry(
+                            {
+                                done: true,
+                                slotId: "dose-1",
+                                time: _injTimeKey(new Date()),
+                            },
+                            0,
+                        ),
+                    ].filter(Boolean);
+                }
+                if (!entry || typeof entry !== "object") return [];
+                if (Array.isArray(entry.doses) && entry.doses.length) {
+                    return entry.doses
+                        .map((dose, index) => _injNormalizeDoseEntry(dose, index))
+                        .filter(Boolean)
+                        .sort(
+                            (a, b) =>
+                                String(a.time || "").localeCompare(
+                                    String(b.time || ""),
+                                ) || (a.ts || 0) - (b.ts || 0),
+                        );
+                }
+                const legacy = _injNormalizeDoseEntry(entry, 0);
+                return legacy ? [legacy] : [];
             }
-            function getInjDose(entry, compoundKey) {
+
+            function _injResolveDose(entry, slotId = null) {
+                const doses = _injDoseEntries(entry);
+                if (!doses.length) return null;
+                if (slotId) {
+                    return doses.find((dose) => dose.slotId === slotId) || null;
+                }
+                return doses[doses.length - 1];
+            }
+
+            function _injComposeLogEntry(existingEntry, doses = []) {
+                const clean = (doses || [])
+                    .map((dose, index) => _injNormalizeDoseEntry(dose, index))
+                    .filter(Boolean)
+                    .sort(
+                        (a, b) =>
+                            String(a.time || "").localeCompare(
+                                String(b.time || ""),
+                            ) || (a.ts || 0) - (b.ts || 0),
+                    );
+                if (!clean.length) return null;
+                const latest = clean[clean.length - 1];
+                return {
+                    ...(existingEntry &&
+                    typeof existingEntry === "object" &&
+                    !Array.isArray(existingEntry)
+                        ? existingEntry
+                        : {}),
+                    doses: clean,
+                    done: true,
+                    site: latest.site || "",
+                    dose: latest.dose || "",
+                    time: latest.time || "",
+                    ts: latest.ts || Date.now(),
+                    notes: latest.notes || "",
+                    updatedAt: Date.now(),
+                };
+            }
+
+            function isInjLogged(entry, slotId = null) {
+                if (slotId) return !!_injResolveDose(entry, slotId);
+                return !!_injDoseEntries(entry).length;
+            }
+            function getInjSite(entry, slotId = null) {
+                return _injResolveDose(entry, slotId)?.site || null;
+            }
+            function getInjDose(entry, compoundKey, slotId = null) {
                 const fallback =
                     getInjectionCompoundCatalog({
                         includePaused: true,
@@ -18079,25 +18757,19 @@
                     }).find(
                         (c) => c.key === compoundKey,
                     )?.dose || "";
-                return entry && typeof entry === "object" && entry.dose
-                    ? entry.dose
+                const dose = _injResolveDose(entry, slotId)?.dose;
+                return dose
+                    ? dose
                     : fallback;
             }
-            function getInjTime(entry) {
-                if (
-                    entry &&
-                    typeof entry === "object" &&
-                    /^\d{2}:\d{2}$/.test(entry.time || "")
-                )
-                    return entry.time;
-                if (entry && typeof entry === "object" && entry.ts)
-                    return _injTimeKey(new Date(entry.ts));
+            function getInjTime(entry, slotId = null) {
+                const dose = _injResolveDose(entry, slotId);
+                if (/^\d{2}:\d{2}$/.test(dose?.time || "")) return dose.time;
+                if (dose?.ts) return _injTimeKey(new Date(dose.ts));
                 return _injTimeKey(new Date());
             }
-            function getInjNotes(entry) {
-                return entry && typeof entry === "object"
-                    ? entry.notes || ""
-                    : "";
+            function getInjNotes(entry, slotId = null) {
+                return _injResolveDose(entry, slotId)?.notes || "";
             }
             function _injDateKey(d = new Date()) {
                 const dt = d instanceof Date ? d : new Date(d);
@@ -18124,42 +18796,97 @@
                 if (!Object.keys(log[dateKey]).length) delete log[dateKey];
             }
 
+            function _injSlotIdFromTime(time, index = 0) {
+                const normalized = _parseScheduleTime(time);
+                return normalized
+                    ? `dose-${normalized.replace(":", "")}`
+                    : `dose-${index + 1}`;
+            }
+
+            function _injectionDoseSlots(
+                compound,
+                date = new Date(),
+                options = {},
+            ) {
+                const dateObj = date instanceof Date ? date : new Date(date);
+                const dueToday = _isInjectionDueOnDate(compound, dateObj);
+                if (!dueToday && !options.includeOffDay) return [];
+                const times = _normalizeScheduleTimes(
+                    compound?.scheduleTimes,
+                    compound,
+                );
+                const splitDose = _protocolSplitDose(compound?.dose);
+                const baseDose =
+                    _cleanInjectionTrackerText(
+                        _protocolDoseSummary(compound?.dose || ""),
+                    ) || "";
+                const slots = (times.length ? times : [""]).map((time, index) => ({
+                    slotId: _injSlotIdFromTime(time, index),
+                    label: time
+                        ? _formatScheduleTimeLabel(time)
+                        : times.length <= 1
+                          ? "Today"
+                          : `Dose ${index + 1}`,
+                    time: _parseScheduleTime(time),
+                    doseLabel:
+                        splitDose && times.length === 2
+                            ? index === 0
+                                ? splitDose.morning || baseDose
+                                : splitDose.night || baseDose
+                            : baseDose,
+                }));
+                if (options.includeCustom) {
+                    slots.push({
+                        slotId: "custom",
+                        label: "Custom / unscheduled",
+                        time: "",
+                        doseLabel: baseDose,
+                    });
+                }
+                return slots;
+            }
+
+            function _injScheduledDoseCount(compound, date = new Date()) {
+                return _injectionDoseSlots(compound, date).length;
+            }
+
             function toggleInj(key) {
+                toggleInjDose(key);
+            }
+
+            function toggleInjDose(
+                compoundKey,
+                slotId = null,
+                dateKey = todayKey(),
+            ) {
                 const log = loadInjLog();
-                const dk = todayKey();
                 const compound = getInjectionCompounds({
                     includePaused: true,
                     includeHeld: true,
-                }).find((item) => item.key === key);
-                const dueToday = compound ? _isInjectionDueOnDate(compound) : isInjDay();
-                if (!log[dk]) log[dk] = {};
-                if (isInjLogged(log[dk][key])) {
-                    openInjectionLogModal(dk, key);
-                } else if (!dueToday) {
-                    openInjectionLogModal(_injDateKey(), key);
+                }).find((item) => item.key === compoundKey);
+                const dueToday = compound
+                    ? _isInjectionDueOnDate(compound, new Date(`${dateKey}T12:00:00`))
+                    : isInjDay();
+                if (!log[dateKey]) log[dateKey] = {};
+                if (isInjLogged(log[dateKey][compoundKey], slotId)) {
+                    openInjectionLogModal(dateKey, compoundKey, slotId);
+                } else if (!dueToday || dateKey !== todayKey()) {
+                    openInjectionLogModal(dateKey, compoundKey, slotId);
                 } else {
-                    openSitePicker(key);
+                    openSitePicker(compoundKey, slotId, dateKey);
                 }
             }
 
             let editingInjRef = null;
-            function openInjectionLogModal(
-                dateKey = _injDateKey(),
-                compoundKey = null,
-            ) {
+            let pendingInjRef = null;
+
+            function _injectionLogCompoundForKey(compoundKey, entry = null) {
                 const compounds = getInjectionCompoundCatalog({
                     includePaused: true,
                     includeHeld: true,
                 });
-                const key = compoundKey || compounds[0]?.key || "";
-                const entry = _injEntryFor(dateKey, key);
-                const isEdit = isInjLogged(entry);
-                editingInjRef = isEdit ? { dateKey, compoundKey: key } : null;
-
-                if (
-                    compoundKey &&
-                    !compounds.some((item) => item.key === compoundKey)
-                ) {
+                if (!compoundKey) return { compounds, compound: compounds[0] || null };
+                if (!compounds.some((item) => item.key === compoundKey)) {
                     compounds.unshift({
                         key: compoundKey,
                         name: compoundKey,
@@ -18169,9 +18896,122 @@
                         route: "injection",
                         status: "active",
                         timing: "",
+                        scheduleDays: [],
+                        scheduleTimes: [],
                         start: "",
                     });
                 }
+                return {
+                    compounds,
+                    compound:
+                        compounds.find((item) => item.key === compoundKey) ||
+                        compounds[0] ||
+                        null,
+                };
+            }
+
+            function _renderInjectionLogSlotOptions(
+                compoundKey,
+                dateKey,
+                preferredSlotId = null,
+                includeCustom = true,
+            ) {
+                const entry = _injEntryFor(dateKey, compoundKey);
+                const { compound } = _injectionLogCompoundForKey(
+                    compoundKey,
+                    entry,
+                );
+                const slotSelect = document.getElementById("injLogSlot");
+                const slotField = document.getElementById("injLogSlotField");
+                const slots = _injectionDoseSlots(
+                    compound,
+                    new Date(`${dateKey}T12:00:00`),
+                    {
+                        includeOffDay: true,
+                        includeCustom,
+                    },
+                );
+                const activeSlots = slots.length
+                    ? slots
+                    : [
+                          {
+                              slotId: "dose-1",
+                              label: "Dose 1",
+                              time: "",
+                              doseLabel: compound?.dose || "",
+                          },
+                      ];
+                slotSelect.innerHTML = activeSlots
+                    .map(
+                        (slot) =>
+                            `<option value="${escapeHtml(slot.slotId)}">${escapeHtml([slot.label, slot.doseLabel].filter(Boolean).join(" - "))}</option>`,
+                    )
+                    .join("");
+                const hasMultipleScheduled =
+                    activeSlots.filter((slot) => slot.slotId !== "custom").length >
+                    1;
+                slotField.style.display =
+                    hasMultipleScheduled || preferredSlotId === "custom"
+                        ? ""
+                        : "none";
+                slotSelect.value = activeSlots.some(
+                    (slot) => slot.slotId === preferredSlotId,
+                )
+                    ? preferredSlotId
+                    : activeSlots[0]?.slotId || "dose-1";
+                return activeSlots;
+            }
+
+            function _syncInjectionLogModalFields(preferredSlotId = null) {
+                const compoundKey =
+                    document.getElementById("injLogCompound").value || "";
+                const dateKey =
+                    document.getElementById("injLogDate").value || _injDateKey();
+                const entry = _injEntryFor(dateKey, compoundKey);
+                const slots = _renderInjectionLogSlotOptions(
+                    compoundKey,
+                    dateKey,
+                    preferredSlotId ||
+                        editingInjRef?.slotId ||
+                        document.getElementById("injLogSlot").value,
+                    true,
+                );
+                const slotId = document.getElementById("injLogSlot").value;
+                const slot =
+                    slots.find((item) => item.slotId === slotId) || slots[0] || null;
+                const doseEntry = _injResolveDose(entry, slotId);
+                editingInjRef = doseEntry
+                    ? { dateKey, compoundKey, slotId }
+                    : null;
+                document.getElementById("injLogTime").value =
+                    doseEntry?.time || slot?.time || _injTimeKey();
+                document.getElementById("injLogDose").value =
+                    doseEntry?.dose ||
+                    slot?.doseLabel ||
+                    getInjDose(entry, compoundKey, slotId);
+                document.getElementById("injLogSite").value =
+                    doseEntry?.site || recommendNextSite();
+                document.getElementById("injLogNotes").value =
+                    doseEntry?.notes || "";
+                document.getElementById("injLogDeleteBtn").style.display =
+                    doseEntry ? "inline-flex" : "none";
+            }
+
+            function openInjectionLogModal(
+                dateKey = _injDateKey(),
+                compoundKey = null,
+                slotId = null,
+            ) {
+                const { compounds, compound } = _injectionLogCompoundForKey(
+                    compoundKey,
+                    _injEntryFor(dateKey, compoundKey),
+                );
+                const key = compoundKey || compound?.key || "";
+                const existingEntry = _injEntryFor(dateKey, key);
+                const isEdit = isInjLogged(existingEntry, slotId);
+                editingInjRef = isEdit
+                    ? { dateKey, compoundKey: key, slotId: slotId || "dose-1" }
+                    : null;
 
                 document.getElementById("injLogModalTitle").textContent = isEdit
                     ? "Edit Injection"
@@ -18189,17 +19029,7 @@
                 document.getElementById("injLogCompound").value = key;
                 document.getElementById("injLogDate").value =
                     dateKey || _injDateKey();
-                document.getElementById("injLogTime").value = getInjTime(entry);
-                document.getElementById("injLogDose").value = getInjDose(
-                    entry,
-                    key,
-                );
-                document.getElementById("injLogSite").value =
-                    getInjSite(entry) || recommendNextSite();
-                document.getElementById("injLogNotes").value =
-                    getInjNotes(entry);
-                document.getElementById("injLogDeleteBtn").style.display =
-                    isEdit ? "inline-flex" : "none";
+                _syncInjectionLogModalFields(slotId);
                 renderInjectionSiteGuideTargets();
                 document.getElementById("injLogModalOverlay").style.display =
                     "flex";
@@ -18210,19 +19040,15 @@
                 if (ov) ov.style.display = "none";
             }
             function onInjectionLogCompoundChange() {
-                const key = document.getElementById("injLogCompound").value;
-                const dateKey =
-                    document.getElementById("injLogDate").value ||
-                    _injDateKey();
-                const entry = _injEntryFor(dateKey, key);
-                document.getElementById("injLogDose").value = getInjDose(
-                    entry,
-                    key,
+                _syncInjectionLogModalFields();
+            }
+            function onInjectionLogDateChange() {
+                _syncInjectionLogModalFields();
+            }
+            function onInjectionLogSlotChange() {
+                _syncInjectionLogModalFields(
+                    document.getElementById("injLogSlot").value,
                 );
-                document.getElementById("injLogSite").value =
-                    getInjSite(entry) || recommendNextSite();
-                document.getElementById("injLogNotes").value =
-                    getInjNotes(entry);
             }
             function saveInjectionLogModal() {
                 const compoundKey =
@@ -18230,6 +19056,8 @@
                 const dateKey =
                     document.getElementById("injLogDate").value ||
                     _injDateKey();
+                const slotId =
+                    document.getElementById("injLogSlot").value || "dose-1";
                 const timeKey =
                     document.getElementById("injLogTime").value ||
                     _injTimeKey();
@@ -18247,16 +19075,31 @@
                 }
                 const log = loadInjLog();
 
-                // Review note: editing may move a peptide injection across dates or compounds,
-                // so remove the original key first and then write the updated entry atomically.
-                if (editingInjRef)
-                    _injDeleteFromLog(
-                        log,
-                        editingInjRef.dateKey,
-                        editingInjRef.compoundKey,
+                // Review note: edits can move a dose between dates, compounds, or dose slots,
+                // so we remove only the original slot and leave sibling doses untouched.
+                if (editingInjRef) {
+                    const originalEntry =
+                        log?.[editingInjRef.dateKey]?.[editingInjRef.compoundKey];
+                    const remaining = _injDoseEntries(originalEntry).filter(
+                        (doseEntry) => doseEntry.slotId !== editingInjRef.slotId,
                     );
+                    if (remaining.length) {
+                        log[editingInjRef.dateKey][editingInjRef.compoundKey] =
+                            _injComposeLogEntry(originalEntry, remaining);
+                    } else {
+                        _injDeleteFromLog(
+                            log,
+                            editingInjRef.dateKey,
+                            editingInjRef.compoundKey,
+                        );
+                    }
+                }
                 if (!log[dateKey]) log[dateKey] = {};
-                log[dateKey][compoundKey] = {
+                const nextDoseEntry = {
+                    slotId,
+                    label:
+                        document.getElementById("injLogSlot").selectedOptions[0]
+                            ?.textContent || "",
                     done: true,
                     site,
                     dose,
@@ -18265,6 +19108,14 @@
                     notes,
                     updatedAt: Date.now(),
                 };
+                const existing = log[dateKey][compoundKey];
+                const siblingDoses = _injDoseEntries(existing).filter(
+                    (doseEntry) => doseEntry.slotId !== slotId,
+                );
+                log[dateKey][compoundKey] = _injComposeLogEntry(existing, [
+                    ...siblingDoses,
+                    nextDoseEntry,
+                ]);
                 saveInjLog(log);
 
                 // Review note: manual edits do not decrement inventory, because changing a
@@ -18280,11 +19131,21 @@
                 if (!editingInjRef) return;
                 if (!confirm("Delete this injection entry?")) return;
                 const log = loadInjLog();
-                _injDeleteFromLog(
-                    log,
-                    editingInjRef.dateKey,
-                    editingInjRef.compoundKey,
+                const existing =
+                    log?.[editingInjRef.dateKey]?.[editingInjRef.compoundKey];
+                const remaining = _injDoseEntries(existing).filter(
+                    (doseEntry) => doseEntry.slotId !== editingInjRef.slotId,
                 );
+                if (remaining.length) {
+                    log[editingInjRef.dateKey][editingInjRef.compoundKey] =
+                        _injComposeLogEntry(existing, remaining);
+                } else {
+                    _injDeleteFromLog(
+                        log,
+                        editingInjRef.dateKey,
+                        editingInjRef.compoundKey,
+                    );
+                }
                 saveInjLog(log);
                 closeInjectionLogModal();
                 renderInjectionTracker();
@@ -18305,9 +19166,11 @@
                 const lastUsed = {};
                 for (const [date, dayEntry] of Object.entries(log)) {
                     for (const [, info] of Object.entries(dayEntry || {})) {
-                        const site = getInjSite(info);
-                        if (site && (!lastUsed[site] || date > lastUsed[site]))
-                            lastUsed[site] = date;
+                        _injDoseEntries(info).forEach((doseEntry) => {
+                            const site = doseEntry.site;
+                            if (site && (!lastUsed[site] || date > lastUsed[site]))
+                                lastUsed[site] = date;
+                        });
                     }
                 }
                 return lastUsed;
@@ -18521,51 +19384,70 @@
                 return raw;
             }
 
+            function _injectionTrackerSiteLabel(site) {
+                return site
+                    ? INJ_SITES.find((item) => item.key === site)?.label || site
+                    : "";
+            }
+
             function _injectionTrackerScheduleLabel(compound) {
+                const summary = _cleanInjectionTrackerText(
+                    _stackScheduleSummary(compound),
+                );
+                const secondary = _cleanInjectionTrackerText(
+                    _stackTimingSecondaryText(compound),
+                );
                 const cadence = _cleanInjectionTrackerText(
                     _injectionCadenceLabel(compound),
                 );
-                const timing = _cleanInjectionTrackerText(compound?.timing || "");
-                if (!timing) return cadence;
                 if (
-                    /\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday|sun|mon|tue|wed|thu|fri|sat)\b/i.test(
-                        timing,
-                    )
+                    summary &&
+                    secondary &&
+                    summary.toLowerCase() !== secondary.toLowerCase()
                 ) {
-                    return cadence;
+                    return `${summary} - ${secondary}`;
                 }
-                if (!cadence || cadence === "Daily") return timing;
-                if (timing.toLowerCase() === cadence.toLowerCase()) {
-                    return cadence;
-                }
-                return `${timing} - ${cadence}`;
+                return summary || secondary || cadence;
             }
 
-            function _injectionTrackerEntryMeta(compound, entry) {
-                const doseLabel =
-                    _cleanInjectionTrackerText(getInjDose(entry, compound?.key)) ||
-                    _injectionTrackerDoseLabel(compound);
-                const site = getInjSite(entry);
-                const siteLabel = site
-                    ? INJ_SITES.find((s) => s.key === site)?.label || site
-                    : "";
-                if (isInjLogged(entry)) {
-                    return [doseLabel, getInjTime(entry), siteLabel]
-                        .map(_cleanInjectionTrackerText)
+            function _injectionTrackerEntryMeta(
+                compound,
+                doseEntry = null,
+                slot = null,
+            ) {
+                const doseLabel = _cleanInjectionTrackerText(
+                    doseEntry?.dose ||
+                        slot?.doseLabel ||
+                        _injectionTrackerDoseLabel(compound),
+                );
+                const timeLabel = _cleanInjectionTrackerText(
+                    doseEntry?.time
+                        ? _formatScheduleTimeLabel(doseEntry.time)
+                        : slot?.label || "",
+                );
+                const siteLabel = _cleanInjectionTrackerText(
+                    _injectionTrackerSiteLabel(doseEntry?.site),
+                );
+                if (doseEntry?.done) {
+                    return [doseLabel, timeLabel, siteLabel]
                         .filter(Boolean)
                         .join(" - ");
                 }
-                return [doseLabel, _injectionTrackerScheduleLabel(compound)]
+                return [doseLabel, timeLabel || _injectionTrackerScheduleLabel(compound)]
                     .filter(Boolean)
                     .join(" - ");
             }
 
-            function _injectionTrackerHistoryLabel(dateLabel, compound, info) {
-                const site = getInjSite(info);
-                const siteLabel = site
-                    ? INJ_SITES.find((s) => s.key === site)?.label || site
-                    : "";
-                return [dateLabel, compound?.name || "", getInjTime(info), siteLabel]
+            function _injectionTrackerHistoryLabel(dateLabel, compound, doseEntry) {
+                const timeLabel = _cleanInjectionTrackerText(
+                    doseEntry?.time
+                        ? _formatScheduleTimeLabel(doseEntry.time)
+                        : doseEntry?.label || "",
+                );
+                const siteLabel = _cleanInjectionTrackerText(
+                    _injectionTrackerSiteLabel(doseEntry?.site),
+                );
+                return [dateLabel, compound?.name || "", timeLabel, siteLabel]
                     .map(_cleanInjectionTrackerText)
                     .filter(Boolean)
                     .join(" - ");
@@ -18756,24 +19638,73 @@
                         ? dueToday
                               .map((compound) => {
                                   const entry = todayLog[compound.key];
-                                  const logged = isInjLogged(entry);
-                                  const site = getInjSite(entry);
-                                  const siteLabel = site
-                                      ? INJ_SITES.find((s) => s.key === site)
-                                            ?.label || ""
-                                      : "";
-                                  const btnClass = logged ? "done" : "log";
-                                  const btnText = logged
-                                      ? `Edit ${siteLabel || "logged dose"}`
-                                      : "Log Dose";
-                                  const meta = _injectionTrackerEntryMeta(
+                                  const slots = _injectionDoseSlots(
                                       compound,
-                                      entry,
+                                      new Date(`${dk}T12:00:00`),
                                   );
-                                  return `<div class="inj-item ${logged ? "logged" : ""}">
+                                  const loggedCount = slots.filter((slot) =>
+                                      isInjLogged(entry, slot.slotId),
+                                  ).length;
+                                  const allLogged =
+                                      !!slots.length && loggedCount === slots.length;
+                                  const scheduleMeta = [
+                                      _injectionTrackerScheduleLabel(compound),
+                                      slots.length > 1
+                                          ? `${loggedCount}/${slots.length} logged today`
+                                          : loggedCount
+                                            ? "Logged today"
+                                            : "Due today",
+                                  ]
+                                      .map(_cleanInjectionTrackerText)
+                                      .filter(Boolean)
+                                      .join(" - ");
+                                  const helperCopyRaw = _cleanInjectionTrackerText(
+                                      _stackTimingSecondaryText(compound),
+                                  );
+                                  const helperCopy =
+                                      helperCopyRaw &&
+                                      !scheduleMeta
+                                          .toLowerCase()
+                                          .includes(helperCopyRaw.toLowerCase())
+                                          ? helperCopyRaw
+                                          : "";
+                                  const slotRows = slots
+                                      .map((slot) => {
+                                          const doseEntry = _injResolveDose(
+                                              entry,
+                                              slot.slotId,
+                                          );
+                                          const logged = !!doseEntry?.done;
+                                          const siteLabel =
+                                              _injectionTrackerSiteLabel(
+                                                  doseEntry?.site,
+                                              );
+                                          const btnClass = logged
+                                              ? "done"
+                                              : "log";
+                                          const btnText = logged
+                                              ? `Edit ${siteLabel || slot.label}`
+                                              : "Log dose";
+                                          const meta =
+                                              _injectionTrackerEntryMeta(
+                                                  compound,
+                                                  doseEntry,
+                                                  slot,
+                                              );
+                                          return `<div class="inj-slot-row">
+        <div class="inj-slot-copy">
+          <div class="inj-slot-title">${escapeHtml(slot.label)}</div>
+          <div class="inj-slot-meta">${escapeHtml(meta)}</div>
+        </div>
+        <button class="inj-btn ${btnClass}" onclick="toggleInjDose('${compound.key}','${slot.slotId}','${dk}')">${escapeHtml(btnText)}</button>
+      </div>`;
+                                      })
+                                      .join("");
+                                  return `<div class="inj-item ${allLogged ? "logged" : ""}">
       <div class="inj-name" style="color:${compound.color}">${escapeHtml(compound.name)}</div>
-      <div class="inj-dose-label">${escapeHtml(meta)}</div>
-      <button class="inj-btn ${btnClass}" onclick="toggleInj('${compound.key}')">${escapeHtml(btnText)}</button>
+      <div class="inj-dose-label">${escapeHtml(scheduleMeta)}</div>
+      ${helperCopy ? `<div class="inj-slot-meta" style="margin-top:6px;">${escapeHtml(helperCopy)}</div>` : ""}
+      <div class="inj-slot-list">${slotRows}</div>
     </div>`;
                               })
                               .join("")
@@ -18791,15 +19722,37 @@
                 allDates.forEach((d) => {
                     const entry = log[d] || {};
                     const histDate = new Date(d + "T12:00:00");
-                    const loggedCompounds = compoundCatalog.filter((compound) =>
-                        isInjLogged(entry[compound.key]),
+                    const catalog = [...compoundCatalog];
+                    Object.keys(entry || {}).forEach((compoundKey) => {
+                        if (!catalog.some((compound) => compound.key === compoundKey)) {
+                            catalog.push({
+                                key: compoundKey,
+                                name: compoundKey,
+                                dose: "",
+                                color: "var(--accent)",
+                                category: "peptide",
+                                route: "injection",
+                                status: "active",
+                                timing: "",
+                                scheduleDays: [],
+                                scheduleTimes: [],
+                            });
+                        }
+                    });
+                    const loggedDoseRows = [];
+                    catalog.forEach((compound) => {
+                        _injDoseEntries(entry[compound.key]).forEach((doseEntry) => {
+                            loggedDoseRows.push({ compound, doseEntry });
+                        });
+                    });
+                    const count = loggedDoseRows.length;
+                    const dueCount = compounds.reduce(
+                        (sum, compound) =>
+                            sum + _injScheduledDoseCount(compound, histDate),
+                        0,
                     );
-                    const count = loggedCompounds.length;
-                    const dueCount = compounds.filter((compound) =>
-                        _isInjectionDueOnDate(compound, histDate),
-                    ).length;
                     const cls =
-                        dueCount > 0 && count === dueCount
+                        dueCount > 0 && count >= dueCount
                             ? "full"
                             : count > 0
                               ? "partial"
@@ -18808,15 +19761,14 @@
                         month: "short",
                         day: "numeric",
                     });
-                    loggedCompounds.forEach((compound) => {
-                        const info = entry[compound.key];
+                    loggedDoseRows.forEach(({ compound, doseEntry }) => {
                         const chipLabel = _injectionTrackerHistoryLabel(
                             label,
                             compound,
-                            info,
+                            doseEntry,
                         );
                         chips.push(
-                            `<button class="inj-hist-chip ${cls}" onclick="openInjectionLogModal(${escapeHtml(JSON.stringify(d))},${escapeHtml(JSON.stringify(compound.key))})" title="Edit ${escapeHtml(compound.name)} on ${escapeHtml(d)}">${escapeHtml(chipLabel)}</button>`,
+                            `<button class="inj-hist-chip ${cls}" onclick="openInjectionLogModal(${escapeHtml(JSON.stringify(d))},${escapeHtml(JSON.stringify(compound.key))},${escapeHtml(JSON.stringify(doseEntry.slotId || "dose-1"))})" title="Edit ${escapeHtml(compound.name)} on ${escapeHtml(d)}">${escapeHtml(chipLabel)}</button>`,
                         );
                     });
                 });
@@ -18827,16 +19779,27 @@
                 renderSiteRotation();
             }
 
-            function openSitePicker(compoundKey) {
+            function openSitePicker(
+                compoundKey,
+                slotId = null,
+                dateKey = todayKey(),
+            ) {
                 pendingInjKey = compoundKey;
+                pendingInjRef = { compoundKey, slotId, dateKey };
                 const compound = getInjectionCompounds({
                     includePlanned: false,
                     includePaused: true,
                     includeHeld: true,
                 }).find((item) => item.key === compoundKey);
+                const slot = _injectionDoseSlots(
+                    compound,
+                    new Date(`${dateKey}T12:00:00`),
+                    { includeOffDay: true, includeCustom: true },
+                ).find((item) => item.slotId === slotId);
                 document.getElementById("sitePickerTitle").textContent = [
                     "Pick site",
                     compound ? compound.name : "",
+                    slot?.label && slot.label !== "Today" ? slot.label : "",
                 ]
                     .filter(Boolean)
                     .join(" - ");
@@ -18858,6 +19821,80 @@
                 ).join("");
                 document.getElementById("sitePickerOverlay").style.display =
                     "flex";
+            }
+
+            function closeSitePicker() {
+                pendingInjKey = null;
+                pendingInjRef = null;
+                document.getElementById("sitePickerOverlay").style.display =
+                    "none";
+            }
+
+            function confirmSitePick(siteKey) {
+                if (!pendingInjRef?.compoundKey) return;
+                const { compoundKey, slotId = null, dateKey = todayKey() } =
+                    pendingInjRef;
+                const log = loadInjLog();
+                const now = new Date();
+                const compound = getInjectionCompounds({
+                    includePaused: true,
+                    includeHeld: true,
+                }).find((item) => item.key === compoundKey);
+                const slot =
+                    _injectionDoseSlots(
+                        compound,
+                        new Date(`${dateKey}T12:00:00`),
+                        { includeOffDay: true, includeCustom: true },
+                    ).find((item) => item.slotId === slotId) || {
+                        slotId: slotId || "dose-1",
+                        label: "Today",
+                        time: "",
+                        doseLabel: _injectionTrackerDoseLabel(compound),
+                    };
+                if (!log[dateKey]) log[dateKey] = {};
+                const existing = log[dateKey][compoundKey];
+                const alreadyLogged = isInjLogged(existing, slot.slotId);
+                const timeKey = slot.time || _injTimeKey(now);
+                const siblingDoses = _injDoseEntries(existing).filter(
+                    (doseEntry) => doseEntry.slotId !== slot.slotId,
+                );
+
+                // Review note: quick site picks now write a specific dose slot so
+                // twice-daily peptides can log morning and evening injections
+                // independently without overwriting each other.
+                log[dateKey][compoundKey] = _injComposeLogEntry(existing, [
+                    ...siblingDoses,
+                    {
+                        slotId: slot.slotId,
+                        label: slot.label,
+                        done: true,
+                        site: siteKey,
+                        dose: slot.doseLabel || compound?.dose || "",
+                        time: timeKey,
+                        ts: _injTimestamp(dateKey, timeKey),
+                        notes: "",
+                        updatedAt: Date.now(),
+                    },
+                ]);
+                saveInjLog(log);
+                try {
+                    if (
+                        !alreadyLogged &&
+                        dateKey === todayKey() &&
+                        typeof inventoryDecrementOnInjection === "function"
+                    ) {
+                        inventoryDecrementOnInjection(compoundKey);
+                    }
+                } catch {}
+                closeSitePicker();
+                renderInjectionTracker();
+                renderSiteRotation();
+                renderPeptideWorkflow();
+                renderMedicationWorkflow();
+                if (typeof renderInventory === "function") renderInventory();
+                showToast(
+                    `${compound?.name || "Injection"} ${slot.label === "Today" ? "logged" : `logged for ${slot.label.toLowerCase()}`}`,
+                );
             }
 
             function renderSiteRotation() {
@@ -18939,7 +19976,9 @@
                 const log = loadInjLog();
                 const today = log[tk] || {};
                 const allDone = dueCompounds.every((compound) =>
-                    isInjLogged(today[compound.key]),
+                    _injectionDoseSlots(compound).every((slot) =>
+                        isInjLogged(today[compound.key], slot.slotId),
+                    ),
                 );
                 if (allDone && !force) return;
 
