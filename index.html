@@ -2756,6 +2756,12 @@
                 border: 1px solid var(--border);
                 transition: border-color 0.2s;
             }
+            .inj-item-head {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 8px;
+            }
             .inj-item.logged {
                 border-color: rgba(34, 197, 94, 0.4);
                 background: rgba(34, 197, 94, 0.06);
@@ -2770,6 +2776,17 @@
             .inj-dose-label {
                 font-size: 11px;
                 color: var(--muted);
+            }
+            .inj-schedule-btn {
+                flex: 0 0 auto;
+                align-self: flex-start;
+                padding: 4px 8px;
+                border-radius: 8px;
+                border: 1px solid var(--border);
+                background: rgba(15, 23, 42, 0.55);
+                color: var(--muted);
+                font-size: 11px;
+                cursor: pointer;
             }
             .inj-btn {
                 margin-top: 4px;
@@ -10463,8 +10480,19 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.36.3";
+            const VERSION = "2.36.4";
             const VERSION_CHANGES = [
+                {
+                    version: "2.36.4",
+                    date: "2026-04-23",
+                    summary:
+                        "Clean split-dose injection schedules and add tracker schedule editing",
+                    details: [
+                        "Fixed legacy injection schedule parsing so explicit saved hours win over fuzzy morning/evening guesses, which stops compounds like KLOW80 from growing phantom dose slots.",
+                        "Added a direct Edit schedule action inside Injection Tracker so extra hours can be removed at the source in Current Stack.",
+                        "Expanded stack migration cleanup so repaired weekday, time, and timing fields are written back once old schedule strings are normalized.",
+                    ],
+                },
                 {
                     version: "2.36.3",
                     date: "2026-04-23",
@@ -11384,18 +11412,80 @@
                     seen.add(normalized);
                     results.push(normalized);
                 };
+                const hasTimeInWindow = (startHour, endHour) =>
+                    results.some((time) => {
+                        const [hour] = String(time || "")
+                            .split(":")
+                            .map(Number);
+                        return Number.isFinite(hour) && hour >= startHour && hour < endHour;
+                    });
                 const source = String(text || "");
-                (source.match(/\b\d{1,2}:\d{2}\b/g) || []).forEach(addTime);
+                (
+                    source.match(/\b\d{1,2}:\d{2}(?:\s*(?:AM|PM))?\b/gi) || []
+                ).forEach(addTime);
                 if (_stackIsInjectable(item)) {
                     const lower = source.toLowerCase();
-                    if (/\b(first meal|breakfast)\b/.test(lower)) addTime("06:00");
-                    if (/\b(morning|wake|waking)\b/.test(lower)) addTime("05:00");
-                    if (/\b(lunch|midday|noon)\b/.test(lower)) addTime("12:00");
-                    if (/\b(evening|dinner)\b/.test(lower)) addTime("18:00");
-                    if (/\b(22:00|nightly|night|bedtime|pre-bed|pre bed)\b/.test(lower))
+                    // Review note: explicit saved clock times beat fuzzy
+                    // morning/evening keyword guesses. This prevents old
+                    // schedule text like "04:45 AM and 06:00 PM" from
+                    // expanding into phantom 05:00 / 06:00 / 18:00 slots.
+                    if (/\b(first meal|breakfast)\b/.test(lower) && !hasTimeInWindow(4, 11))
+                        addTime("06:00");
+                    if (/\b(morning|wake|waking)\b/.test(lower) && !hasTimeInWindow(4, 12))
+                        addTime("05:00");
+                    if (/\b(lunch|midday|noon)\b/.test(lower) && !hasTimeInWindow(11, 15))
+                        addTime("12:00");
+                    if (/\b(evening|dinner)\b/.test(lower) && !hasTimeInWindow(15, 21))
+                        addTime("18:00");
+                    if (
+                        /\b(22:00|nightly|night|bedtime|pre-bed|pre bed)\b/.test(lower) &&
+                        !hasTimeInWindow(20, 24)
+                    )
                         addTime("22:00");
                 }
                 return results.sort((a, b) => a.localeCompare(b));
+            }
+
+            function _collapseSplitDoseScheduleTimes(times, item = null) {
+                const normalized = Array.isArray(times)
+                    ? times
+                          .map((time) => _parseScheduleTime(time))
+                          .filter(Boolean)
+                          .sort((a, b) => a.localeCompare(b))
+                    : [];
+                if (normalized.length <= 2 || !_protocolSplitDose(item?.dose || "")) {
+                    return normalized;
+                }
+                const explicit = _extractScheduleTimesFromText(item?.timing || "")
+                    .map((time) => _parseScheduleTime(time))
+                    .filter(Boolean);
+                const morningTimes = normalized.filter((time) => {
+                    const hour = Number(String(time).split(":")[0]);
+                    return Number.isFinite(hour) && hour < 12;
+                });
+                const eveningTimes = normalized.filter((time) => {
+                    const hour = Number(String(time).split(":")[0]);
+                    return Number.isFinite(hour) && hour >= 12;
+                });
+                const pickPreferred = (bucket, explicitBucket) => {
+                    if (!bucket.length) return "";
+                    const preferred = explicitBucket.find((time) => bucket.includes(time));
+                    return preferred || bucket[0];
+                };
+                const next = [];
+                const morningExplicit = explicit.filter((time) => {
+                    const hour = Number(String(time).split(":")[0]);
+                    return Number.isFinite(hour) && hour < 12;
+                });
+                const eveningExplicit = explicit.filter((time) => {
+                    const hour = Number(String(time).split(":")[0]);
+                    return Number.isFinite(hour) && hour >= 12;
+                });
+                const morningPick = pickPreferred(morningTimes, morningExplicit);
+                const eveningPick = pickPreferred(eveningTimes, eveningExplicit);
+                if (morningPick) next.push(morningPick);
+                if (eveningPick) next.push(eveningPick);
+                return next.length ? next : normalized.slice(0, 2);
             }
 
             function _normalizeScheduleTimes(value, item = null) {
@@ -11417,7 +11507,10 @@
                         addTime,
                     );
                 }
-                return results.sort((a, b) => a.localeCompare(b));
+                return _collapseSplitDoseScheduleTimes(
+                    results.sort((a, b) => a.localeCompare(b)),
+                    item,
+                );
             }
 
             function _formatScheduleTimeLabel(time) {
@@ -11560,6 +11653,7 @@
                     compounds.push({
                         key,
                         name: item.name || defaults.name || "Injection",
+                        stackIndex: Number.isInteger(item.index) ? item.index : null,
                         dose:
                             _protocolDoseSummary(item.dose) ||
                             defaults.dose ||
@@ -11964,6 +12058,16 @@
                     next.scheduleTimes,
                     next,
                 );
+                // Review note: keep timing summary aligned with the structured
+                // weekday/time fields after legacy schedule strings are cleaned.
+                const structuredSchedule = _stackScheduleSummary(next);
+                if (
+                    structuredSchedule &&
+                    (!_stackTimingContainsExtraInstruction(next.timing || "") ||
+                        !_extractScheduleTimesFromText(next.timing || "", next).length)
+                ) {
+                    next.timing = structuredSchedule;
+                }
                 return next;
             }
             function loadStack() {
@@ -12065,7 +12169,12 @@
                     const normalized = _normalizeStackEntry(item);
                     if (
                         normalized.category !== item.category ||
-                        normalized.route !== item.route
+                        normalized.route !== item.route ||
+                        JSON.stringify(normalized.scheduleDays || []) !==
+                            JSON.stringify(item?.scheduleDays || []) ||
+                        JSON.stringify(normalized.scheduleTimes || []) !==
+                            JSON.stringify(item?.scheduleTimes || []) ||
+                        String(normalized.timing || "") !== String(item?.timing || "")
                     ) {
                         changed = true;
                     }
@@ -20049,6 +20158,23 @@
                     .join(" - ");
             }
 
+            function openInjectionScheduleEditor(compoundKey) {
+                const stack = loadStack();
+                const idx = stack.findIndex(
+                    (item) =>
+                        _stackIsInjectable(item) &&
+                        _stackCompoundKey(item) === compoundKey,
+                );
+                if (idx === -1) {
+                    showToast("That injection schedule was not found in Current Stack.");
+                    return;
+                }
+                if (typeof switchTab2 === "function") switchTab2("stack");
+                if (typeof bottomNavJump === "function")
+                    bottomNavJump("protocolStackCard");
+                openStackEdit(idx);
+            }
+
             function renderInjectionTracker() {
                 const log = loadInjLog();
                 const dk = todayKey();
@@ -20297,7 +20423,10 @@
                                       })
                                       .join("");
                                   return `<div class="inj-item ${allLogged ? "logged" : ""}">
-      <div class="inj-name" style="color:${compound.color}">${escapeHtml(compound.name)}</div>
+      <div class="inj-item-head">
+        <div class="inj-name" style="color:${compound.color}">${escapeHtml(compound.name)}</div>
+        <button type="button" class="inj-schedule-btn" onclick="openInjectionScheduleEditor('${compound.key}')">Edit schedule</button>
+      </div>
       <div class="inj-dose-label">${escapeHtml(scheduleMeta)}</div>
       ${helperCopy ? `<div class="inj-slot-meta" style="margin-top:6px;">${escapeHtml(helperCopy)}</div>` : ""}
       <div class="inj-slot-list">${slotRows}</div>
