@@ -5995,6 +5995,77 @@
                         💊 stack.csv
                     </button>
                 </div>
+                <!-- STACK CSV IMPORT (v2.36.9) -->
+                <div
+                    style="
+                        margin-top: 16px;
+                        padding-top: 14px;
+                        border-top: 1px solid var(--border);
+                    "
+                >
+                    <div
+                        style="
+                            font-size: 12px;
+                            font-weight: 700;
+                            color: var(--text);
+                            margin-bottom: 4px;
+                        "
+                    >
+                        📥 Update Current Stack from CSV
+                    </div>
+                    <div
+                        style="
+                            font-size: 11px;
+                            color: var(--muted);
+                            line-height: 1.5;
+                            margin-bottom: 10px;
+                        "
+                    >
+                        Import replaces your entire Current Stack with the
+                        rows in the CSV (you'll get a confirmation first).
+                        Use Template to see the expected column format —
+                        multi-value fields like scheduleDays and
+                        scheduleTimes use <code>|</code> as the separator
+                        (e.g. <code>Sun|Thu</code>, <code>07:00|21:00</code>).
+                    </div>
+                    <div
+                        style="
+                            display: grid;
+                            grid-template-columns: 1fr 1fr;
+                            gap: 8px;
+                        "
+                    >
+                        <button
+                            class="btn btn-ghost"
+                            style="
+                                justify-content: flex-start;
+                                font-size: 12px;
+                                padding: 10px;
+                            "
+                            onclick="document.getElementById('stackCsvImportInput').click()"
+                        >
+                            📥 Import stack.csv
+                        </button>
+                        <button
+                            class="btn btn-ghost"
+                            style="
+                                justify-content: flex-start;
+                                font-size: 12px;
+                                padding: 10px;
+                            "
+                            onclick="downloadStackCsvTemplate()"
+                        >
+                            📄 Template
+                        </button>
+                    </div>
+                    <input
+                        type="file"
+                        id="stackCsvImportInput"
+                        accept=".csv,text/csv"
+                        style="display: none"
+                        onchange="importStackCsv(event)"
+                    />
+                </div>
                 <div
                     style="
                         display: flex;
@@ -10743,8 +10814,20 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.36.8";
+            const VERSION = "2.36.9";
             const VERSION_CHANGES = [
+                {
+                    version: "2.36.9",
+                    date: "2026-04-24",
+                    summary:
+                        "Stack CSV import/export and encoding guardrails",
+                    details: [
+                        "Added a round-trip CSV import/export for Current Stack in the CSV modal — export now covers all ten structured fields (category, route, scheduleDays, scheduleTimes) instead of the legacy six, and import replaces the stack after a confirmation.",
+                        "Kept the CSV column order backward compatible: the first six columns match older exports so existing files still open, and the four new columns are appended and optional on import.",
+                        "Added a downloadable stack-template.csv so the expected format (including the pipe separator for multi-value fields) is discoverable from the UI.",
+                        "Shipped the encoding guardrails from the recent mojibake repair: .editorconfig enforcing UTF-8 and stable line endings, and scripts/check-mojibake.ps1 to scan for reintroduced corruption before it spreads.",
+                    ],
+                },
                 {
                     version: "2.36.8",
                     date: "2026-04-24",
@@ -34801,6 +34884,58 @@ ${parts.join("\n")}
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             }
+            // Minimal RFC 4180 CSV parser. Handles quoted fields, escaped
+            // quotes (""), commas and newlines inside quoted fields, and
+            // either CRLF or LF line endings. Returns a 2D array of strings.
+            function _csvParse(text) {
+                const rows = [];
+                let row = [];
+                let field = "";
+                let inQuotes = false;
+                const len = text.length;
+                for (let i = 0; i < len; i++) {
+                    const ch = text[i];
+                    if (inQuotes) {
+                        if (ch === '"') {
+                            if (text[i + 1] === '"') {
+                                field += '"';
+                                i++;
+                                continue;
+                            }
+                            inQuotes = false;
+                            continue;
+                        }
+                        field += ch;
+                        continue;
+                    }
+                    if (ch === '"') {
+                        inQuotes = true;
+                        continue;
+                    }
+                    if (ch === ",") {
+                        row.push(field);
+                        field = "";
+                        continue;
+                    }
+                    if (ch === "\r") {
+                        // CRLF -> let the LF branch finalize the row
+                        continue;
+                    }
+                    if (ch === "\n") {
+                        row.push(field);
+                        rows.push(row);
+                        row = [];
+                        field = "";
+                        continue;
+                    }
+                    field += ch;
+                }
+                if (field !== "" || row.length) {
+                    row.push(field);
+                    rows.push(row);
+                }
+                return rows;
+            }
 
             function exportCsvWeight() {
                 const rows = [["date", "weight_lb", "note"]];
@@ -34919,22 +35054,206 @@ ${parts.join("\n")}
                 _csvDownload("journal.csv", rows);
                 showToast("📊 journal.csv downloaded", 2500);
             }
-            function exportCsvStack() {
-                const rows = [
-                    ["name", "dose", "timing", "status", "start", "note"],
+            // Column order kept backward-compatible with older exports:
+            // the first 6 columns (name..note) are unchanged, and the four
+            // structured fields (category, route, scheduleDays, scheduleTimes)
+            // are appended so old readers still work and the CSV can now
+            // round-trip cleanly through import.
+            const STACK_CSV_HEADERS = [
+                "name",
+                "dose",
+                "timing",
+                "status",
+                "start",
+                "note",
+                "category",
+                "route",
+                "scheduleDays",
+                "scheduleTimes",
+            ];
+            function _stackEntryToCsvRow(s) {
+                const days = (s.scheduleDays || [])
+                    .map((d) => WEEKDAY_LABELS_SHORT[d] || "")
+                    .filter(Boolean)
+                    .join("|");
+                const times = (s.scheduleTimes || [])
+                    .map((t) => _parseScheduleTime(t))
+                    .filter(Boolean)
+                    .join("|");
+                return [
+                    s.name || "",
+                    s.dose || "",
+                    s.timing || "",
+                    s.status || "",
+                    s.start || "",
+                    s.note || "",
+                    s.category || "",
+                    s.route || "",
+                    days,
+                    times,
                 ];
+            }
+            function exportCsvStack() {
+                const rows = [STACK_CSV_HEADERS.slice()];
                 (loadStack() || []).forEach((s) =>
-                    rows.push([
-                        s.name,
-                        s.dose || "",
-                        s.timing || "",
-                        s.status || "",
-                        s.start || "",
-                        s.note || "",
-                    ]),
+                    rows.push(_stackEntryToCsvRow(s)),
                 );
                 _csvDownload("stack.csv", rows);
                 showToast("📊 stack.csv downloaded", 2500);
+            }
+            function downloadStackCsvTemplate() {
+                // One example row so users can see how split-dose weekly
+                // schedules serialize (Sun|Thu and HH:MM|HH:MM tokens).
+                const rows = [
+                    STACK_CSV_HEADERS.slice(),
+                    [
+                        "Retatrutide",
+                        "4 mg",
+                        "Thu/Sun AM",
+                        "weekly",
+                        "2026-03-12",
+                        "Example row — delete before importing your real stack.",
+                        "peptide",
+                        "injection",
+                        "Sun|Thu",
+                        "06:00",
+                    ],
+                ];
+                _csvDownload("stack-template.csv", rows);
+                showToast("📄 stack-template.csv downloaded", 2500);
+            }
+            function importStackCsv(event) {
+                const input = event?.target;
+                const file = input?.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        // Strip UTF-8 BOM if present so the first header
+                        // cell matches cleanly.
+                        const text = String(e.target.result || "").replace(
+                            /^\uFEFF/,
+                            "",
+                        );
+                        const rows = _csvParse(text);
+                        if (!rows.length) {
+                            showToast("✕ Empty CSV", 3000);
+                            return;
+                        }
+                        const headers = rows[0].map((h) =>
+                            String(h || "").trim().toLowerCase(),
+                        );
+                        const col = (n) => headers.indexOf(n);
+                        const idx = {
+                            name: col("name"),
+                            dose: col("dose"),
+                            timing: col("timing"),
+                            status: col("status"),
+                            start: col("start"),
+                            note: col("note"),
+                            category: col("category"),
+                            route: col("route"),
+                            scheduleDays: col("scheduledays"),
+                            scheduleTimes: col("scheduletimes"),
+                        };
+                        if (idx.name === -1) {
+                            showToast(
+                                "✕ CSV missing required 'name' column",
+                                3500,
+                            );
+                            return;
+                        }
+                        const entries = [];
+                        const skipped = [];
+                        for (let i = 1; i < rows.length; i++) {
+                            const row = rows[i] || [];
+                            const blank = row.every(
+                                (c) => !String(c || "").trim(),
+                            );
+                            if (blank) continue;
+                            const rawName = String(
+                                row[idx.name] || "",
+                            ).trim();
+                            if (!rawName) {
+                                skipped.push(i + 1);
+                                continue;
+                            }
+                            const pull = (key) =>
+                                idx[key] >= 0 ? String(row[idx[key]] || "") : "";
+                            const entry = {
+                                name: rawName,
+                                dose: pull("dose"),
+                                timing: pull("timing"),
+                                status: pull("status").trim().toLowerCase(),
+                                start: pull("start"),
+                                note: pull("note"),
+                                // Pass category/route through only if the
+                                // column was present. Leaving them undefined
+                                // lets _normalizeStackEntry infer a sensible
+                                // default from the compound name.
+                                category:
+                                    idx.category >= 0
+                                        ? pull("category")
+                                        : undefined,
+                                route:
+                                    idx.route >= 0
+                                        ? pull("route")
+                                        : undefined,
+                                scheduleDays: pull("scheduleDays"),
+                                scheduleTimes: pull("scheduleTimes"),
+                            };
+                            entries.push(_normalizeStackEntry(entry));
+                        }
+                        if (!entries.length) {
+                            showToast(
+                                "✕ No valid rows found in CSV",
+                                3000,
+                            );
+                            return;
+                        }
+                        const current = loadStack() || [];
+                        const msg =
+                            `Replace your ${current.length} current compound` +
+                            `${current.length === 1 ? "" : "s"} with ` +
+                            `${entries.length} from this CSV?\n\n` +
+                            `This cannot be undone — your current stack ` +
+                            `will be overwritten.`;
+                        if (!confirm(msg)) {
+                            showToast("Import cancelled", 2000);
+                            return;
+                        }
+                        saveStack(entries);
+                        if (typeof renderStack === "function") renderStack();
+                        if (typeof render === "function") render();
+                        const extra = skipped.length
+                            ? ` (${skipped.length} row${skipped.length === 1 ? "" : "s"} skipped, missing name)`
+                            : "";
+                        showToast(
+                            `✓ Imported ${entries.length} compound${entries.length === 1 ? "" : "s"}${extra}`,
+                            3500,
+                        );
+                        if (skipped.length) {
+                            console.warn(
+                                "Stack CSV import: skipped rows (missing name):",
+                                skipped,
+                            );
+                        }
+                    } catch (err) {
+                        console.error("importStackCsv failed", err);
+                        showToast(
+                            "✕ CSV parse failed: " +
+                                (err?.message || "unknown error"),
+                            4000,
+                        );
+                    } finally {
+                        if (input) input.value = "";
+                    }
+                };
+                reader.onerror = () => {
+                    showToast("✕ Could not read file", 3000);
+                    if (input) input.value = "";
+                };
+                reader.readAsText(file);
             }
 
             function openCsvExport() {

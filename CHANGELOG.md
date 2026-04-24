@@ -2,11 +2,14 @@
 
 All notable changes to this project should be recorded here.
 
-## Unreleased
+## v2.36.9 - 2026-04-24
 
+- Added round-trip CSV import/export for Current Stack in the CSV modal. Export now covers all ten structured fields (`category`, `route`, `scheduleDays`, `scheduleTimes`) instead of the legacy six, and import replaces the stack after a confirmation.
+- Kept CSV column order backward compatible: the first six columns match older exports, new columns are appended and optional on import, so existing files still open cleanly.
+- Added a downloadable `stack-template.csv` so the expected format (including the `|` separator for multi-value fields) is discoverable from the UI.
 - Added a repo-level `.editorconfig` so common project files default to UTF-8 and stable line endings across editors.
 - Added `scripts/check-mojibake.ps1` to scan `index.html` or other target files for the most common mojibake markers before they quietly spread again.
-- Synced the in-app version badge and service worker version to `v2.36.8` so the shipped build matches the mojibake-repair release notes.
+- Synced the in-app version badge and service worker version alongside the new release so the shipped build matches the changelog.
 
 ## v2.36.8 - 2026-04-24
 
