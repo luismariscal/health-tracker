@@ -2,6 +2,13 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.36.10 - 2026-04-24
+
+- Refreshed the protocol compounds in Current Stack from the new dosing sheet: MOTS-c, KLOW80, Semax, HCG, weekly Retatrutide, Tesamorelin, AHK-Cu, and Selank.
+- Added a one-time `tp_stack` migration so existing saved stacks pick up the new structured weekdays, times, doses, and notes for those compounds instead of staying on the older protocol.
+- Left unrelated non-sheet items alone during migration so supplements and other custom rows are not silently wiped while the protocol rows are updated.
+- Added first-class stack classification coverage for Semax, AHK-Cu, and Selank so they sort, route, and inventory-track correctly as injectable peptide items.
+
 ## v2.36.9 - 2026-04-24
 
 - Added round-trip CSV import/export for Current Stack in the CSV modal. Export now covers all ten structured fields (`category`, `route`, `scheduleDays`, `scheduleTimes`) instead of the legacy six, and import replaces the stack after a confirmation.
