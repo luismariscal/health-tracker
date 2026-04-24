@@ -6,6 +6,7 @@ All notable changes to this project should be recorded here.
 
 - Added a repo-level `.editorconfig` so common project files default to UTF-8 and stable line endings across editors.
 - Added `scripts/check-mojibake.ps1` to scan `index.html` or other target files for the most common mojibake markers before they quietly spread again.
+- Synced the in-app version badge and service worker version to `v2.36.8` so the shipped build matches the mojibake-repair release notes.
 
 ## v2.36.8 - 2026-04-24
 
