@@ -2855,14 +2855,16 @@
                 font-size: 11px;
                 color: var(--muted);
                 line-height: 1.45;
-                overflow-wrap: anywhere;
+                overflow-wrap: break-word;
+                word-break: normal;
             }
             .inj-item-helper {
                 font-size: 11px;
                 color: var(--muted);
                 line-height: 1.45;
                 margin-top: 6px;
-                overflow-wrap: anywhere;
+                overflow-wrap: break-word;
+                word-break: normal;
             }
             .inj-schedule-btn {
                 flex: 0 0 auto;
@@ -2930,7 +2932,8 @@
                 color: var(--muted);
                 margin-top: 2px;
                 line-height: 1.35;
-                overflow-wrap: anywhere;
+                overflow-wrap: break-word;
+                word-break: normal;
             }
             .inj-slot-row .inj-btn {
                 margin-top: 0;
@@ -4332,6 +4335,37 @@
                 .chart-wrap {
                     height: 220px;
                 }
+                /* Review note: narrow shells and tablets need the injection tracker
+                   to stack one compound per row; multi-column cards become too thin
+                   and force dose/meta text into unreadable letter-by-letter wraps. */
+                .inj-compound-grid {
+                    grid-template-columns: 1fr;
+                    gap: 8px;
+                }
+                .inj-item {
+                    min-width: 0;
+                    overflow: hidden;
+                }
+                .inj-item-head {
+                    flex-direction: column;
+                    align-items: stretch;
+                }
+                .inj-dose-label,
+                .inj-slot-meta,
+                .inj-item-helper {
+                    white-space: normal;
+                    overflow-wrap: break-word;
+                    word-break: normal;
+                }
+                .inj-slot-row {
+                    grid-template-columns: 1fr;
+                    gap: 10px;
+                    align-items: stretch;
+                }
+                .inj-slot-row .inj-btn {
+                    width: 100%;
+                    min-width: 0;
+                }
             }
 
             /* PHONE ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¤ 560px */
@@ -4565,7 +4599,7 @@
 
                 /* Injection compound grid */
                 .inj-compound-grid {
-                    grid-template-columns: 1fr 1fr;
+                    grid-template-columns: 1fr;
                     gap: 8px;
                 }
 
@@ -10709,8 +10743,19 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.36.6";
+            const VERSION = "2.36.7";
             const VERSION_CHANGES = [
+                {
+                    version: "2.36.7",
+                    date: "2026-04-23",
+                    summary:
+                        "Fix mobile injection readability and isolate phone layout state",
+                    details: [
+                        "Stopped mobile collapsible-card defaults from overwriting desktop layout preferences by moving phone-sized collapse state to its own localStorage bucket.",
+                        "Made the Injection Tracker readable in narrow shells by stacking compounds into one column, giving dose rows full-width actions, and preventing letter-by-letter wrapping.",
+                        "Tightened split-dose parsing so only real morning/evening dose text maps into separate slot labels instead of any dose string that happens to contain a plus sign.",
+                    ],
+                },
                 {
                     version: "2.36.6",
                     date: "2026-04-23",
@@ -15483,6 +15528,14 @@
                 const main = raw.split(" = ")[0].trim();
                 const parts = main.split(/\s+\+\s+/);
                 if (parts.length !== 2) return null;
+                const hasMorningHint = (value) =>
+                    /\b(am|a\.m\.|morning|breakfast|first meal|upon waking)\b/i.test(
+                        String(value || ""),
+                    );
+                const hasEveningHint = (value) =>
+                    /\b(pm|p\.m\.|night|nightly|evening|bedtime|pre-?bed)\b/i.test(
+                        String(value || ""),
+                    );
                 const cleanPart = (value) =>
                     String(value || "")
                         .replace(/\((?=[^)]*\d{1,2}:\d{2})[^)]*\)\s*$/i, "")
@@ -15490,6 +15543,20 @@
                 const morning = cleanPart(parts[0]);
                 const night = cleanPart(parts[1]);
                 if (!morning || !night) return null;
+                // Review note: only treat "dose A + dose B" as a split-dose pair
+                // when the text itself carries a real morning/evening hint.
+                // This avoids misclassifying composition strings like
+                // "500 mg magnesium + 5 mg boron" as AM/PM dose slots.
+                if (
+                    !(
+                        hasMorningHint(parts[0]) ||
+                        hasMorningHint(main) ||
+                        hasEveningHint(parts[1]) ||
+                        hasEveningHint(main)
+                    )
+                ) {
+                    return null;
+                }
                 return { morning, night };
             }
 
@@ -16234,10 +16301,19 @@
                 protocolStackCard: "Daily protocol and current stack.",
             };
 
+            const COLLAPSED_STATE_KEY = "tp_collapsed";
+            const MOBILE_COLLAPSED_STATE_KEY = "tp_collapsed_mobile";
+
+            function _collapsedStateStorageKey() {
+                return typeof window !== "undefined" && window.innerWidth <= 560
+                    ? MOBILE_COLLAPSED_STATE_KEY
+                    : COLLAPSED_STATE_KEY;
+            }
+
             function _loadCollapsedState() {
                 try {
                     return JSON.parse(
-                        localStorage.getItem("tp_collapsed") || "{}",
+                        localStorage.getItem(_collapsedStateStorageKey()) || "{}",
                     );
                 } catch {
                     return {};
@@ -16245,7 +16321,10 @@
             }
 
             function _saveCollapsedState(state) {
-                localStorage.setItem("tp_collapsed", JSON.stringify(state));
+                localStorage.setItem(
+                    _collapsedStateStorageKey(),
+                    JSON.stringify(state),
+                );
             }
 
             function _cardPreviewText(card) {
@@ -42267,7 +42346,7 @@ ${parts.join("\n")}
                     });
             }
 
-            const MOBILE_LAYOUT_DEFAULTS_KEY = "tp_mobile_layout_defaults_v2.36.6";
+            const MOBILE_LAYOUT_DEFAULTS_KEY = "tp_mobile_layout_defaults_v2.36.7";
             function applyMobileReadableDefaults() {
                 if (typeof window === "undefined" || window.innerWidth > 560) return;
                 if (localStorage.getItem(MOBILE_LAYOUT_DEFAULTS_KEY) === "1") return;
