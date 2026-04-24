@@ -1,0 +1,44 @@
+# Changelog
+
+All notable changes to this project should be recorded here.
+
+## v2.36.7 - 2026-04-23
+
+- Fixed Injection Tracker readability in narrow mobile and tablet layouts.
+- Separated mobile collapsed-card state from desktop collapsed-card state.
+- Tightened split-dose parsing so only real morning/evening dose text is split across dose slots.
+
+## v2.36.6 - 2026-04-23
+
+- Refocused the mobile Today experience around a clearer top-to-bottom logging flow.
+- Simplified the phone Injection Tracker into a more readable action-first layout.
+- Reduced mobile floating control clutter and compacted Health Connect and Fitbit status text.
+
+## v2.36.5 - 2026-04-23
+
+- Scaffolded an Android shell for Health Connect integration.
+- Added the first native bridge path for weight, steps, sleep, and resting heart rate sync.
+
+## v2.36.4 - 2026-04-23
+
+- Cleaned legacy injection schedules so extra phantom dose times stop appearing.
+- Added a direct Edit schedule path from Injection Tracker into Current Stack.
+
+## v2.36.3 - 2026-04-23
+
+- Moved the daily workflow to the top of the page.
+- Added a stronger single-summary plus daily-input flow for logging.
+- Improved split-dose injection logging and editing behavior.
+
+## v2.36.2 - 2026-04-23
+
+- Cleaned notification and reminder copy to reduce mojibake in user-facing alerts.
+
+## v2.36.1 - 2026-04-23
+
+- Improved Fitbit integration with broader sync coverage and stale-data refresh behavior.
+
+## v2.36.0 - 2026-04-23
+
+- Added structured weekday scheduling in Current Stack.
+- Added split-dose slot tracking in Injection Tracker for compounds with multiple daily doses.
