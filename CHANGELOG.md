@@ -2,6 +2,12 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.36.8 - 2026-04-24
+
+- Repaired accumulated mojibake throughout index.html: 1,421 lines cleaned, restoring em/en-dashes, middle dots, arrows, math symbols, check/cross marks, and all emoji (injection, meal, lab, etc.) that had been corrupted through multiple save/encode cycles.
+- Restored the numeric-range regex to correctly match hyphen, "to", em-dash, and en-dash.
+- Removed ~1.5 MB of encoding garbage (file shrank 3.4 MB → 2.0 MB) with no change to line count or structure.
+
 ## v2.36.7 - 2026-04-23
 
 - Fixed Injection Tracker readability in narrow mobile and tablet layouts.
