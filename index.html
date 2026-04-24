@@ -128,6 +128,9 @@
                 box-sizing: border-box;
                 min-width: 0;
             }
+            .main > * {
+                min-width: 0;
+            }
 
             /* CARDS */
             .card {
@@ -532,6 +535,21 @@
                 }
             }
             @media (max-width: 560px) {
+                .main {
+                    width: calc(100vw - 16px);
+                    padding: 12px 0 20px;
+                    gap: 12px;
+                }
+                .section-controls,
+                .workflow-zone-top,
+                .scroll-top-fab,
+                .voice-fab,
+                .inj-site-rotation,
+                #healthConnectStatus,
+                #fitbitStatus,
+                #recoveryInsight {
+                    display: none !important;
+                }
                 .critical-flow-card {
                     padding: 14px;
                 }
@@ -542,6 +560,9 @@
                 .workflow-main-summary,
                 .workflow-coach-row {
                     padding: 10px;
+                }
+                .workflow-main-list-item {
+                    padding: 8px;
                 }
                 .workflow-title {
                     font-size: 16px;
@@ -560,11 +581,15 @@
                     grid-template-columns: repeat(2, minmax(0, 1fr));
                     gap: 6px;
                 }
+                .workflow-input-strip {
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                    gap: 6px;
+                }
                 .workflow-pill {
                     padding: 8px;
                 }
                 .workflow-grid {
-                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                    grid-template-columns: 1fr;
                     gap: 8px;
                 }
                 .workflow-step {
@@ -576,18 +601,56 @@
                     font-size: 12px;
                 }
                 .workflow-step-body {
-                    display: -webkit-box;
-                    -webkit-line-clamp: 3;
-                    -webkit-box-orient: vertical;
-                    overflow: hidden;
+                    display: block;
                 }
                 .workflow-step button {
                     width: 100%;
                     padding: 6px 8px;
                     text-align: center;
                 }
+                .inj-card-head {
+                    align-items: flex-start;
+                }
+                .inj-card-actions {
+                    width: 100%;
+                    justify-content: flex-start;
+                }
+                .inj-compound-grid {
+                    grid-template-columns: 1fr;
+                    gap: 8px;
+                }
+                .inj-item {
+                    padding: 12px;
+                }
+                .inj-item-head {
+                    flex-direction: column;
+                    align-items: stretch;
+                }
+                .inj-dose-label,
+                .inj-slot-meta {
+                    font-size: 12px;
+                    white-space: normal;
+                    word-break: break-word;
+                }
+                .inj-item-helper {
+                    display: none;
+                }
+                .inj-slot-row {
+                    grid-template-columns: 1fr;
+                    gap: 10px;
+                    align-items: stretch;
+                }
+                .inj-slot-row .inj-btn {
+                    width: 100%;
+                    min-width: 0;
+                }
+                .fab {
+                    bottom: 74px;
+                }
             }
             @media (max-width: 340px) {
+                .workflow-input-strip,
+                .workflow-summary,
                 .workflow-grid {
                     grid-template-columns: 1fr;
                 }
@@ -2746,6 +2809,21 @@
                 gap: 10px;
                 margin-bottom: 14px;
             }
+            .inj-card-head {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                margin-bottom: 14px;
+                flex-wrap: wrap;
+            }
+            .inj-card-actions {
+                display: flex;
+                gap: 6px;
+                align-items: center;
+                flex-wrap: wrap;
+                justify-content: flex-end;
+            }
             .inj-item {
                 background: var(--surface2);
                 border-radius: 10px;
@@ -2776,6 +2854,15 @@
             .inj-dose-label {
                 font-size: 11px;
                 color: var(--muted);
+                line-height: 1.45;
+                overflow-wrap: anywhere;
+            }
+            .inj-item-helper {
+                font-size: 11px;
+                color: var(--muted);
+                line-height: 1.45;
+                margin-top: 6px;
+                overflow-wrap: anywhere;
             }
             .inj-schedule-btn {
                 flex: 0 0 auto;
@@ -2843,6 +2930,7 @@
                 color: var(--muted);
                 margin-top: 2px;
                 line-height: 1.35;
+                overflow-wrap: anywhere;
             }
             .inj-slot-row .inj-btn {
                 margin-top: 0;
@@ -6502,6 +6590,7 @@
             <!-- INJECTION TRACKER -->
             <div class="card card-collapsible" id="injectionTrackerCard">
                 <div
+                    class="inj-card-head"
                     style="
                         display: flex;
                         align-items: center;
@@ -6512,7 +6601,7 @@
                     <div class="card-title" style="margin-bottom: 0">
                         Injection Tracker
                     </div>
-                    <div style="display: flex; gap: 6px; align-items: center">
+                    <div class="inj-card-actions" style="display: flex; gap: 6px; align-items: center">
                         <button
                             class="btn btn-ghost"
                             onclick="openInjectionLogModal()"
@@ -6546,6 +6635,7 @@
                     <div class="inj-history-row" id="injHistoryRow"></div>
                 </div>
                 <div
+                    class="inj-site-rotation"
                     style="
                         margin-top: 18px;
                         padding-top: 14px;
@@ -9860,8 +9950,8 @@
             <div class="bottom-nav-inner">
                 <button
                     class="bottom-nav-btn active"
-                    data-nav-target="todaysPlanCard"
-                    onclick="bottomNavJump('todaysPlanCard', this)"
+                    data-nav-target="criticalWorkflowCard"
+                    onclick="bottomNavJump('criticalWorkflowCard', this)"
                 >
                     <span class="bn-icon">ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¹</span>Today
                 </button>
@@ -10619,8 +10709,19 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.36.5";
+            const VERSION = "2.36.6";
             const VERSION_CHANGES = [
+                {
+                    version: "2.36.6",
+                    date: "2026-04-23",
+                    summary:
+                        "Refocus the phone experience around a readable Today flow",
+                    details: [
+                        "Reworked the mobile layout so the Today workflow stays at the top, step cards collapse into a single readable column, and the bottom nav now lands on the actual workflow hub.",
+                        "Simplified the phone injection tracker with one compound per row, stacked dose actions, less repeated helper text, and less floating control clutter over the logging surface.",
+                        "Moved Health Connect and Fitbit status noise out of the main mobile reading path while keeping sync actions available in Recovery and Activity.",
+                    ],
+                },
                 {
                     version: "2.36.5",
                     date: "2026-04-23",
@@ -12897,6 +12998,14 @@
                         summary: weightCheck?.ok ? "" : "weight is not logged yet",
                     },
                     {
+                        key: "aiVoice",
+                        label: "AI Voice",
+                        meta: "Speak one note for doses, water, food, or weight",
+                        state: "optional",
+                        action: "aiVoice",
+                        summary: "",
+                    },
+                    {
                         key: "doses",
                         label: "Doses",
                         meta: dose.total
@@ -13056,6 +13165,13 @@
                 }
                 if (action === "training" && typeof openTrainingModal === "function") {
                     openTrainingModal();
+                    return;
+                }
+                if (
+                    action === "aiVoice" &&
+                    typeof startAiQuickCaptureVoiceFromQuickAccess === "function"
+                ) {
+                    startAiQuickCaptureVoiceFromQuickAccess("topbarAiVoiceBtn");
                     return;
                 }
                 if (target) openCriticalWorkflowItem(target);
@@ -13383,6 +13499,7 @@
                 renderWaterCard();
                 mountWorkflowInputZone();
                 initCollapsibleCards();
+                applyMobileReadableDefaults();
                 refreshCollapsiblePreviews();
                 checkMilestoneUnlocks(entries, cw);
                 maybeShowBriefing();
@@ -15362,12 +15479,18 @@
 
             function _protocolSplitDose(dose) {
                 const raw = String(dose || "").trim();
-                const split = raw.match(/(.+?)\s*AM\s*\+\s*(.+?)\s*PM/i);
-                if (!split) return null;
-                return {
-                    morning: `${split[1].trim()} AM`,
-                    night: `${split[2].trim()} PM`,
-                };
+                if (!raw) return null;
+                const main = raw.split(" = ")[0].trim();
+                const parts = main.split(/\s+\+\s+/);
+                if (parts.length !== 2) return null;
+                const cleanPart = (value) =>
+                    String(value || "")
+                        .replace(/\((?=[^)]*\d{1,2}:\d{2})[^)]*\)\s*$/i, "")
+                        .trim();
+                const morning = cleanPart(parts[0]);
+                const night = cleanPart(parts[1]);
+                if (!morning || !night) return null;
+                return { morning, night };
             }
 
             function _protocolEntrySlots(entry) {
@@ -20258,13 +20381,6 @@
                 const cadence = _cleanInjectionTrackerText(
                     _injectionCadenceLabel(compound),
                 );
-                if (
-                    summary &&
-                    secondary &&
-                    summary.toLowerCase() !== secondary.toLowerCase()
-                ) {
-                    return `${summary} - ${secondary}`;
-                }
                 return summary || secondary || cadence;
             }
 
@@ -20581,7 +20697,7 @@
         <button type="button" class="inj-schedule-btn" onclick="openInjectionScheduleEditor('${compound.key}')">Edit schedule</button>
       </div>
       <div class="inj-dose-label">${escapeHtml(scheduleMeta)}</div>
-      ${helperCopy ? `<div class="inj-slot-meta" style="margin-top:6px;">${escapeHtml(helperCopy)}</div>` : ""}
+      ${helperCopy ? `<div class="inj-item-helper">${escapeHtml(helperCopy)}</div>` : ""}
       <div class="inj-slot-list">${slotRows}</div>
     </div>`;
                               })
@@ -26490,7 +26606,17 @@ Style:
                     const last = new Date(state.lastSync);
                     if (!isNaN(last)) parts.push("synced " + relativeTime(last));
                 }
-                if (state.lastSyncSummary) parts.push(state.lastSyncSummary);
+                // Review note: connector sync detail can get long or noisy on phone.
+                // Keep the inline status compact and move the full provider detail
+                // into the title/modal path so mobile stays readable.
+                const summary = _cleanInjectionTrackerText(state.lastSyncSummary || "");
+                if (summary) {
+                    if (/error|failed|partial/i.test(summary)) parts.push("partial sync");
+                    else parts.push("updated");
+                    statusEl.title = summary;
+                } else {
+                    statusEl.removeAttribute("title");
+                }
                 if (!state.permissionGranted) {
                     parts.push(
                         "grant access for weight, steps, sleep, and resting HR",
@@ -42141,13 +42267,70 @@ ${parts.join("\n")}
                     });
             }
 
+            const MOBILE_LAYOUT_DEFAULTS_KEY = "tp_mobile_layout_defaults_v2.36.6";
+            function applyMobileReadableDefaults() {
+                if (typeof window === "undefined" || window.innerWidth > 560) return;
+                if (localStorage.getItem(MOBILE_LAYOUT_DEFAULTS_KEY) === "1") return;
+
+                // Review note: mobile needs a stronger default hierarchy than desktop.
+                // Expand only the highest-frequency logging surfaces on first load and
+                // collapse the analytics-heavy cards so the phone view starts readable.
+                const dueDose = _workflowTodayDoseProgress(todayKey());
+                const openIds = new Set(["waterCard"]);
+                if (dueDose.total > 0) openIds.add("injectionTrackerCard");
+
+                const collapseIds = [
+                    "todaysPlanCard",
+                    "projectionCard",
+                    "weightChartCard",
+                    "lossChartCard",
+                    "coachModeCard",
+                    "cycleControlCard",
+                    "inventoryCard",
+                    "recoveryCard",
+                    "aiCoachCard",
+                    "dtpCard",
+                    "macroCalcCard",
+                    "refeedCard",
+                    "whatIfCard",
+                    "photosCard",
+                    "streaksCard",
+                    "siteRotatorCard",
+                    "correlationCard",
+                    "journalCard",
+                    "powerToolsCard",
+                    "labsCard",
+                    "generalTabsCard",
+                    "changeTimelineCard",
+                    "measurementsCard",
+                    "libraryCard",
+                    "symptomsCard",
+                    "checkpointsCard",
+                    "macroPhasesCard",
+                    "shopCard",
+                    "protocolStackCard",
+                ];
+                collapseIds.forEach((id) => {
+                    const card = document.getElementById(id);
+                    if (card) _setCardCollapsed(card, true, true);
+                });
+
+                ["injectionTrackerCard", "waterCard", "mealLogCard", "trainingCard", "vitalsCard"].forEach((id) => {
+                    const card = document.getElementById(id);
+                    if (card) _setCardCollapsed(card, !openIds.has(id), true);
+                });
+
+                localStorage.setItem(MOBILE_LAYOUT_DEFAULTS_KEY, "1");
+                refreshCollapsiblePreviews();
+            }
+
             function scrollToTop() {
                 window.scrollTo({ top: 0, behavior: "smooth" });
                 document
                     .querySelectorAll(".bottom-nav-btn")
                     .forEach((b) => b.classList.remove("active"));
                 const todayBtn = document.querySelector(
-                    '.bottom-nav-btn[data-nav-target="todaysPlanCard"]',
+                    '.bottom-nav-btn[data-nav-target="criticalWorkflowCard"]',
                 );
                 if (todayBtn) todayBtn.classList.add("active");
             }
@@ -42203,7 +42386,7 @@ ${parts.join("\n")}
             // Update bottom-nav active state as user scrolls (throttled via rAF)
             function initBottomNavScrollSpy() {
                 const targets = [
-                    { id: "todaysPlanCard", sel: "nav-today" },
+                    { id: "criticalWorkflowCard", sel: "nav-today" },
                     { id: "protocolStackCard", sel: "nav-stack" },
                     { id: "aiCoachCard", sel: "nav-coach" },
                 ];
