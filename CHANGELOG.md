@@ -2,6 +2,11 @@
 
 All notable changes to this project should be recorded here.
 
+## Unreleased
+
+- Added a repo-level `.editorconfig` so common project files default to UTF-8 and stable line endings across editors.
+- Added `scripts/check-mojibake.ps1` to scan `index.html` or other target files for the most common mojibake markers before they quietly spread again.
+
 ## v2.36.8 - 2026-04-24
 
 - Repaired accumulated mojibake throughout index.html: 1,421 lines cleaned, restoring em/en-dashes, middle dots, arrows, math symbols, check/cross marks, and all emoji (injection, meal, lab, etc.) that had been corrupted through multiple save/encode cycles.
