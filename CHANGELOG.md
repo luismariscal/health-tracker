@@ -2,6 +2,13 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.37.1 - 2026-04-25
+
+- Added a one-shot v2.37.0 migration that purges orphaned localStorage keys (`tp_inventory`, `tp_inventory_notify`, `tp_healthConnect`, `tp_cal_settings`, `tp_reminderGistId`, `tp_reminderToken`) on first boot so they stop showing up in Diagnostics.
+- Removed dead `.voice-fab` CSS rules left behind from the v2.37.0 voice button removal (print-stylesheet hide + mobile media-query layout rule).
+- Removed the `android-shell/` directory from the repo since the in-app Health Connect bridge code was severed in v2.37.0.
+- Synced the in-app version badge and service worker version to v2.37.1.
+
 ## v2.37.0 - 2026-04-24
 
 - Removed Health Connect integration end-to-end; Fitbit remains the supported wearable bridge.

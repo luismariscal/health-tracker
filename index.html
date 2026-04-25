@@ -543,7 +543,6 @@
                 .section-controls,
                 .workflow-zone-top,
                 .scroll-top-fab,
-                .voice-fab,
                 .inj-site-rotation,
                 #fitbitStatus,
                 #recoveryInsight {
@@ -4316,38 +4315,8 @@
             .fab:active {
                 transform: scale(0.92);
             }
-            .voice-fab {
-                display: none;
-                position: fixed;
-                right: 16px;
-                bottom: 146px;
-                min-width: 86px;
-                height: 42px;
-                border-radius: 8px;
-                background: var(--surface2);
-                color: var(--accent);
-                border: 1px solid rgba(0, 212, 255, 0.28);
-                box-shadow:
-                    0 8px 20px rgba(0, 0, 0, 0.45),
-                    0 0 0 2px rgba(0, 212, 255, 0.08);
-                font-size: 12px;
-                font-weight: 800;
-                cursor: pointer;
-                z-index: 90;
-                align-items: center;
-                justify-content: center;
-                padding: 0 12px;
-                line-height: 1;
-                transition: transform 0.15s ease;
-            }
-            .voice-fab:active {
-                transform: scale(0.96);
-            }
             @media (max-width: 560px) {
                 .fab {
-                    display: flex;
-                }
-                .voice-fab {
                     display: flex;
                 }
                 .scroll-top-fab {
@@ -9731,8 +9700,19 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.37.0";
+            const VERSION = "2.37.1";
             const VERSION_CHANGES = [
+                {
+                    version: "2.37.1",
+                    date: "2026-04-25",
+                    summary:
+                        "Cleanup completion: purge orphan localStorage, drop dead CSS and android-shell directory",
+                    details: [
+                        "Added a one-shot v2.37.0 migration that purges orphaned localStorage keys (tp_inventory, tp_inventory_notify, tp_healthConnect, tp_cal_settings, tp_reminderGistId, tp_reminderToken) so they stop showing up in Diagnostics.",
+                        "Removed dead .voice-fab CSS rules left behind from the v2.37.0 voice button removal, including the print-stylesheet hide and the mobile media-query layout rule.",
+                        "Removed the android-shell/ directory from the repo since the in-app Health Connect bridge code was severed in v2.37.0.",
+                    ],
+                },
                 {
                     version: "2.37.0",
                     date: "2026-04-24",
@@ -38070,6 +38050,26 @@ ${parts.join("\n")}
             // INIT
             // =========================================================
             registerServiceWorker(); // register ./sw.js (https:// or localhost only)
+            // v2.37.1: one-shot purge of localStorage keys orphaned by the
+            // v2.37.0 surface removals. Runs once per browser, then no-ops.
+            (function purgeOrphanedV2370Keys() {
+                try {
+                    const FLAG = "tp_migration_v2_37_0_purge";
+                    if (localStorage.getItem(FLAG) === "done") return;
+                    const orphans = [
+                        "tp_inventory",          // Inventory Manager (removed)
+                        "tp_inventory_notify",   // Inventory low-stock toggle
+                        "tp_healthConnect",      // Health Connect bridge state
+                        "tp_cal_settings",       // Calendar Export settings
+                        "tp_reminderGistId",     // Calendar live-feed gist id
+                        "tp_reminderToken",      // Calendar live-feed token
+                    ];
+                    orphans.forEach((k) => {
+                        try { localStorage.removeItem(k); } catch {}
+                    });
+                    localStorage.setItem(FLAG, "done");
+                } catch { /* purge is best-effort */ }
+            })();
             initMojibakeRepair();
             scheduleMojibakeRepair(80);
             scheduleMojibakeRepair(1200);
