@@ -2403,7 +2403,45 @@
             }
             .inj-history-row {
                 display: flex;
-                gap: 6px;
+                flex-direction: column;
+                gap: 10px;
+            }
+            .inj-hist-group {
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+            }
+            .inj-hist-date-label {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 11px;
+                font-weight: 700;
+                color: var(--muted);
+                text-transform: uppercase;
+                letter-spacing: 0.6px;
+            }
+            .inj-hist-date-badge {
+                font-size: 10px;
+                font-weight: 700;
+                padding: 1px 8px;
+                border-radius: 10px;
+                text-transform: none;
+                letter-spacing: 0;
+            }
+            .inj-hist-date-badge.full {
+                background: rgba(34, 197, 94, 0.15);
+                color: var(--green);
+                border: 1px solid rgba(34, 197, 94, 0.3);
+            }
+            .inj-hist-date-badge.partial {
+                background: rgba(234, 179, 8, 0.12);
+                color: var(--yellow);
+                border: 1px solid rgba(234, 179, 8, 0.3);
+            }
+            .inj-hist-chips {
+                display: flex;
+                gap: 5px;
                 flex-wrap: wrap;
             }
             .inj-hist-chip {
@@ -4497,6 +4535,46 @@
                 .water-trend-day { padding: 4px 1px; }
                 .water-trend-day .wt-label { font-size: 9px; }
                 .water-trend-day .wt-val { font-size: 9px; }
+            }
+
+            /* AMOLED stealth theme — clean inline replacement for the
+               v2.38.3 PowerShell injection that broke the file. Sets
+               true-black backgrounds for OLED contrast and adds subtle
+               cyan neon glows on primary controls. */
+            :root {
+                --bg: #000000;
+                --surface: #080a0f;
+                --surface2: #0f131c;
+                --border: #1a202c;
+                --text: #f8fafc;
+                --muted: #64748b;
+            }
+            html, body {
+                background: var(--bg) !important;
+                color: var(--text) !important;
+                scrollbar-color: var(--border) var(--bg);
+                scrollbar-width: thin;
+            }
+            .topbar {
+                background: rgba(8, 10, 15, 0.85) !important;
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+            }
+            .btn-primary {
+                box-shadow: 0 0 12px rgba(0, 212, 255, 0.15) !important;
+            }
+            .btn-primary:hover {
+                box-shadow: 0 0 20px rgba(0, 212, 255, 0.35) !important;
+            }
+            .fab {
+                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.7),
+                            0 0 0 2px rgba(0, 212, 255, 0.15),
+                            0 0 15px rgba(0, 212, 255, 0.25) !important;
+            }
+            .critical-flow-card {
+                border-color: rgba(0, 212, 255, 0.35) !important;
+                background: linear-gradient(135deg, rgba(0, 212, 255, 0.04), transparent 40%), var(--surface) !important;
+                box-shadow: inset 0 0 24px rgba(0, 212, 255, 0.03) !important;
             }
         </style>
     </head>
@@ -9775,8 +9853,19 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.38.7";
+            const VERSION = "2.38.8";
             const VERSION_CHANGES = [
+                {
+                    version: "2.38.8",
+                    date: "2026-04-25",
+                    summary:
+                        "Re-apply AMOLED dark theme + group injection recent log by date",
+                    details: [
+                        "Re-applied the AMOLED stealth theme as a clean inline CSS block in the head <style> rather than via the broken v2.38.3 PowerShell script. True-black backgrounds for OLED contrast plus subtle cyan neon glows on primary buttons, FAB, and the critical-flow card.",
+                        "Reorganized the Injection Tracker recent log: chips are now grouped by date with Today/Yesterday/date headers and an All-logged or N-doses badge per day. Each chip shows compound · time · site without the date prefix, replacing the flat unlabeled chip soup that filled the old layout.",
+                        "Synced the in-app version badge and service worker version to v2.38.8.",
+                    ],
+                },
                 {
                     version: "2.38.7",
                     date: "2026-04-25",
@@ -19721,13 +19810,18 @@
                     renderSiteRotation();
                     return;
                 }
-                const chips = [];
+                const todayStr = _dateKeyLocal(new Date());
+                const yesterdayStr = (() => {
+                    const y = new Date(); y.setDate(y.getDate() - 1);
+                    return _dateKeyLocal(y);
+                })();
+                const groups = [];
                 allDates.forEach((d) => {
                     const entry = log[d] || {};
                     const histDate = new Date(d + "T12:00:00");
                     const catalog = [...compoundCatalog];
                     Object.keys(entry || {}).forEach((compoundKey) => {
-                        if (!catalog.some((compound) => compound.key === compoundKey)) {
+                        if (!catalog.some((c) => c.key === compoundKey)) {
                             catalog.push({
                                 key: compoundKey,
                                 name: compoundKey,
@@ -19748,35 +19842,41 @@
                             loggedDoseRows.push({ compound, doseEntry });
                         });
                     });
-                    const count = loggedDoseRows.length;
+                    if (!loggedDoseRows.length) return;
                     const dueCount = compounds.reduce(
                         (sum, compound) =>
                             sum + _injScheduledDoseCount(compound, histDate),
                         0,
                     );
                     const cls =
-                        dueCount > 0 && count >= dueCount
+                        dueCount > 0 && loggedDoseRows.length >= dueCount
                             ? "full"
-                            : count > 0
-                              ? "partial"
-                              : "";
-                    const label = histDate.toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                    });
-                    loggedDoseRows.forEach(({ compound, doseEntry }) => {
-                        const chipLabel = _injectionTrackerHistoryLabel(
-                            label,
-                            compound,
-                            doseEntry,
+                            : "partial";
+                    const dateHeading =
+                        d === todayStr ? "Today" :
+                        d === yesterdayStr ? "Yesterday" :
+                        histDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                    const badge = cls === "full" ? "All logged" : `${loggedDoseRows.length} dose${loggedDoseRows.length !== 1 ? "s" : ""}`;
+                    const chipHtml = loggedDoseRows.map(({ compound, doseEntry }) => {
+                        const timeLabel = _cleanInjectionTrackerText(
+                            doseEntry?.time ? _formatScheduleTimeLabel(doseEntry.time) : doseEntry?.label || "",
                         );
-                        chips.push(
-                            `<button class="inj-hist-chip ${cls}" onclick="openInjectionLogModal(${escapeHtml(JSON.stringify(d))},${escapeHtml(JSON.stringify(compound.key))},${escapeHtml(JSON.stringify(doseEntry.slotId || "dose-1"))})" title="Edit ${escapeHtml(compound.name)} on ${escapeHtml(d)}">${escapeHtml(chipLabel)}</button>`,
+                        const siteLabel = _cleanInjectionTrackerText(
+                            _injectionTrackerSiteLabel(doseEntry?.site),
                         );
-                    });
+                        const chipLabel = [compound?.name || "", timeLabel, siteLabel]
+                            .filter(Boolean).join(" · ");
+                        return `<button class="inj-hist-chip ${cls}" onclick="openInjectionLogModal(${escapeHtml(JSON.stringify(d))},${escapeHtml(JSON.stringify(compound.key))},${escapeHtml(JSON.stringify(doseEntry.slotId || "dose-1"))})" title="Edit ${escapeHtml(compound.name)} on ${escapeHtml(d)}">${escapeHtml(chipLabel)}</button>`;
+                    }).join("");
+                    groups.push(
+                        `<div class="inj-hist-group">
+  <div class="inj-hist-date-label">${escapeHtml(dateHeading)}<span class="inj-hist-date-badge ${cls}">${escapeHtml(badge)}</span></div>
+  <div class="inj-hist-chips">${chipHtml}</div>
+</div>`,
+                    );
                 });
-                histRow.innerHTML = chips.length
-                    ? chips.join("")
+                histRow.innerHTML = groups.length
+                    ? groups.join("")
                     : `<span style="font-size:12px;color:var(--muted)">No injections logged yet.</span>`;
                 renderInjectionSiteGuideTargets();
                 renderSiteRotation();

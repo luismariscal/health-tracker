@@ -2,6 +2,12 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.38.8 - 2026-04-25
+
+- Re-applied the AMOLED stealth theme as a clean inline CSS block in the head `<style>` (no PowerShell script). True-black backgrounds for OLED contrast plus subtle cyan neon glows on primary buttons, FAB, and the critical-flow card.
+- Reorganized the Injection Tracker recent log: chips are now grouped by date with Today/Yesterday/date headers and an "All logged" / "N doses" badge per day. Each chip shows compound · time · site without the date prefix, replacing the flat unlabeled chip soup.
+- Synced the in-app version badge and service worker version to v2.38.8.
+
 ## v2.38.7 - 2026-04-25
 
 - **Recovery release.** Reverted `index.html`, `sw.js`, and `CHANGELOG.md` to the v2.38.2 state. The v2.38.3 AMOLED PowerShell script injected its CSS payload at every `</style>` match in the file (including inside JS template literals) and read the file with the wrong encoding, producing 1,503 mojibake sequences and broken card-content rendering. Attempts to repair in place (v2.38.4–v2.38.6) couldn't fully resolve the rendering breakage without browser diagnostics, so we rolled back to the last-known-good commit.
