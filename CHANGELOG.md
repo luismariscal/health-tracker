@@ -2,29 +2,12 @@
 
 All notable changes to this project should be recorded here.
 
-## v2.38.6 - 2026-04-25
+## v2.38.7 - 2026-04-25
 
-- Completed the v2.38.3 AMOLED-encoding mojibake repair. v2.38.5 only patched the 9 most common patterns; a deeper scan exposed 615 additional corrupted sequences, including all 4-byte emoji corruptions (🫀 heart, ⚡ bolt, ⚠ warning, ⚖ scale, ⭐ star, ✓ check, ✕ cross, ▶ play, ▼ down) and 2-byte symbols (← → ↓ arrows, ≤ ≥ inequalities). Used a generalized CP1252-to-byte reverse-mapping repair instead of per-pattern strings.
-- Verified DOM ID coverage: all 397 IDs from the pre-AMOLED snapshot are still present — no UI elements were lost.
-- Hardened `Apply-StealthTheme.ps1` to read with explicit `-Encoding UTF8`. The original script defaulted to Windows CP1252, which is what corrupted every multi-byte UTF-8 sequence in the first place.
-- Synced the in-app version badge and service worker version to v2.38.6.
-
-## v2.38.5 - 2026-04-25
-
-- Repaired 888 mojibake sequences introduced when the v2.38.3 PowerShell theme script read `index.html` with the wrong encoding (CP1252 instead of UTF-8) and wrote it back. Fixed em-dashes, en-dashes, ellipsis, right single quotes, bullets, middle dots, plus-minus signs, degree signs, and multiplication/division signs throughout the file.
-- Synced the in-app version badge and service worker version to v2.38.5.
-
-## v2.38.4 - 2026-04-25
-
-- Redesigned the injection recent log: history chips are now grouped by date with a Today/Yesterday/date header row and an "All logged" or dose-count badge per day. Chips show compound · time · site without a date prefix, replacing the flat unlabeled chip soup.
-- CSS audit confirmed the `water-*` block (restored in v2.38.2) was the only structural CSS casualty from v2.37.0. Remaining orphan class hits are inline-styled selector handles (`lx-*`, `power-tools-grid`, `spinner`) or inherit from global input rules (`stack-time-input`) — no additional rules needed.
-- Synced the in-app version badge and service worker version to v2.38.4.
-
-## v2.38.3 - 2026-04-25
-
-- Injected true-black AMOLED stealth theme into the UI.
-- Replaced dark blue/gray backgrounds with #000000 for infinite contrast on OLED displays.
-- Added subtle cyan neon glows to primary actions and floating action buttons.
+- **Recovery release.** Reverted `index.html`, `sw.js`, and `CHANGELOG.md` to the v2.38.2 state. The v2.38.3 AMOLED PowerShell script injected its CSS payload at every `</style>` match in the file (including inside JS template literals) and read the file with the wrong encoding, producing 1,503 mojibake sequences and broken card-content rendering. Attempts to repair in place (v2.38.4–v2.38.6) couldn't fully resolve the rendering breakage without browser diagnostics, so we rolled back to the last-known-good commit.
+- **Lost in this revert (to be re-applied):** injection history grouped by date (was v2.38.4), deeper stack adherence breakdown, the CSS-class audit notes, and the AMOLED dark theme.
+- If you want the AMOLED dark theme back, we'll add it as a clean inline CSS block in the head `<style>` instead of running the broken PowerShell script.
+- Synced the in-app version badge and service worker version to v2.38.7.
 
 ## v2.38.2 - 2026-04-25
 

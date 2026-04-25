@@ -194,8 +194,7 @@
             .card-collapsed .card-preview {
                 display: block;
             }
-            .card-collapsed
-                > :not(:first-child):not(.card-preview):not(script):not(style) {
+            .card-collapsed > :not(:first-child):not(.card-preview):not(script):not(style) {
                 display: none !important;
             }
             .card-collapsed {
@@ -204,11 +203,7 @@
             .critical-flow-card {
                 border-color: rgba(0, 212, 255, 0.28);
                 background:
-                    linear-gradient(
-                        135deg,
-                        rgba(0, 212, 255, 0.08),
-                        transparent 36%
-                    ),
+                    linear-gradient(135deg, rgba(0, 212, 255, 0.08), transparent 36%),
                     var(--surface);
             }
             .workflow-top {
@@ -2408,45 +2403,7 @@
             }
             .inj-history-row {
                 display: flex;
-                flex-direction: column;
-                gap: 10px;
-            }
-            .inj-hist-group {
-                display: flex;
-                flex-direction: column;
-                gap: 5px;
-            }
-            .inj-hist-date-label {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                font-size: 11px;
-                font-weight: 700;
-                color: var(--muted);
-                text-transform: uppercase;
-                letter-spacing: 0.6px;
-            }
-            .inj-hist-date-badge {
-                font-size: 10px;
-                font-weight: 700;
-                padding: 1px 8px;
-                border-radius: 10px;
-                text-transform: none;
-                letter-spacing: 0;
-            }
-            .inj-hist-date-badge.full {
-                background: rgba(34, 197, 94, 0.15);
-                color: var(--green);
-                border: 1px solid rgba(34, 197, 94, 0.3);
-            }
-            .inj-hist-date-badge.partial {
-                background: rgba(234, 179, 8, 0.12);
-                color: var(--yellow);
-                border: 1px solid rgba(234, 179, 8, 0.3);
-            }
-            .inj-hist-chips {
-                display: flex;
-                gap: 5px;
+                gap: 6px;
                 flex-wrap: wrap;
             }
             .inj-hist-chip {
@@ -4234,10 +4191,7 @@
                 .card-collapsed > .card-preview {
                     display: block !important;
                 }
-                .card-collapsed
-                    > :not(:first-child):not(.card-preview):not(script):not(
-                        style
-                    ) {
+                .card-collapsed > :not(:first-child):not(.card-preview):not(script):not(style) {
                     display: none !important;
                 }
                 .card-collapsible::after {
@@ -4471,287 +4425,79 @@
             /* WATER INTAKE — restored in v2.38.2 after the v2.37.0 trim
                accidentally removed these rules along with adjacent peak-week
                styles, leaving the water card unstyled. */
-            .water-head {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 10px;
-                flex-wrap: wrap;
-            }
-            .water-sub {
-                font-size: 11px;
-                color: var(--muted);
-                margin-top: 2px;
-            }
+            .water-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+            .water-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
             .water-progress-outer {
-                width: 100%;
-                height: 16px;
-                border-radius: 20px;
-                background: var(--surface2);
-                border: 1px solid var(--border);
-                overflow: hidden;
-                position: relative;
+                width: 100%; height: 16px; border-radius: 20px;
+                background: var(--surface2); border: 1px solid var(--border);
+                overflow: hidden; position: relative;
             }
             .water-progress-fill {
-                height: 100%;
-                border-radius: 20px;
-                background: linear-gradient(
-                    90deg,
-                    #38bdf8,
-                    #0ea5e9 50%,
-                    #0284c7
-                );
-                box-shadow: 0 0 8px rgba(56, 189, 248, 0.45) inset;
+                height: 100%; border-radius: 20px;
+                background: linear-gradient(90deg, #38bdf8, #0ea5e9 50%, #0284c7);
+                box-shadow: 0 0 8px rgba(56,189,248,0.45) inset;
                 transition: width 0.3s ease;
             }
             .water-progress-txt {
-                position: absolute;
-                inset: 0;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 11px;
-                font-weight: 800;
-                color: #e6f6ff;
-                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+                position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+                font-size: 11px; font-weight: 800; color: #e6f6ff; text-shadow: 0 1px 2px rgba(0,0,0,0.6);
                 letter-spacing: 0.3px;
             }
             .water-stat-row {
-                display: flex;
-                gap: 8px;
-                flex-wrap: wrap;
-                margin-top: 10px;
-                font-size: 11px;
-                color: var(--muted);
+                display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;
+                font-size: 11px; color: var(--muted);
             }
             .water-stat-pill {
-                background: var(--surface2);
-                border: 1px solid var(--border);
-                border-radius: 8px;
-                padding: 5px 10px;
+                background: var(--surface2); border: 1px solid var(--border);
+                border-radius: 8px; padding: 5px 10px;
             }
-            .water-stat-pill b {
-                color: var(--text);
-                font-weight: 800;
-            }
+            .water-stat-pill b { color: var(--text); font-weight: 800; }
             .water-quick-row {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));
-                gap: 8px;
-                margin-top: 14px;
+                display: grid; grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));
+                gap: 8px; margin-top: 14px;
             }
             .water-quick-btn {
-                background: var(--surface2);
-                border: 1px solid rgba(56, 189, 248, 0.35);
-                border-radius: 10px;
-                padding: 10px 6px;
-                cursor: pointer;
-                color: var(--text);
-                font-size: 12px;
-                font-weight: 700;
-                transition: all 0.15s;
-                text-align: center;
-                min-height: 44px;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                gap: 2px;
+                background: var(--surface2); border: 1px solid rgba(56,189,248,0.35);
+                border-radius: 10px; padding: 10px 6px; cursor: pointer; color: var(--text);
+                font-size: 12px; font-weight: 700; transition: all 0.15s; text-align: center;
+                min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
             }
-            .water-quick-btn:hover {
-                border-color: #38bdf8;
-                background: rgba(56, 189, 248, 0.08);
-            }
-            .water-quick-btn:active {
-                transform: scale(0.96);
-            }
-            .water-quick-btn .wq-emoji {
-                font-size: 16px;
-                line-height: 1;
-            }
-            .water-quick-btn .wq-label {
-                font-size: 11px;
-                color: var(--muted);
-                font-weight: 600;
-            }
+            .water-quick-btn:hover { border-color: #38bdf8; background: rgba(56,189,248,0.08); }
+            .water-quick-btn:active { transform: scale(0.96); }
+            .water-quick-btn .wq-emoji { font-size: 16px; line-height: 1; }
+            .water-quick-btn .wq-label { font-size: 11px; color: var(--muted); font-weight: 600; }
             .water-timeline {
-                display: flex;
-                gap: 4px;
-                flex-wrap: wrap;
-                margin-top: 4px;
-                padding: 6px 0;
-                border-top: 1px dashed var(--border);
+                display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px;
+                padding: 6px 0; border-top: 1px dashed var(--border);
             }
             .water-entry {
-                display: inline-flex;
-                align-items: center;
-                gap: 4px;
-                background: var(--surface2);
-                border: 1px solid var(--border);
-                border-radius: 6px;
-                padding: 3px 8px;
-                font-size: 11px;
+                display: inline-flex; align-items: center; gap: 4px;
+                background: var(--surface2); border: 1px solid var(--border);
+                border-radius: 6px; padding: 3px 8px; font-size: 11px;
             }
             .water-entry .we-del {
-                color: var(--muted);
-                cursor: pointer;
-                padding: 0 3px;
-                font-size: 12px;
-                opacity: 0.6;
+                color: var(--muted); cursor: pointer; padding: 0 3px;
+                font-size: 12px; opacity: 0.6;
             }
-            .water-entry .we-del:hover {
-                color: var(--red);
-                opacity: 1;
-            }
-            .water-timeline-empty {
-                font-size: 11px;
-                color: var(--muted);
-                padding: 6px 0;
-                font-style: italic;
-            }
-            .water-trend-wrap {
-                padding-top: 10px;
-                border-top: 1px solid var(--border);
-            }
-            .water-trend-title {
-                font-size: 11px;
-                font-weight: 700;
-                text-transform: uppercase;
-                letter-spacing: 0.8px;
-                color: var(--muted);
-                margin-bottom: 8px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-            .water-trend-row {
-                display: grid;
-                grid-template-columns: repeat(7, 1fr);
-                gap: 6px;
-            }
-            .water-trend-day {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 4px;
-                background: var(--surface2);
-                border: 1px solid var(--border);
-                border-radius: 8px;
-                padding: 6px 2px;
-                min-width: 0;
-            }
-            .water-trend-day.today {
-                border-color: rgba(14, 165, 233, 0.6);
-                background: rgba(14, 165, 233, 0.08);
-            }
-            .water-trend-day .wt-label {
-                font-size: 10px;
-                color: var(--muted);
-                font-weight: 700;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-            }
-            .water-trend-day .wt-bar-outer {
-                width: 100%;
-                height: 38px;
-                background: rgba(100, 116, 139, 0.15);
-                border-radius: 4px;
-                position: relative;
-                overflow: hidden;
-                display: flex;
-                align-items: flex-end;
-            }
-            .water-trend-day .wt-bar-fill {
-                width: 100%;
-                background: linear-gradient(to top, #0ea5e9, #38bdf8);
-                border-radius: 4px 4px 0 0;
-                min-height: 2px;
-                transition: height 0.25s;
-            }
-            .water-trend-day .wt-bar-fill.hit {
-                background: linear-gradient(to top, #22c55e, #4ade80);
-            }
-            .water-trend-day .wt-val {
-                font-size: 10px;
-                font-weight: 700;
-                color: var(--text);
-            }
-            .water-trend-day .wt-val.muted {
-                color: var(--muted);
-                font-weight: 600;
-            }
+            .water-entry .we-del:hover { color: var(--red); opacity: 1; }
+            .water-timeline-empty { font-size: 11px; color: var(--muted); padding: 6px 0; font-style: italic; }
+            .water-trend-wrap { padding-top: 10px; border-top: 1px solid var(--border); }
+            .water-trend-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 8px; display:flex; justify-content:space-between; align-items:center; }
+            .water-trend-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+            .water-trend-day { display:flex; flex-direction:column; align-items:center; gap:4px; background: var(--surface2); border:1px solid var(--border); border-radius:8px; padding:6px 2px; min-width:0; }
+            .water-trend-day.today { border-color: rgba(14,165,233,0.6); background: rgba(14,165,233,0.08); }
+            .water-trend-day .wt-label { font-size: 10px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+            .water-trend-day .wt-bar-outer { width: 100%; height: 38px; background: rgba(100,116,139,0.15); border-radius: 4px; position: relative; overflow: hidden; display:flex; align-items:flex-end; }
+            .water-trend-day .wt-bar-fill { width: 100%; background: linear-gradient(to top, #0ea5e9, #38bdf8); border-radius: 4px 4px 0 0; min-height: 2px; transition: height 0.25s; }
+            .water-trend-day .wt-bar-fill.hit { background: linear-gradient(to top, #22c55e, #4ade80); }
+            .water-trend-day .wt-val { font-size: 10px; font-weight: 700; color: var(--text); }
+            .water-trend-day .wt-val.muted { color: var(--muted); font-weight: 600; }
             @media (max-width: 560px) {
-                .water-quick-row {
-                    grid-template-columns: repeat(3, 1fr);
-                }
-                .water-trend-day {
-                    padding: 4px 1px;
-                }
-                .water-trend-day .wt-label {
-                    font-size: 9px;
-                }
-                .water-trend-day .wt-val {
-                    font-size: 9px;
-                }
+                .water-quick-row { grid-template-columns: repeat(3, 1fr); }
+                .water-trend-day { padding: 4px 1px; }
+                .water-trend-day .wt-label { font-size: 9px; }
+                .water-trend-day .wt-val { font-size: 9px; }
             }
-            /* --- INJECTED AMOLED THEME --- */
-            :root {
-                --bg: #000000;
-                --surface: #080a0f;
-                --surface2: #0f131c;
-                --border: #1a202c;
-                --accent: #00d4ff;
-                --accent2: #7c3aed;
-                --green: #10b981;
-                --yellow: #f59e0b;
-                --red: #ef4444;
-                --orange: #f97316;
-                --text: #f8fafc;
-                --muted: #64748b;
-                --card-radius: 12px;
-            }
-
-            html,
-            body {
-                background: var(--bg) !important;
-                color: var(--text) !important;
-                scrollbar-color: var(--border) var(--bg);
-                scrollbar-width: thin;
-            }
-
-            .topbar {
-                background: rgba(8, 10, 15, 0.85) !important;
-                backdrop-filter: blur(12px);
-                -webkit-backdrop-filter: blur(12px);
-            }
-
-            .btn-primary {
-                box-shadow: 0 0 12px rgba(0, 212, 255, 0.15) !important;
-            }
-
-            .btn-primary:hover {
-                box-shadow: 0 0 20px rgba(0, 212, 255, 0.35) !important;
-            }
-
-            .fab {
-                box-shadow:
-                    0 8px 20px rgba(0, 0, 0, 0.7),
-                    0 0 0 2px rgba(0, 212, 255, 0.15),
-                    0 0 15px rgba(0, 212, 255, 0.25) !important;
-            }
-
-            .critical-flow-card {
-                border-color: rgba(0, 212, 255, 0.35) !important;
-                background:
-                    linear-gradient(
-                        135deg,
-                        rgba(0, 212, 255, 0.04),
-                        transparent 40%
-                    ),
-                    var(--surface) !important;
-                box-shadow: inset 0 0 24px rgba(0, 212, 255, 0.03) !important;
-            }
-            /* ----------------------------- */
         </style>
     </head>
     <body>
@@ -5651,12 +5397,12 @@
                             margin-bottom: 10px;
                         "
                     >
-                        Import replaces your entire Current Stack with the rows
-                        in the CSV (you'll get a confirmation first). Use
-                        Template to see the expected column format —
-                        multi-value fields like scheduleDays and scheduleTimes
-                        use <code>|</code> as the separator (e.g.
-                        <code>Sun|Thu</code>, <code>07:00|21:00</code>).
+                        Import replaces your entire Current Stack with the
+                        rows in the CSV (you'll get a confirmation first).
+                        Use Template to see the expected column format —
+                        multi-value fields like scheduleDays and
+                        scheduleTimes use <code>|</code> as the separator
+                        (e.g. <code>Sun|Thu</code>, <code>07:00|21:00</code>).
                     </div>
                     <div
                         style="
@@ -5672,11 +5418,7 @@
                                 font-size: 12px;
                                 padding: 10px;
                             "
-                            onclick="
-                                document
-                                    .getElementById('stackCsvImportInput')
-                                    .click()
-                            "
+                            onclick="document.getElementById('stackCsvImportInput').click()"
                         >
                             📥 Import stack.csv
                         </button>
@@ -5829,15 +5571,13 @@
             <div class="card critical-flow-card" id="criticalWorkflowCard">
                 <div class="workflow-top">
                     <div>
-                        <div class="workflow-kicker">
-                            Critical-first workflow
-                        </div>
+                        <div class="workflow-kicker">Critical-first workflow</div>
                         <div class="workflow-title">
                             Start with what matters.
                         </div>
                         <div class="workflow-sub" id="criticalWorkflowLead">
-                            Safety signals first, today's required actions
-                            second, then labs and coach review.
+                            Safety signals first, today's required actions second,
+                            then labs and coach review.
                         </div>
                     </div>
                     <div
@@ -5852,12 +5592,8 @@
                     id="criticalWorkflowMainSummary"
                 ></div>
                 <div class="workflow-coach-row">
-                    <div
-                        class="workflow-coach-meta"
-                        id="criticalWorkflowCoachMeta"
-                    >
-                        Ask AI Coach about today's summary or reply to the last
-                        thread.
+                    <div class="workflow-coach-meta" id="criticalWorkflowCoachMeta">
+                        Ask AI Coach about today's summary or reply to the last thread.
                     </div>
                     <div
                         class="workflow-coach-preview"
@@ -5868,10 +5604,7 @@
                             type="text"
                             id="workflowCoachInput"
                             placeholder="Ask AI Coach about today's workflow..."
-                            onkeydown="
-                                if (event.key === 'Enter')
-                                    sendWorkflowCoachReply();
-                            "
+                            onkeydown="if (event.key === 'Enter') sendWorkflowCoachReply()"
                         />
                         <button
                             id="workflowCoachSendBtn"
@@ -5890,14 +5623,8 @@
                         </button>
                     </div>
                 </div>
-                <div
-                    class="workflow-input-strip"
-                    id="criticalWorkflowInputs"
-                ></div>
-                <div
-                    class="workflow-summary"
-                    id="criticalWorkflowSummary"
-                ></div>
+                <div class="workflow-input-strip" id="criticalWorkflowInputs"></div>
+                <div class="workflow-summary" id="criticalWorkflowSummary"></div>
                 <div class="workflow-grid" id="criticalWorkflowSteps"></div>
             </div>
             <div class="workflow-zone" id="workflowInputZone">
@@ -5908,10 +5635,7 @@
                         dashboard for context and review.
                     </div>
                 </div>
-                <div
-                    class="workflow-zone-mount"
-                    id="workflowInputZoneMount"
-                ></div>
+                <div class="workflow-zone-mount" id="workflowInputZoneMount"></div>
             </div>
 
             <!-- SECTION CONTROLS (v2.31.1) -->
@@ -6046,9 +5770,7 @@
                         </button>
                         <button
                             class="btn btn-ghost"
-                            onclick="
-                                generateWeeklyReviewWithProvider('anthropic')
-                            "
+                            onclick="generateWeeklyReviewWithProvider('anthropic')"
                             style="font-size: 11px; padding: 4px 10px"
                             title="Refresh this report with Claude"
                         >
@@ -6112,10 +5834,7 @@
                             id="weeklyReportFollowup"
                             type="text"
                             placeholder="Reply to this coach report..."
-                            onkeydown="
-                                if (event.key === 'Enter')
-                                    sendWeeklyReportFollowup();
-                            "
+                            onkeydown="if(event.key==='Enter') sendWeeklyReportFollowup()"
                             style="
                                 flex: 1;
                                 min-width: 180px;
@@ -6271,10 +5990,7 @@
                     <div class="card-title" style="margin-bottom: 0">
                         Injection Tracker
                     </div>
-                    <div
-                        class="inj-card-actions"
-                        style="display: flex; gap: 6px; align-items: center"
-                    >
+                    <div class="inj-card-actions" style="display: flex; gap: 6px; align-items: center">
                         <button
                             class="btn btn-ghost"
                             onclick="openInjectionLogModal()"
@@ -6521,8 +6237,7 @@
                                     margin-top: 2px;
                                 "
                             >
-                                New research, safety alerts, and source-cited
-                                news.
+                                New research, safety alerts, and source-cited news.
                             </div>
                         </div>
                         <div style="display: flex; gap: 6px; flex-wrap: wrap">
@@ -6572,9 +6287,8 @@
                         "
                     >
                         Looks for important updates on your active peptides,
-                        compounds, and supplements. Educational only: verify
-                        with a clinician before changing medications, doses, or
-                        labs.
+                        compounds, and supplements. Educational only: verify with
+                        a clinician before changing medications, doses, or labs.
                     </div>
                     <div
                         id="researchWatchBody"
@@ -7309,9 +7023,7 @@
                                     background: rgba(255, 255, 255, 0.02);
                                 "
                             >
-                                <div
-                                    style="font-weight: 700; margin-bottom: 6px"
-                                >
+                                <div style="font-weight: 700; margin-bottom: 6px">
                                     ChatGPT / OpenAI
                                 </div>
                                 <div>
@@ -7324,18 +7036,13 @@
                                         >platform.openai.com/api-keys</a
                                     >.
                                 </div>
-                                <div>
-                                    2. Create a new API key and copy it once.
-                                </div>
-                                <div>
-                                    3. Paste it here under OpenAI API Key.
-                                </div>
+                                <div>2. Create a new API key and copy it once.</div>
+                                <div>3. Paste it here under OpenAI API Key.</div>
                                 <div
                                     style="color: var(--muted); margin-top: 6px"
                                 >
-                                    API billing is separate from ChatGPT
-                                    Plus/Pro. First API key may require phone
-                                    verification.
+                                    API billing is separate from ChatGPT Plus/Pro.
+                                    First API key may require phone verification.
                                 </div>
                             </div>
                             <div
@@ -7346,9 +7053,7 @@
                                     background: rgba(255, 255, 255, 0.02);
                                 "
                             >
-                                <div
-                                    style="font-weight: 700; margin-bottom: 6px"
-                                >
+                                <div style="font-weight: 700; margin-bottom: 6px">
                                     Claude / Anthropic
                                 </div>
                                 <div>
@@ -7362,14 +7067,12 @@
                                     >.
                                 </div>
                                 <div>2. Create a new API key and copy it.</div>
-                                <div>
-                                    3. Paste it here under Anthropic API Key.
-                                </div>
+                                <div>3. Paste it here under Anthropic API Key.</div>
                                 <div
                                     style="color: var(--muted); margin-top: 6px"
                                 >
-                                    Claude web subscriptions and Claude Console
-                                    API credits are separate.
+                                    Claude web subscriptions and Claude Console API
+                                    credits are separate.
                                 </div>
                             </div>
                             <div
@@ -7380,9 +7083,7 @@
                                     background: rgba(255, 255, 255, 0.02);
                                 "
                             >
-                                <div
-                                    style="font-weight: 700; margin-bottom: 6px"
-                                >
+                                <div style="font-weight: 700; margin-bottom: 6px">
                                     Gemini / Google
                                 </div>
                                 <div>
@@ -7396,17 +7097,15 @@
                                     >.
                                 </div>
                                 <div>
-                                    2. Create a key, or import/select a Google
-                                    Cloud project first.
+                                    2. Create a key, or import/select a Google Cloud
+                                    project first.
                                 </div>
-                                <div>
-                                    3. Paste it here under Gemini API Key.
-                                </div>
+                                <div>3. Paste it here under Gemini API Key.</div>
                                 <div
                                     style="color: var(--muted); margin-top: 6px"
                                 >
-                                    Free tier is available. Paid usage requires
-                                    Cloud Billing on the selected project.
+                                    Free tier is available. Paid usage requires Cloud
+                                    Billing on the selected project.
                                 </div>
                             </div>
                         </div>
@@ -7839,9 +7538,8 @@
                         color: var(--muted);
                     "
                 >
-                    5–7 day maintenance refeeds every 6–8 weeks of deficit
-                    reset leptin + thyroid. Auto-suggested after confirmed
-                    plateau.
+                    5–7 day maintenance refeeds every 6–8 weeks of deficit reset
+                    leptin + thyroid. Auto-suggested after confirmed plateau.
                 </div>
             </div>
 
@@ -8022,9 +7720,7 @@
 
             <!-- SYMPTOM ↔ COMPOUND CORRELATION -->
             <div class="card card-collapsible" id="correlationCard">
-                <div class="card-title">
-                    🧬 Symptom ↔ Compound Correlation
-                </div>
+                <div class="card-title">🧬 Symptom ↔ Compound Correlation</div>
                 <div
                     style="
                         font-size: 11px;
@@ -9258,33 +8954,21 @@
                     <div class="stack-add-bar">
                         <button
                             class="btn btn-primary"
-                            onclick="
-                                openStackEdit(-1, {
-                                    category: 'peptide',
-                                    route: 'injection',
-                                })
-                            "
+                            onclick="openStackEdit(-1, { category: 'peptide', route: 'injection' })"
                             style="font-size: 13px; padding: 8px 16px"
                         >
                             + Add peptide
                         </button>
                         <button
                             class="btn btn-ghost"
-                            onclick="
-                                openStackEdit(-1, { category: 'medication' })
-                            "
+                            onclick="openStackEdit(-1, { category: 'medication' })"
                             style="font-size: 13px; padding: 8px 16px"
                         >
                             + Add medication
                         </button>
                         <button
                             class="btn btn-ghost"
-                            onclick="
-                                openStackEdit(-1, {
-                                    category: 'supplement',
-                                    route: 'oral',
-                                })
-                            "
+                            onclick="openStackEdit(-1, { category: 'supplement', route: 'oral' })"
                             style="font-size: 13px; padding: 8px 16px"
                         >
                             + Add supplement
@@ -9351,7 +9035,10 @@
                 >
                     <span class="bn-icon">🤖</span>Coach
                 </button>
-                <button class="bottom-nav-btn" onclick="scrollToTop()">
+                <button
+                    class="bottom-nav-btn"
+                    onclick="scrollToTop()"
+                >
                     <span class="bn-icon">⬆</span>Top
                 </button>
             </div>
@@ -10088,41 +9775,22 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.38.6";
+            const VERSION = "2.38.7";
             const VERSION_CHANGES = [
                 {
-                    version: "2.38.6",
+                    version: "2.38.7",
                     date: "2026-04-25",
                     summary:
-                        "Complete the AMOLED-encoding mojibake repair: emojis, arrows, math symbols, hearts",
+                        "Recovery: revert to last-known-good state (pre-AMOLED) to restore functionality",
                     details: [
-                        "v2.38.5 only patched the most common 9 mojibake patterns. A deeper scan exposed 615 additional corrupted sequences from the same v2.38.3 encoding bug, including all 4-byte emoji corruptions (🫀 heart, ⚡ bolt, ⚠ warning, ⚖ scale, ⭐ star, ✓ check, ✕ cross, ▶ play, ▼ down) and 2-byte symbols (← → ↓ arrows, ≤ ≥ inequalities). Wrote a generalized repair using the CP1252-to-byte reverse mapping rather than per-pattern strings.",
-                        "Verified DOM ID coverage: all 397 IDs from the pre-AMOLED snapshot are still present in the current file — no UI elements lost. File integrity confirmed.",
-                        "Hardened `Apply-StealthTheme.ps1` to read with explicit `-Encoding UTF8`. The original script omitted the encoding flag, defaulting to Windows CP1252, which is what corrupted every multi-byte UTF-8 sequence in the first place.",
-                        "Synced the in-app version badge and service worker version to v2.38.6.",
+                        "Reverted index.html, sw.js, and CHANGELOG.md to the v2.38.2 state. The v2.38.3 AMOLED PowerShell script (Apply-StealthTheme.ps1) injected its CSS payload at every </style> match in the file — including occurrences inside JS template literals — and read the file with CP1252 instead of UTF-8, producing 1,503 mojibake sequences AND broken card content rendering.",
+                        "Subsequent v2.38.4–v2.38.6 work tried to repair the damage in place but the AMOLED-induced rendering issue couldn't be fully diagnosed without a browser. Cleanest path was to roll the file back to the last-known-good commit and re-establish ground truth.",
+                        "Lost in this revert (will re-apply): injection history grouped by date, deeper stack adherence breakdown, the v2.38.4 CSS-class audit notes, and the AMOLED dark theme. If you want AMOLED back, ask and we'll inline the CSS rules cleanly into the head <style> block instead of running the broken PS script.",
+                        "Synced the in-app version badge and service worker version to v2.38.7.",
                     ],
                 },
                 {
-                    version: "2.38.5",
-                    date: "2026-04-25",
-                    summary:
-                        "Repair mojibake introduced by the v2.38.3 AMOLED theme commit",
-                    details: [
-                        "Repaired 888 mojibake sequences introduced when the v2.38.3 PowerShell theme script read index.html with the wrong encoding (CP1252 instead of UTF-8) and wrote it back. Fixed em-dashes, en-dashes, ellipsis, right single quotes, bullets, middle dots, plus-minus, degree signs, and multiplication/division signs throughout the file.",
-                    ],
-                },
-                {
-                    version: "2.38.4",
-                    date: "2026-04-25",
-                    summary:
-                        "Injection history grouped by date; CSS audit clean",
-                    details: [
-                        "Redesigned the injection recent log: history chips are now grouped by date with a Today/Yesterday/Apr 25 header row and an 'All logged' or dose-count badge per day. Chips show compound · time · site without the date prefix, eliminating the flat unlabeled chip soup.",
-                        "CSS audit confirmed the water-* block (restored in v2.38.2) was the only structural CSS casualty from v2.37.0. Remaining orphan class hits are inline-styled selector handles (lx-*, power-tools-grid, spinner) or inherit from global input rules (stack-time-input) — no additional rules needed.",
-                    ],
-                },
-                {
-                    version: "2.38.3",
+                    version: "2.38.2",
                     date: "2026-04-25",
                     summary:
                         "Restore water card CSS and fix injection dose-row letter-by-letter wrap",
@@ -10198,7 +9866,8 @@
                 {
                     version: "2.36.9",
                     date: "2026-04-24",
-                    summary: "Stack CSV import/export and encoding guardrails",
+                    summary:
+                        "Stack CSV import/export and encoding guardrails",
                     details: [
                         "Added a round-trip CSV import/export for Current Stack in the CSV modal — export now covers all ten structured fields (category, route, scheduleDays, scheduleTimes) instead of the legacy six, and import replaces the stack after a confirmation.",
                         "Kept the CSV column order backward compatible: the first six columns match older exports so existing files still open, and the four new columns are appended and optional on import.",
@@ -10285,8 +9954,7 @@
                 {
                     version: "2.36.1",
                     date: "2026-04-22",
-                    summary:
-                        "Upgrade Fitbit integration with auto-sync and resting HR import",
+                    summary: "Upgrade Fitbit integration with auto-sync and resting HR import",
                     details: [
                         "Cleaned up the Fitbit connection flow inside Recovery & Activity so the setup and sync UI reads clearly again.",
                         "Fitbit connections now request heartrate access for new logins and pull resting HR alongside weight, steps, and sleep when the API provides it.",
@@ -10296,8 +9964,7 @@
                 {
                     version: "2.36.0",
                     date: "2026-04-22",
-                    summary:
-                        "Add structured weekly schedules and split-dose injection logging",
+                    summary: "Add structured weekly schedules and split-dose injection logging",
                     details: [
                         "Current Stack now stores exact weekdays and dose times separately from free-text timing so weekly compounds and twice-daily peptides stay consistent across the app.",
                         "Injection Tracker now renders one logging row per due dose slot, which lets morning and evening injections be logged independently without overwriting each other.",
@@ -10316,8 +9983,7 @@
                 {
                     version: "2.35.8",
                     date: "2026-04-22",
-                    summary:
-                        "Recover desktop layout after containment regression",
+                    summary: "Recover desktop layout after containment regression",
                     details: [
                         "Backed out the unstable desktop workflow containment experiment and restored the last stable four-column workflow layout.",
                         "Added a viewport reset guard so packaged desktop shells cannot keep the dashboard stuck on a stale horizontal offset after an update.",
@@ -10326,8 +9992,7 @@
                 {
                     version: "2.35.7",
                     date: "2026-04-22",
-                    summary:
-                        "Stabilize workflow containment across desktop shells",
+                    summary: "Stabilize workflow containment across desktop shells",
                     details: [
                         "Moved the main dashboard onto a narrower fixed rail so large desktop windows stop stretching cards edge to edge.",
                         "Converted the Critical-First summary and step rows to explicit wrapped lanes with fixed desktop widths, which is more stable than the previous grid auto-fit behavior in packaged desktop shells.",
@@ -10390,8 +10055,7 @@
                 {
                     version: "2.35.0",
                     date: "2026-04-21",
-                    summary:
-                        "Split stack into peptides, supplements, and medications",
+                    summary: "Split stack into peptides, supplements, and medications",
                     details: [
                         "Rebuilt the current stack editor around explicit category and route fields so peptides, supplements, and medications stay in separate workflow lanes.",
                         "Expanded the injection log to follow live injectable stack items instead of the old 3-item hardcoded list, which removes cabergoline and adds the rest of the injectable protocol automatically.",
@@ -10470,8 +10134,7 @@
                 {
                     version: "2.32.5",
                     date: "2026-04-20",
-                    summary:
-                        "Add Protocol OS state layer for workflow sections",
+                    summary: "Add Protocol OS state layer for workflow sections",
                     details: [
                         "Added a central read-model that normalizes stack, cycles, compliance, inventory, and weight data into one Protocol OS state object.",
                         "Refactored Critical Workflow, Today's Plan, Command Center, Protocol, and Stack rendering to read from shared computed state instead of recomputing separately.",
@@ -10532,8 +10195,7 @@
                 {
                     version: "2.31.9",
                     date: "2026-04-20",
-                    summary:
-                        "Expose AI quick update debug and fallback parsing",
+                    summary: "Expose AI quick update debug and fallback parsing",
                     details: [
                         "Added a response-object scanner so AI Quick Update can parse JSON returned outside output_text.",
                         "Added a local stack-change fallback for simple add, remove, pause, and update requests when provider JSON is unreadable.",
@@ -10627,8 +10289,7 @@
                 {
                     version: "2.31.0",
                     date: "2026-04-19",
-                    summary:
-                        "Mobile update checks, lab highlights, and coach report chat",
+                    summary: "Mobile update checks, lab highlights, and coach report chat",
                     details: [
                         "Added a version-check banner and service-worker update hooks so mobile PWAs can refresh when old code is loaded.",
                         "Highlighted out-of-range lab cards and table rows in red using extracted flags or reference ranges.",
@@ -10816,9 +10477,7 @@
                 },
                 {
                     time: "Evening",
-                    items: [
-                        "Final meal — support tesamorelin fasting window",
-                    ],
+                    items: ["Final meal — support tesamorelin fasting window"],
                     special: false,
                 },
                 {
@@ -10834,14 +10493,8 @@
             ];
             const STACK_CATEGORY_META = {
                 peptide: { label: "Peptide", pillClass: "cat-peptide" },
-                supplement: {
-                    label: "Supplement",
-                    pillClass: "cat-supplement",
-                },
-                medication: {
-                    label: "Medication",
-                    pillClass: "cat-medication",
-                },
+                supplement: { label: "Supplement", pillClass: "cat-supplement" },
+                medication: { label: "Medication", pillClass: "cat-medication" },
             };
             const STACK_ROUTE_META = {
                 injection: "Injection",
@@ -11100,8 +10753,7 @@
                 if (defaults?.route) return defaults.route;
                 const text = _stackTextBlob(item || value);
                 if (/\bpatch\b/i.test(text)) return "patch";
-                if (/\b(topical|cream|gel|serum)\b/i.test(text))
-                    return "topical";
+                if (/\b(topical|cream|gel|serum)\b/i.test(text)) return "topical";
                 if (/\b(nasal|spray|intranasal)\b/i.test(text)) return "nasal";
                 if (
                     /\b(injection|inject|subq|subcutaneous|intramuscular|iu\b|tesamorelin|retatrutide|mots(?:-|\s)?c|hcg|semax|selank|ahk(?:-|\s)?cu|bpc(?:-|\s)?157|tb(?:-|\s)?500|ghk(?:-|\s)?cu|cjc(?:-|\s)?1295|ipamorelin|semaglutide|tirzepatide)\b/i.test(
@@ -11229,11 +10881,7 @@
                         const [hour] = String(time || "")
                             .split(":")
                             .map(Number);
-                        return (
-                            Number.isFinite(hour) &&
-                            hour >= startHour &&
-                            hour < endHour
-                        );
+                        return Number.isFinite(hour) && hour >= startHour && hour < endHour;
                     });
                 const source = String(text || "");
                 (
@@ -11245,30 +10893,16 @@
                     // morning/evening keyword guesses. This prevents old
                     // schedule text like "04:45 AM and 06:00 PM" from
                     // expanding into phantom 05:00 / 06:00 / 18:00 slots.
-                    if (
-                        /\b(first meal|breakfast)\b/.test(lower) &&
-                        !hasTimeInWindow(4, 11)
-                    )
+                    if (/\b(first meal|breakfast)\b/.test(lower) && !hasTimeInWindow(4, 11))
                         addTime("06:00");
-                    if (
-                        /\b(morning|wake|waking)\b/.test(lower) &&
-                        !hasTimeInWindow(4, 12)
-                    )
+                    if (/\b(morning|wake|waking)\b/.test(lower) && !hasTimeInWindow(4, 12))
                         addTime("05:00");
-                    if (
-                        /\b(lunch|midday|noon)\b/.test(lower) &&
-                        !hasTimeInWindow(11, 15)
-                    )
+                    if (/\b(lunch|midday|noon)\b/.test(lower) && !hasTimeInWindow(11, 15))
                         addTime("12:00");
-                    if (
-                        /\b(evening|dinner)\b/.test(lower) &&
-                        !hasTimeInWindow(15, 21)
-                    )
+                    if (/\b(evening|dinner)\b/.test(lower) && !hasTimeInWindow(15, 21))
                         addTime("18:00");
                     if (
-                        /\b(22:00|nightly|night|bedtime|pre-bed|pre bed)\b/.test(
-                            lower,
-                        ) &&
+                        /\b(22:00|nightly|night|bedtime|pre-bed|pre bed)\b/.test(lower) &&
                         !hasTimeInWindow(20, 24)
                     )
                         addTime("22:00");
@@ -11283,15 +10917,10 @@
                           .filter(Boolean)
                           .sort((a, b) => a.localeCompare(b))
                     : [];
-                if (
-                    normalized.length <= 2 ||
-                    !_protocolSplitDose(item?.dose || "")
-                ) {
+                if (normalized.length <= 2 || !_protocolSplitDose(item?.dose || "")) {
                     return normalized;
                 }
-                const explicit = _extractScheduleTimesFromText(
-                    item?.timing || "",
-                )
+                const explicit = _extractScheduleTimesFromText(item?.timing || "")
                     .map((time) => _parseScheduleTime(time))
                     .filter(Boolean);
                 const morningTimes = normalized.filter((time) => {
@@ -11304,9 +10933,7 @@
                 });
                 const pickPreferred = (bucket, explicitBucket) => {
                     if (!bucket.length) return "";
-                    const preferred = explicitBucket.find((time) =>
-                        bucket.includes(time),
-                    );
+                    const preferred = explicitBucket.find((time) => bucket.includes(time));
                     return preferred || bucket[0];
                 };
                 const next = [];
@@ -11318,14 +10945,8 @@
                     const hour = Number(String(time).split(":")[0]);
                     return Number.isFinite(hour) && hour >= 12;
                 });
-                const morningPick = pickPreferred(
-                    morningTimes,
-                    morningExplicit,
-                );
-                const eveningPick = pickPreferred(
-                    eveningTimes,
-                    eveningExplicit,
-                );
+                const morningPick = pickPreferred(morningTimes, morningExplicit);
+                const eveningPick = pickPreferred(eveningTimes, eveningExplicit);
                 if (morningPick) next.push(morningPick);
                 if (eveningPick) next.push(eveningPick);
                 return next.length ? next : normalized.slice(0, 2);
@@ -11346,10 +10967,9 @@
                     _extractScheduleTimesFromText(value, item).forEach(addTime);
                 }
                 if (!results.length && item) {
-                    _extractScheduleTimesFromText(
-                        item?.timing || "",
-                        item,
-                    ).forEach(addTime);
+                    _extractScheduleTimesFromText(item?.timing || "", item).forEach(
+                        addTime,
+                    );
                 }
                 return _collapseSplitDoseScheduleTimes(
                     results.sort((a, b) => a.localeCompare(b)),
@@ -11375,13 +10995,8 @@
 
             function _stackScheduleSummary(item) {
                 const days = _normalizeScheduleDays(item?.scheduleDays, item);
-                const times = _normalizeScheduleTimes(
-                    item?.scheduleTimes,
-                    item,
-                );
-                const dayLabel = days.length
-                    ? _formatScheduleDayList(days)
-                    : "";
+                const times = _normalizeScheduleTimes(item?.scheduleTimes, item);
+                const dayLabel = days.length ? _formatScheduleDayList(days) : "";
                 const timeLabel = times.length
                     ? times.map(_formatScheduleTimeLabel).join(" + ")
                     : "";
@@ -11414,10 +11029,7 @@
                 const summary = _stackScheduleSummary(item);
                 if (!raw) return "";
                 if (!summary) return raw;
-                const normalizedRaw = raw
-                    .toLowerCase()
-                    .replace(/\s+/g, " ")
-                    .trim();
+                const normalizedRaw = raw.toLowerCase().replace(/\s+/g, " ").trim();
                 const normalizedSummary = summary
                     .toLowerCase()
                     .replace(/\s+/g, " ")
@@ -11429,26 +11041,18 @@
             function _stackStatusBadgeLabel(item) {
                 const status = String(item?.status || "").toLowerCase();
                 const days = _normalizeScheduleDays(item?.scheduleDays, item);
-                const times = _normalizeScheduleTimes(
-                    item?.scheduleTimes,
-                    item,
-                );
+                const times = _normalizeScheduleTimes(item?.scheduleTimes, item);
                 if (days.length) return _formatScheduleDayList(days);
                 if (status === "active" && times.length > 1) {
                     return `${times.length}x Daily`;
                 }
-                return (
-                    {
-                        active: "Daily",
-                        weekly: "Weekly",
-                        planned: "Planned",
-                        paused: "Paused",
-                        held: "Held",
-                    }[status] ||
-                    (status
-                        ? status.charAt(0).toUpperCase() + status.slice(1)
-                        : "Planned")
-                );
+                return {
+                    active: "Daily",
+                    weekly: "Weekly",
+                    planned: "Planned",
+                    paused: "Paused",
+                    held: "Held",
+                }[status] || (status ? status.charAt(0).toUpperCase() + status.slice(1) : "Planned");
             }
 
             function _stackTimeInputRowsMarkup(times = []) {
@@ -11465,13 +11069,11 @@
             }
 
             function _stackCategorySort(category) {
-                return (
-                    {
-                        peptide: 0,
-                        supplement: 1,
-                        medication: 2,
-                    }[category] ?? 9
-                );
+                return {
+                    peptide: 0,
+                    supplement: 1,
+                    medication: 2,
+                }[category] ?? 9;
             }
 
             function _stackCategoryLabel(category) {
@@ -11515,9 +11117,7 @@
                     compounds.push({
                         key,
                         name: item.name || defaults.name || "Injection",
-                        stackIndex: Number.isInteger(item.index)
-                            ? item.index
-                            : null,
+                        stackIndex: Number.isInteger(item.index) ? item.index : null,
                         dose:
                             _protocolDoseSummary(item.dose) ||
                             defaults.dose ||
@@ -11527,8 +11127,7 @@
                             (item.category === "medication"
                                 ? "#c4b5fd"
                                 : "var(--accent)"),
-                        category:
-                            item.category || defaults.category || "peptide",
+                        category: item.category || defaults.category || "peptide",
                         route: item.route || defaults.route || "injection",
                         status: item.status || "active",
                         timing: item.timing || "",
@@ -11943,10 +11542,7 @@
                 const next = { ...(entry || {}) };
                 next.category = _normalizeStackCategory(next.category, next);
                 next.route = _normalizeStackRoute(next.route, next);
-                next.scheduleDays = _normalizeScheduleDays(
-                    next.scheduleDays,
-                    next,
-                );
+                next.scheduleDays = _normalizeScheduleDays(next.scheduleDays, next);
                 next.scheduleTimes = _normalizeScheduleTimes(
                     next.scheduleTimes,
                     next,
@@ -11957,8 +11553,7 @@
                 if (
                     structuredSchedule &&
                     (!_stackTimingContainsExtraInstruction(next.timing || "") ||
-                        !_extractScheduleTimesFromText(next.timing || "", next)
-                            .length)
+                        !_extractScheduleTimesFromText(next.timing || "", next).length)
                 ) {
                     next.timing = structuredSchedule;
                 }
@@ -12152,13 +11747,8 @@
                         },
                     },
                 ];
-                const buildProtocolRefreshEntry = (
-                    refresh,
-                    existing = null,
-                ) => {
-                    const next = JSON.parse(
-                        JSON.stringify(refresh.entry || {}),
-                    );
+                const buildProtocolRefreshEntry = (refresh, existing = null) => {
+                    const next = JSON.parse(JSON.stringify(refresh.entry || {}));
                     if (String(existing?.start || "").trim()) {
                         next.start = existing.start;
                     }
@@ -12216,10 +11806,7 @@
                         refresh.match.test(it?.name || ""),
                     );
                     const existing = index >= 0 ? arr[index] : null;
-                    const nextEntry = buildProtocolRefreshEntry(
-                        refresh,
-                        existing,
-                    );
+                    const nextEntry = buildProtocolRefreshEntry(refresh, existing);
                     const nextNormalized = _normalizeStackEntry(nextEntry);
                     const currentNormalized = existing
                         ? _normalizeStackEntry(existing)
@@ -12244,8 +11831,7 @@
                             JSON.stringify(item?.scheduleDays || []) ||
                         JSON.stringify(normalized.scheduleTimes || []) !==
                             JSON.stringify(item?.scheduleTimes || []) ||
-                        String(normalized.timing || "") !==
-                            String(item?.timing || "")
+                        String(normalized.timing || "") !== String(item?.timing || "")
                     ) {
                         changed = true;
                     }
@@ -12472,19 +12058,14 @@
             };
 
             function _protocolOsSlug(text) {
-                return (
-                    String(text || "")
-                        .toLowerCase()
-                        .replace(/[^a-z0-9]+/g, "-")
-                        .replace(/^-+|-+$/g, "") || "item"
-                );
+                return String(text || "")
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, "-")
+                    .replace(/^-+|-+$/g, "") || "item";
             }
 
             function _protocolOsStackId(item, index) {
-                return (
-                    item?.id ||
-                    `stack-${_protocolOsSlug(item?.name || "")}-${index}`
-                );
+                return item?.id || `stack-${_protocolOsSlug(item?.name || "")}-${index}`;
             }
 
             function _protocolOsNormalizeStackItem(item, index) {
@@ -12534,9 +12115,7 @@
 
             function _protocolOsNormalizeCycle(cycle, index) {
                 return {
-                    id:
-                        cycle?.id ||
-                        `cycle-${_protocolOsSlug(cycle?.compound || "")}-${index}`,
+                    id: cycle?.id || `cycle-${_protocolOsSlug(cycle?.compound || "")}-${index}`,
                     compound: String(cycle?.compound || "").trim(),
                     startDate: String(cycle?.startDate || "").trim(),
                     weeks: Number(cycle?.weeks || 0),
@@ -12553,8 +12132,7 @@
             }
 
             function _protocolOsIsPeptideLike(item) {
-                if (item?.category === "peptide" || item?.injectable)
-                    return true;
+                if (item?.category === "peptide" || item?.injectable) return true;
                 return /(retatrutide|tesamorelin|mots(?:-?c)?|hcg|cabergoline|ahk(?:-?cu)?|bpc|tb-?500|ghk|kpv|cjc|ipamorelin|semaglutide|tirzepatide|cagrilintide|sermorelin|selank|semax|epitalon|melanotan)/i.test(
                     `${item?.name || ""} ${item?.note || ""}`,
                 );
@@ -12562,9 +12140,7 @@
 
             function buildProtocolOsState(entriesInput = null) {
                 const entries = Array.isArray(entriesInput)
-                    ? entriesInput
-                          .slice()
-                          .sort((a, b) => a.date.localeCompare(b.date))
+                    ? entriesInput.slice().sort((a, b) => a.date.localeCompare(b.date))
                     : getEntries();
                 const stackItems = (loadStack() || []).map(
                     _protocolOsNormalizeStackItem,
@@ -12626,9 +12202,7 @@
                         item.active !== false &&
                         (item.status === "active" || item.status === "weekly"),
                 );
-                const trackableStack = stackItems.filter(
-                    _protocolOsIsPeptideLike,
-                );
+                const trackableStack = stackItems.filter(_protocolOsIsPeptideLike);
 
                 return {
                     version: VERSION,
@@ -12675,9 +12249,7 @@
 
             function _coerceProtocolOsState(value) {
                 if (_isProtocolOsState(value)) return value;
-                return buildProtocolOsState(
-                    Array.isArray(value) ? value : null,
-                );
+                return buildProtocolOsState(Array.isArray(value) ? value : null);
             }
 
             function selectWorkflowSummary(stateLike) {
@@ -12687,9 +12259,7 @@
                 const waterGoal = loadWaterSettings().goalOz || 100;
                 const waterTotal = _workflowTodayWaterTotal();
                 const todayLog =
-                    typeof loadInjLog === "function"
-                        ? loadInjLog()[today] || {}
-                        : {};
+                    typeof loadInjLog === "function" ? loadInjLog()[today] || {} : {};
                 const injectionCompounds =
                     typeof getInjectionCompounds === "function"
                         ? getInjectionCompounds({ includePlanned: false })
@@ -12728,17 +12298,14 @@
             function _workflowTodayDoseProgress(dateKey = todayKey()) {
                 const dateObj = new Date(`${dateKey}T12:00:00`);
                 const todayLog =
-                    typeof loadInjLog === "function"
-                        ? loadInjLog()[dateKey] || {}
-                        : {};
+                    typeof loadInjLog === "function" ? loadInjLog()[dateKey] || {} : {};
                 const dueCompounds =
                     typeof getInjectionCompounds === "function"
-                        ? getInjectionCompounds({
-                              includePlanned: false,
-                          }).filter((compound) =>
-                              typeof _isInjectionDueOnDate === "function"
-                                  ? _isInjectionDueOnDate(compound, dateObj)
-                                  : true,
+                        ? getInjectionCompounds({ includePlanned: false }).filter(
+                              (compound) =>
+                                  typeof _isInjectionDueOnDate === "function"
+                                      ? _isInjectionDueOnDate(compound, dateObj)
+                                      : true,
                           )
                         : [];
                 let total = 0;
@@ -12756,12 +12323,8 @@
 
             function _workflowTodayMealStats(dateKey = todayKey()) {
                 const data =
-                    typeof loadMealLog === "function"
-                        ? loadMealLog(dateKey) || {}
-                        : {};
-                const slots = Array.isArray(MEAL_SLOTS)
-                    ? MEAL_SLOTS
-                    : Object.keys(data);
+                    typeof loadMealLog === "function" ? loadMealLog(dateKey) || {} : {};
+                const slots = Array.isArray(MEAL_SLOTS) ? MEAL_SLOTS : Object.keys(data);
                 const filled = slots.filter((slot) => {
                     const meal = data[slot] || {};
                     return ["p", "c", "f", "kcal", "label"].some((key) => {
@@ -12787,10 +12350,9 @@
             }
 
             function _workflowTodayVitalsCount(dateKey = todayKey()) {
-                return (
-                    typeof loadVitals === "function" ? loadVitals() : []
-                ).filter((reading) => reading && reading.date === dateKey)
-                    .length;
+                return (typeof loadVitals === "function" ? loadVitals() : []).filter(
+                    (reading) => reading && reading.date === dateKey,
+                ).length;
             }
 
             function _workflowDailyInputItems(stateLike) {
@@ -12811,9 +12373,7 @@
                 );
                 const remainingWater = Math.max(
                     0,
-                    Math.round(
-                        (workflow.waterGoal || 0) - (workflow.waterTotal || 0),
-                    ),
+                    Math.round((workflow.waterGoal || 0) - (workflow.waterTotal || 0)),
                 );
                 return [
                     {
@@ -12824,9 +12384,7 @@
                             : "Log today's weight",
                         state: weightCheck?.ok ? "done" : "pending",
                         action: "quickLog",
-                        summary: weightCheck?.ok
-                            ? ""
-                            : "weight is not logged yet",
+                        summary: weightCheck?.ok ? "" : "weight is not logged yet",
                     },
                     {
                         key: "aiVoice",
@@ -12904,9 +12462,7 @@
 
             function _workflowCoachPreviewData() {
                 const thread =
-                    typeof loadCoachThread === "function"
-                        ? loadCoachThread()
-                        : null;
+                    typeof loadCoachThread === "function" ? loadCoachThread() : null;
                 const settings =
                     typeof loadCoachSettings === "function"
                         ? loadCoachSettings()
@@ -12935,9 +12491,7 @@
                             String(message.content || "").trim(),
                     );
                 const preset = Array.isArray(COACH_PRESETS)
-                    ? COACH_PRESETS.find(
-                          (item) => item.key === thread.promptKey,
-                      )
+                    ? COACH_PRESETS.find((item) => item.key === thread.promptKey)
                     : null;
                 const previewText = String(
                     (lastAssistant || lastUser)?.content || "",
@@ -12955,9 +12509,7 @@
             }
 
             function renderWorkflowCoachPreview() {
-                const metaEl = document.getElementById(
-                    "criticalWorkflowCoachMeta",
-                );
+                const metaEl = document.getElementById("criticalWorkflowCoachMeta");
                 const previewEl = document.getElementById(
                     "criticalWorkflowCoachPreview",
                 );
@@ -12973,25 +12525,20 @@
                 if (!question) return;
                 input.value = "";
                 if (!hasCoachKey()) {
-                    const customInput =
-                        document.getElementById("coachCustomInput");
+                    const customInput = document.getElementById("coachCustomInput");
                     if (customInput) customInput.value = question;
                     await submitCustomCoachQuestion();
                     renderWorkflowCoachPreview();
                     return;
                 }
                 const thread =
-                    typeof loadCoachThread === "function"
-                        ? loadCoachThread()
-                        : null;
+                    typeof loadCoachThread === "function" ? loadCoachThread() : null;
                 if (thread?.messages?.length) {
-                    const followupInput =
-                        document.getElementById("coachFollowup");
+                    const followupInput = document.getElementById("coachFollowup");
                     if (followupInput) followupInput.value = question;
                     await sendCoachFollowup();
                 } else {
-                    const customInput =
-                        document.getElementById("coachCustomInput");
+                    const customInput = document.getElementById("coachCustomInput");
                     if (customInput) customInput.value = question;
                     await submitCustomCoachQuestion();
                 }
@@ -13001,17 +12548,11 @@
             function openWorkflowInputActionFromButton(button) {
                 const action = String(button?.dataset?.workflowAction || "");
                 const target = String(button?.dataset?.workflowTarget || "");
-                if (
-                    action === "quickLog" &&
-                    typeof openQuickLog === "function"
-                ) {
+                if (action === "quickLog" && typeof openQuickLog === "function") {
                     openQuickLog();
                     return;
                 }
-                if (
-                    action === "training" &&
-                    typeof openTrainingModal === "function"
-                ) {
+                if (action === "training" && typeof openTrainingModal === "function") {
                     openTrainingModal();
                     return;
                 }
@@ -13048,15 +12589,12 @@
                 }
                 _workflowRefreshHandle = window.requestAnimationFrame(() => {
                     _workflowRefreshHandle = null;
-                    if (!document.getElementById("criticalWorkflowCard"))
-                        return;
+                    if (!document.getElementById("criticalWorkflowCard")) return;
                     try {
                         const state = buildProtocolOsState(getEntries());
                         renderCriticalWorkflow(state);
                         if (typeof renderTodayCloseout === "function") {
-                            renderTodayCloseout(
-                                state.domains.entries || getEntries(),
-                            );
+                            renderTodayCloseout(state.domains.entries || getEntries());
                         }
                         mountWorkflowInputZone();
                     } catch {}
@@ -13114,14 +12652,7 @@
                 if (typeof text !== "string" || !text) return false;
                 for (let i = 0; i < text.length; i++) {
                     const code = text.charCodeAt(i);
-                    if (
-                        code === 0x00c2 ||
-                        code === 0x00c3 ||
-                        code === 0x00e2 ||
-                        code === 0x00f0 ||
-                        code === 0x00ef ||
-                        code === 0xfffd
-                    ) {
+                    if (code === 0x00c2 || code === 0x00c3 || code === 0x00e2 || code === 0x00f0 || code === 0x00ef || code === 0xfffd) {
                         return true;
                     }
                 }
@@ -13130,9 +12661,7 @@
             function _cp1252ByteForChar(ch) {
                 const code = ch.charCodeAt(0);
                 if (code <= 255) return code;
-                if (
-                    Object.prototype.hasOwnProperty.call(_CP1252_BYTE_MAP, code)
-                ) {
+                if (Object.prototype.hasOwnProperty.call(_CP1252_BYTE_MAP, code)) {
                     return _CP1252_BYTE_MAP[code];
                 }
                 return null;
@@ -13239,10 +12768,7 @@
                 // Review note: packaged desktop shells can preserve a stale horizontal
                 // scroll position after a bad layout update. Force the app back to x=0
                 // so the dashboard stays anchored on the left edge after refreshes.
-                if (
-                    typeof window === "undefined" ||
-                    typeof document === "undefined"
-                )
+                if (typeof window === "undefined" || typeof document === "undefined")
                     return;
                 const y = window.scrollY || window.pageYOffset || 0;
                 window.scrollTo(0, y);
@@ -13325,8 +12851,7 @@
                 renderTraining();
                 renderSymptoms();
                 renderRecovery();
-                if (typeof renderFitbitStatus === "function")
-                    renderFitbitStatus();
+                if (typeof renderFitbitStatus === "function") renderFitbitStatus();
                 renderLabs();
                 renderLibrary();
                 renderCoachPresets();
@@ -13432,13 +12957,7 @@
                 const weeksToGoal =
                     avg && avg > 0 ? Math.round(toGoal / avg) : null;
                 const trendSym =
-                    avg === null
-                        ? "—"
-                        : avg >= 1.0
-                          ? "↓"
-                          : avg > 0
-                            ? "↘"
-                            : "→";
+                    avg === null ? "—" : avg >= 1.0 ? "↓" : avg > 0 ? "↘" : "→";
                 const trendColor =
                     avg === null
                         ? "var(--muted)"
@@ -14586,7 +14105,10 @@
                             const culprits = buildPlateauDiagnosis(plateau);
                             if (culprits && culprits.length) {
                                 const summary = culprits
-                                    .map((c) => `${c.emoji} ${c.title}`)
+                                    .map(
+                                        (c) =>
+                                            `${c.emoji} ${c.title}`,
+                                    )
                                     .join("; ");
                                 body = `Weight stalled. Likely culprits: ${summary}.`;
                             }
@@ -14619,21 +14141,10 @@
                                 if (!key) return "";
                                 const parts = String(key).split("-");
                                 if (parts.length < 3) return key;
-                                const m =
-                                    [
-                                        "Jan",
-                                        "Feb",
-                                        "Mar",
-                                        "Apr",
-                                        "May",
-                                        "Jun",
-                                        "Jul",
-                                        "Aug",
-                                        "Sep",
-                                        "Oct",
-                                        "Nov",
-                                        "Dec",
-                                    ][parseInt(parts[1], 10) - 1] || "";
+                                const m = [
+                                    "Jan","Feb","Mar","Apr","May","Jun",
+                                    "Jul","Aug","Sep","Oct","Nov","Dec",
+                                ][parseInt(parts[1], 10) - 1] || "";
                                 return `${m} ${parseInt(parts[2], 10)}`;
                             };
                             let body = `${adherence.overall.logged}/${adherence.overall.expected} scheduled doses logged in the last 7 days (${pct}%).`;
@@ -14654,10 +14165,9 @@
                                         return `${it.name} ${it.logged}/${it.expected} (${it.pct}%${tail})`;
                                     })
                                     .join("; ");
-                                const more =
-                                    lowItems.length > 4
-                                        ? ` (+${lowItems.length - 4} more)`
-                                        : "";
+                                const more = lowItems.length > 4
+                                    ? ` (+${lowItems.length - 4} more)`
+                                    : "";
                                 body += ` Below target: ${lowSummary}${more}.`;
                             } else {
                                 body += " Every scheduled dose logged on time.";
@@ -14922,8 +14432,7 @@
                     items.push({
                         priority: 0,
                         type: "info",
-                        heading:
-                            "Tesamorelin ending — recovery flag adjusted",
+                        heading: "Tesamorelin ending — recovery flag adjusted",
                         body: `Without tesa's GH pulse, expect slower recovery, possible sleep shift, and reduced fasted fat ox. Don't judge recovery metrics against on-tesa baseline for ~4 weeks after cycle off.`,
                     });
                 }
@@ -14935,8 +14444,7 @@
                     items.push({
                         priority: 0,
                         type: "info",
-                        heading:
-                            "MOTS-c ending — energy expectation adjusted",
+                        heading: "MOTS-c ending — energy expectation adjusted",
                         body: `MOTS-c supports mitochondrial output. As it cycles off, don't expect same workout energy or fasting tolerance. Adjust training intensity, not just calories.`,
                     });
                 }
@@ -15310,7 +14818,9 @@
                     "fi_notes",
                 ].forEach((id) => {
                     const el = document.getElementById(id);
-                    if (el) el.value = id === "fi_date" ? todayKey() : "";
+                    if (el)
+                        el.value =
+                            id === "fi_date" ? todayKey() : "";
                 });
                 ["fi_energy", "fi_hunger", "fi_recovery", "fi_look"].forEach(
                     (id) => {
@@ -15410,10 +14920,9 @@
                     "Thu/Sun": 9000,
                 };
                 if (fixed[time] != null) return fixed[time];
-                const exactTime = String(time || "").match(
-                    /^(\d{1,2}):(\d{2})$/,
-                );
-                if (exactTime) return +exactTime[1] * 100 + +exactTime[2];
+                const exactTime = String(time || "").match(/^(\d{1,2}):(\d{2})$/);
+                if (exactTime)
+                    return +exactTime[1] * 100 + +exactTime[2];
                 const lower = String(time || "").toLowerCase();
                 if (/morning|wake|am/.test(lower)) return 550;
                 if (/breakfast|first meal/.test(lower)) return 600;
@@ -15540,7 +15049,9 @@
                         },
                     ];
                 }
-                if (/\b(06:00|first meal|breakfast)\b/.test(lower)) {
+                if (
+                    /\b(06:00|first meal|breakfast)\b/.test(lower)
+                ) {
                     return [{ time: "06:00", special: false }];
                 }
                 if (
@@ -15612,7 +15123,10 @@
                 });
                 return blocks
                     .filter((block) => block.items.length)
-                    .sort((a, b) => a.sortKey - b.sortKey || a.order - b.order);
+                    .sort(
+                        (a, b) =>
+                            a.sortKey - b.sortKey || a.order - b.order,
+                    );
             }
 
             function renderProtocol(stateLike = null) {
@@ -15653,32 +15167,31 @@
                 return `
     <thead><tr><th>Compound</th><th>Dose</th><th>Timing</th><th>Status</th><th>Started</th><th style="width:96px"></th></tr></thead>
     <tbody>
-      ${
-          ["peptide", "supplement", "medication"]
-              .filter((category) => (sections[category] || []).length)
-              .map((category) => {
-                  const sectionRows = (sections[category] || [])
-                      .map((s) => {
-                          const [cls, label] = statusMap[s.status] || [
-                              "badge-planned",
-                              s.status,
-                          ];
-                          const badgeLabel = _stackStatusBadgeLabel(s);
-                          const scheduleDays = _normalizeScheduleDays(
-                              s.scheduleDays,
-                              s,
-                          );
-                          const timingMain =
-                              _stackScheduleSummary(s) || s.timing || "";
-                          const timingSub = _stackTimingSecondaryText(s);
-                          const badgeClass = scheduleDays.length
-                              ? "badge-weekly"
-                              : cls;
-                          const rowIndex =
-                              Number.isFinite(s.index) && s.index >= 0
-                                  ? s.index
-                                  : 0;
-                          return `<tr onclick="openStackEdit(${rowIndex})">
+      ${["peptide", "supplement", "medication"]
+          .filter((category) => (sections[category] || []).length)
+          .map((category) => {
+              const sectionRows = (sections[category] || [])
+                  .map((s) => {
+                      const [cls, label] = statusMap[s.status] || [
+                          "badge-planned",
+                          s.status,
+                      ];
+                      const badgeLabel = _stackStatusBadgeLabel(s);
+                      const scheduleDays = _normalizeScheduleDays(
+                          s.scheduleDays,
+                          s,
+                      );
+                      const timingMain =
+                          _stackScheduleSummary(s) || s.timing || "";
+                      const timingSub = _stackTimingSecondaryText(s);
+                      const badgeClass = scheduleDays.length
+                          ? "badge-weekly"
+                          : cls;
+                      const rowIndex =
+                          Number.isFinite(s.index) && s.index >= 0
+                              ? s.index
+                              : 0;
+                      return `<tr onclick="openStackEdit(${rowIndex})">
           <td><strong>${escapeHtml(s.name)}</strong>
             <div class="stack-meta-row">
               <span class="stack-meta-chip ${escapeHtml(s.categoryClass || "cat-peptide")}">${escapeHtml(s.categoryLabel || "Peptide")}</span>
@@ -15694,13 +15207,11 @@
             <button class="stack-del-btn" onclick="deleteStackItem(${rowIndex})" title="Delete">X</button>
           </td>
         </tr>`;
-                      })
-                      .join("");
-                  return `<tr class="stack-section-row"><td colspan="6">${escapeHtml(_stackCategoryLabel(category))}<span class="stack-section-sub">${(sections[category] || []).length} row${(sections[category] || []).length === 1 ? "" : "s"}</span></td></tr>${sectionRows}`;
-              })
-              .join("") ||
-          '<tr><td colspan="6" style="color:var(--muted);padding:14px;">No stack items yet. Add a peptide, medication, or supplement to start building the workflow.</td></tr>'
-      }
+                  })
+                  .join("");
+              return `<tr class="stack-section-row"><td colspan="6">${escapeHtml(_stackCategoryLabel(category))}<span class="stack-section-sub">${(sections[category] || []).length} row${(sections[category] || []).length === 1 ? "" : "s"}</span></td></tr>${sectionRows}`;
+          })
+          .join("") || '<tr><td colspan="6" style="color:var(--muted);padding:14px;">No stack items yet. Add a peptide, medication, or supplement to start building the workflow.</td></tr>'}
     </tbody>`;
             }
 
@@ -15823,24 +15334,14 @@
             }
 
             function _selectedStackScheduleDays() {
-                return [
-                    ...document.querySelectorAll(
-                        "#stackDayPicker .stack-day-btn.is-selected",
-                    ),
-                ]
+                return [...document.querySelectorAll("#stackDayPicker .stack-day-btn.is-selected")]
                     .map((button) => Number(button.dataset.day))
-                    .filter(
-                        (day) => Number.isInteger(day) && day >= 0 && day <= 6,
-                    )
+                    .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)
                     .sort((a, b) => a - b);
             }
 
             function _selectedStackScheduleTimes() {
-                return [
-                    ...document.querySelectorAll(
-                        "#stackTimeList .stack-time-input",
-                    ),
-                ]
+                return [...document.querySelectorAll("#stackTimeList .stack-time-input")]
                     .map((input) => _parseScheduleTime(input.value))
                     .filter(Boolean)
                     .sort((a, b) => a.localeCompare(b));
@@ -15848,14 +15349,10 @@
 
             function _refreshStackTimeButtons() {
                 const rows = [
-                    ...document.querySelectorAll(
-                        "#stackTimeList .stack-time-row",
-                    ),
+                    ...document.querySelectorAll("#stackTimeList .stack-time-row"),
                 ];
                 rows.forEach((row) => {
-                    const removeBtn = row.querySelector(
-                        ".stack-time-remove-btn",
-                    );
+                    const removeBtn = row.querySelector(".stack-time-remove-btn");
                     if (removeBtn) removeBtn.disabled = rows.length === 1;
                 });
                 const addBtn = document.getElementById("stackTimeAddBtn");
@@ -15899,8 +15396,7 @@
                 const preview = document.getElementById("stackSchedulePreview");
                 if (!preview) return;
                 const summary = _stackScheduleSummary({
-                    status:
-                        document.getElementById("se_status")?.value || "active",
+                    status: document.getElementById("se_status")?.value || "active",
                     route: document.getElementById("se_route")?.value || "oral",
                     scheduleDays: _selectedStackScheduleDays(),
                     scheduleTimes: _selectedStackScheduleTimes(),
@@ -16049,7 +15545,8 @@
                 const noteEl = document.getElementById("se_note");
                 if (noteEl && !noteEl.value.trim()) noteEl.value = p.note || "";
                 const startEl = document.getElementById("se_start");
-                if (startEl && !startEl.value) startEl.value = todayKey();
+                if (startEl && !startEl.value)
+                    startEl.value = todayKey();
                 document.getElementById("se_name").focus();
             }
 
@@ -16069,9 +15566,8 @@
                 const route = document.getElementById("se_route").value;
                 const scheduleDays = _selectedStackScheduleDays();
                 const scheduleTimes = _selectedStackScheduleTimes();
-                const timingInput = document
-                    .getElementById("se_timing")
-                    .value.trim();
+                const timingInput =
+                    document.getElementById("se_timing").value.trim();
                 const entry = {
                     name,
                     dose: document.getElementById("se_dose").value.trim(),
@@ -16090,8 +15586,7 @@
                     category,
                     route,
                     start:
-                        document.getElementById("se_start").value.trim() ||
-                        "—",
+                        document.getElementById("se_start").value.trim() || "—",
                     note: document.getElementById("se_note").value.trim(),
                 };
                 const stack = loadStack();
@@ -16198,21 +15693,15 @@
             }
             const COLLAPSIBLE_CARD_PREVIEWS = {
                 weeklyReportCard: "Weekly AI coach report and follow-up chat.",
-                waterCard:
-                    "Hydration progress, quick adds, and daily timeline.",
+                waterCard: "Hydration progress, quick adds, and daily timeline.",
                 projectionCard: "Forecast of the next four weeks.",
                 weightChartCard: "Weight trend chart.",
                 lossChartCard: "Weekly loss pace.",
-                coachModeCard:
-                    "Coach guidance generated from your latest data.",
-                cycleControlCard:
-                    "Cycle state, active stack, and planned changes.",
-                injectionTrackerCard:
-                    "Next dose, recent injections, and site rotation.",
-                recoveryCard:
-                    "Sleep, steps, Fitbit status, and recovery trend.",
-                aiCoachCard:
-                    "Ask Claude, ChatGPT, or Gemini about your protocol.",
+                coachModeCard: "Coach guidance generated from your latest data.",
+                cycleControlCard: "Cycle state, active stack, and planned changes.",
+                injectionTrackerCard: "Next dose, recent injections, and site rotation.",
+                recoveryCard: "Sleep, steps, Fitbit status, and recovery trend.",
+                aiCoachCard: "Ask Claude, ChatGPT, or Gemini about your protocol.",
                 vitalsCard: "Blood pressure, resting HR, alerts, and trend.",
                 dtpCard: "Retatrutide dose ladder and titration plan.",
                 macroCalcCard: "Macro targets by phase and weight.",
@@ -16224,22 +15713,14 @@
                 siteRotatorCard: "Recommended injection sites by rest time.",
                 correlationCard: "Symptom patterns around compound timing.",
                 journalCard: "Protocol notes, diet changes, and milestones.",
-                powerToolsCard:
-                    "Notifications, reports, CSV import, and AI voice capture.",
-                labsCard:
-                    "Lab uploads, AI overview, trends, and flagged results.",
-                generalTabsCard:
-                    "Peptides, supplements, medications, nutrition, check-in form, and history.",
-                changeTimelineCard:
-                    "Recent protocol changes before stalls or drops.",
-                measurementsCard:
-                    "Body measurements, waist trend, and photo gallery.",
-                trainingCard:
-                    "Training sessions, estimated 1RM, and recent work.",
-                libraryCard:
-                    "Workout, peptide, supplement, and injection reference.",
-                symptomsCard:
-                    "Side-effect chips, severity, and recent entries.",
+                powerToolsCard: "Notifications, reports, CSV import, and AI voice capture.",
+                labsCard: "Lab uploads, AI overview, trends, and flagged results.",
+                generalTabsCard: "Peptides, supplements, medications, nutrition, check-in form, and history.",
+                changeTimelineCard: "Recent protocol changes before stalls or drops.",
+                measurementsCard: "Body measurements, waist trend, and photo gallery.",
+                trainingCard: "Training sessions, estimated 1RM, and recent work.",
+                libraryCard: "Workout, peptide, supplement, and injection reference.",
+                symptomsCard: "Side-effect chips, severity, and recent entries.",
                 checkpointsCard: "Weight checkpoints and next target.",
                 macroPhasesCard: "Macro targets by phase.",
                 shopCard: "Walmart shopping list by week count.",
@@ -16258,8 +15739,7 @@
             function _loadCollapsedState() {
                 try {
                     return JSON.parse(
-                        localStorage.getItem(_collapsedStateStorageKey()) ||
-                            "{}",
+                        localStorage.getItem(_collapsedStateStorageKey()) || "{}",
                     );
                 } catch {
                     return {};
@@ -16337,9 +15817,7 @@
             function setAllSectionsCollapsed(collapsed) {
                 document
                     .querySelectorAll(".card-collapsible[id]")
-                    .forEach((card) =>
-                        _setCardCollapsed(card, collapsed, true),
-                    );
+                    .forEach((card) => _setCardCollapsed(card, collapsed, true));
                 refreshCollapsiblePreviews();
             }
 
@@ -16723,13 +16201,9 @@
                             return null;
                         }
                         try {
-                            outPayload = await encryptPayload(
-                                payload,
-                                prompted,
-                                {
-                                    hint: enc.hint || "",
-                                },
-                            );
+                            outPayload = await encryptPayload(payload, prompted, {
+                                hint: enc.hint || "",
+                            });
                             suffix = ".enc";
                             encrypted = true;
                         } catch (e) {
@@ -16888,9 +16362,7 @@
                 // Review note: every restore path lands in the same import preview so
                 // Google Drive restores get the same safety gate as manual JSON imports.
                 if (isEncryptedEnvelope(parsed)) {
-                    const hintLine = parsed.hint
-                        ? "\n\nHint: " + parsed.hint
-                        : "";
+                    const hintLine = parsed.hint ? "\n\nHint: " + parsed.hint : "";
                     const pass = prompt(
                         "This backup is encrypted. Enter passphrase to decrypt:" +
                             hintLine,
@@ -17406,8 +16878,7 @@
 
             async function ensureGoogleIdentityScript() {
                 if (window.google?.accounts?.oauth2) return window.google;
-                if (_driveIdentityScriptPromise)
-                    return _driveIdentityScriptPromise;
+                if (_driveIdentityScriptPromise) return _driveIdentityScriptPromise;
                 _driveIdentityScriptPromise = new Promise((resolve, reject) => {
                     const existing = document.querySelector(
                         'script[data-google-drive-backup="1"]',
@@ -17418,8 +16889,7 @@
                     script.defer = true;
                     script.dataset.googleDriveBackup = "1";
                     script.onload = () => {
-                        if (window.google?.accounts?.oauth2)
-                            resolve(window.google);
+                        if (window.google?.accounts?.oauth2) resolve(window.google);
                         else
                             reject(
                                 new Error(
@@ -17429,9 +16899,7 @@
                     };
                     script.onerror = () =>
                         reject(
-                            new Error(
-                                "Could not load Google Identity Services.",
-                            ),
+                            new Error("Could not load Google Identity Services."),
                         );
                     if (!existing) document.head.appendChild(script);
                 });
@@ -17557,9 +17025,7 @@
                     accessToken,
                     `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&pageSize=10&fields=files(id,name,modifiedTime,size)&q=${query}`,
                 );
-                const files = Array.isArray(data?.files)
-                    ? data.files.slice()
-                    : [];
+                const files = Array.isArray(data?.files) ? data.files.slice() : [];
                 files.sort((a, b) =>
                     String(b?.modifiedTime || "").localeCompare(
                         String(a?.modifiedTime || ""),
@@ -17664,9 +17130,8 @@
                     _setDriveBackupError(e.message || String(e));
                     alert("Google Drive connection failed: " + e.message);
                 } finally {
-                    const freshBtn = document.getElementById(
-                        "driveBackupConnectBtn",
-                    );
+                    const freshBtn =
+                        document.getElementById("driveBackupConnectBtn");
                     if (freshBtn) {
                         freshBtn.disabled = false;
                         freshBtn.textContent = "Connect Google Drive";
@@ -17699,7 +17164,8 @@
                     fresh.fileId = saved?.id || existing?.id || "";
                     fresh.fileName = saved?.name || DRIVE_BACKUP_FILENAME;
                     fresh.lastUploadedAt = backup.ts;
-                    fresh.lastModifiedTime = saved?.modifiedTime || backup.ts;
+                    fresh.lastModifiedTime =
+                        saved?.modifiedTime || backup.ts;
                     fresh.lastError = "";
                     saveDriveBackupConfig(fresh);
                     markExported(backup.ts);
@@ -17710,9 +17176,8 @@
                     _setDriveBackupError(e.message || String(e));
                     alert("Google Drive backup failed: " + e.message);
                 } finally {
-                    const freshBtn = document.getElementById(
-                        "driveBackupUploadBtn",
-                    );
+                    const freshBtn =
+                        document.getElementById("driveBackupUploadBtn");
                     if (freshBtn) {
                         freshBtn.disabled = false;
                         freshBtn.textContent = "Back up now";
@@ -17763,9 +17228,8 @@
                     _setDriveBackupError(e.message || String(e));
                     alert("Google Drive restore failed: " + e.message);
                 } finally {
-                    const freshBtn = document.getElementById(
-                        "driveBackupRestoreBtn",
-                    );
+                    const freshBtn =
+                        document.getElementById("driveBackupRestoreBtn");
                     if (freshBtn) {
                         freshBtn.disabled = false;
                         freshBtn.textContent = "Restore from Drive";
@@ -17787,7 +17251,9 @@
             }
 
             function renderDriveBackupSettings() {
-                const body = document.getElementById("driveBackupSettingsBody");
+                const body = document.getElementById(
+                    "driveBackupSettingsBody",
+                );
                 if (!body) return;
                 const cfg = loadDriveBackupConfig();
                 const supported = isGoogleDriveBackupSupported();
@@ -17887,10 +17353,12 @@
                     "compliance",
                     "checkin",
                     "history",
-                ].forEach((t) => {
-                    const el = document.getElementById("tab-" + t);
-                    if (el) el.classList.toggle("active", t === name);
-                });
+                ].forEach(
+                    (t) => {
+                        const el = document.getElementById("tab-" + t);
+                        if (el) el.classList.toggle("active", t === name);
+                    },
+                );
                 const activeTab = document.getElementById("tab-" + name);
                 const tabsContainer = activeTab
                     ?.closest(".card")
@@ -18353,8 +17821,7 @@
 
             function _isInjectionDueOnDate(compound, date = new Date()) {
                 const status = String(compound?.status || "").toLowerCase();
-                if (["paused", "held", "planned"].includes(status))
-                    return false;
+                if (["paused", "held", "planned"].includes(status)) return false;
                 const days = _injectionWeekdaySet(compound);
                 if (days.size) return days.has(date.getDay());
                 return true;
@@ -18363,15 +17830,7 @@
             function _injectionCadenceLabel(compound) {
                 const days = [..._injectionWeekdaySet(compound)];
                 if (days.length) {
-                    const labels = [
-                        "Sun",
-                        "Mon",
-                        "Tue",
-                        "Wed",
-                        "Thu",
-                        "Fri",
-                        "Sat",
-                    ];
+                    const labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
                     return days
                         .sort((a, b) => a - b)
                         .map((day) => labels[day])
@@ -18904,8 +18363,8 @@
                 // carrying the old day's totals into the new day.
                 render();
                 if (
-                    document.getElementById("waterLogOverlay")?.style
-                        .display === "flex"
+                    document.getElementById("waterLogOverlay")?.style.display ===
+                    "flex"
                 ) {
                     renderWaterModal();
                 }
@@ -19129,16 +18588,12 @@
                     const dayLog = log[dateKey];
                     if (!dayLog || typeof dayLog !== "object") return;
                     Object.keys(dayLog).forEach((compoundKey) => {
-                        const doses =
-                            (typeof _injDoseEntries === "function"
-                                ? _injDoseEntries(dayLog[compoundKey])
-                                : []) || [];
+                        const doses = (typeof _injDoseEntries === "function"
+                            ? _injDoseEntries(dayLog[compoundKey])
+                            : []) || [];
                         doses.forEach((dose) => {
                             if (dose && dose.done !== false) {
-                                out.push({
-                                    date: dateKey,
-                                    compound: compoundKey,
-                                });
+                                out.push({ date: dateKey, compound: compoundKey });
                             }
                         });
                     });
@@ -19161,9 +18616,7 @@
                         String(
                             entry.slotId ||
                                 entry.slotKey ||
-                                (time
-                                    ? `dose-${time.replace(":", "")}`
-                                    : `dose-${index + 1}`),
+                                (time ? `dose-${time.replace(":", "")}` : `dose-${index + 1}`),
                         ) || `dose-${index + 1}`,
                     label: String(entry.label || "").trim(),
                     done: entry.done !== false,
@@ -19197,9 +18650,7 @@
                 if (!entry || typeof entry !== "object") return [];
                 if (Array.isArray(entry.doses) && entry.doses.length) {
                     return entry.doses
-                        .map((dose, index) =>
-                            _injNormalizeDoseEntry(dose, index),
-                        )
+                        .map((dose, index) => _injNormalizeDoseEntry(dose, index))
                         .filter(Boolean)
                         .sort(
                             (a, b) =>
@@ -19262,9 +18713,13 @@
                     getInjectionCompoundCatalog({
                         includePaused: true,
                         includeHeld: true,
-                    }).find((c) => c.key === compoundKey)?.dose || "";
+                    }).find(
+                        (c) => c.key === compoundKey,
+                    )?.dose || "";
                 const dose = _injResolveDose(entry, slotId)?.dose;
-                return dose ? dose : fallback;
+                return dose
+                    ? dose
+                    : fallback;
             }
             function getInjTime(entry, slotId = null) {
                 const dose = _injResolveDose(entry, slotId);
@@ -19313,15 +18768,12 @@
                 const addClock = (raw) => {
                     const text = String(raw || "").trim();
                     if (!text) return;
-                    const match = text.match(
-                        /^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i,
-                    );
+                    const match = text.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i);
                     if (!match) return;
                     let hour = Number(match[1]);
                     const minute = Number(match[2]);
                     const meridiem = String(match[3] || "").toUpperCase();
-                    if (!Number.isInteger(hour) || !Number.isInteger(minute))
-                        return;
+                    if (!Number.isInteger(hour) || !Number.isInteger(minute)) return;
                     if (meridiem === "PM" && hour < 12) hour += 12;
                     if (meridiem === "AM" && hour === 12) hour = 0;
                     const normalized = _parseScheduleTime(
@@ -19336,8 +18788,7 @@
                 } else {
                     const source = String(value || "");
                     (
-                        source.match(/\b\d{1,2}:\d{2}(?:\s*(?:AM|PM))?\b/gi) ||
-                        []
+                        source.match(/\b\d{1,2}:\d{2}(?:\s*(?:AM|PM))?\b/gi) || []
                     ).forEach(addClock);
                 }
                 return results.sort((a, b) => a.localeCompare(b));
@@ -19348,10 +18799,7 @@
                     compound?.scheduleTimes,
                 );
                 if (structured.length) return structured;
-                return _normalizeScheduleTimes(
-                    compound?.scheduleTimes,
-                    compound,
-                );
+                return _normalizeScheduleTimes(compound?.scheduleTimes, compound);
             }
 
             function _injectionDoseSlots(
@@ -19371,23 +18819,21 @@
                     _cleanInjectionTrackerText(
                         _protocolDoseSummary(compound?.dose || ""),
                     ) || "";
-                const slots = (times.length ? times : [""]).map(
-                    (time, index) => ({
-                        slotId: _injSlotIdFromTime(time, index),
-                        label: time
-                            ? _formatScheduleTimeLabel(time)
-                            : times.length <= 1
-                              ? "Today"
-                              : `Dose ${index + 1}`,
-                        time: _parseScheduleTime(time),
-                        doseLabel:
-                            splitDose && times.length === 2
-                                ? index === 0
-                                    ? splitDose.morning || baseDose
-                                    : splitDose.night || baseDose
-                                : baseDose,
-                    }),
-                );
+                const slots = (times.length ? times : [""]).map((time, index) => ({
+                    slotId: _injSlotIdFromTime(time, index),
+                    label: time
+                        ? _formatScheduleTimeLabel(time)
+                        : times.length <= 1
+                          ? "Today"
+                          : `Dose ${index + 1}`,
+                    time: _parseScheduleTime(time),
+                    doseLabel:
+                        splitDose && times.length === 2
+                            ? index === 0
+                                ? splitDose.morning || baseDose
+                                : splitDose.night || baseDose
+                            : baseDose,
+                }));
                 if (options.includeCustom) {
                     slots.push({
                         slotId: "custom",
@@ -19418,10 +18864,7 @@
                     includeHeld: true,
                 }).find((item) => item.key === compoundKey);
                 const dueToday = compound
-                    ? _isInjectionDueOnDate(
-                          compound,
-                          new Date(`${dateKey}T12:00:00`),
-                      )
+                    ? _isInjectionDueOnDate(compound, new Date(`${dateKey}T12:00:00`))
                     : isInjDay();
                 if (!log[dateKey]) log[dateKey] = {};
                 if (isInjLogged(log[dateKey][compoundKey], slotId)) {
@@ -19441,8 +18884,7 @@
                     includePaused: true,
                     includeHeld: true,
                 });
-                if (!compoundKey)
-                    return { compounds, compound: compounds[0] || null };
+                if (!compoundKey) return { compounds, compound: compounds[0] || null };
                 if (!compounds.some((item) => item.key === compoundKey)) {
                     compounds.unshift({
                         key: compoundKey,
@@ -19505,8 +18947,8 @@
                     )
                     .join("");
                 const hasMultipleScheduled =
-                    activeSlots.filter((slot) => slot.slotId !== "custom")
-                        .length > 1;
+                    activeSlots.filter((slot) => slot.slotId !== "custom").length >
+                    1;
                 slotField.style.display =
                     hasMultipleScheduled || preferredSlotId === "custom"
                         ? ""
@@ -19523,8 +18965,7 @@
                 const compoundKey =
                     document.getElementById("injLogCompound").value || "";
                 const dateKey =
-                    document.getElementById("injLogDate").value ||
-                    _injDateKey();
+                    document.getElementById("injLogDate").value || _injDateKey();
                 const entry = _injEntryFor(dateKey, compoundKey);
                 const slots = _renderInjectionLogSlotOptions(
                     compoundKey,
@@ -19536,9 +18977,7 @@
                 );
                 const slotId = document.getElementById("injLogSlot").value;
                 const slot =
-                    slots.find((item) => item.slotId === slotId) ||
-                    slots[0] ||
-                    null;
+                    slots.find((item) => item.slotId === slotId) || slots[0] || null;
                 const doseEntry = _injResolveDose(entry, slotId);
                 editingInjRef = doseEntry
                     ? { dateKey, compoundKey, slotId }
@@ -19576,12 +19015,11 @@
                 document.getElementById("injLogModalTitle").textContent = isEdit
                     ? "Edit Injection"
                     : "Log Injection";
-                document.getElementById("injLogCompound").innerHTML = compounds
-                    .map(
+                document.getElementById("injLogCompound").innerHTML =
+                    compounds.map(
                         (c) =>
                             `<option value="${escapeHtml(c.key)}">${escapeHtml(c.name)}</option>`,
-                    )
-                    .join("");
+                    ).join("");
                 document.getElementById("injLogSite").innerHTML = INJ_SITES.map(
                     (s) =>
                         `<option value="${escapeHtml(s.key)}">${escapeHtml(s.label)}</option>`,
@@ -19640,12 +19078,9 @@
                 // so we remove only the original slot and leave sibling doses untouched.
                 if (editingInjRef) {
                     const originalEntry =
-                        log?.[editingInjRef.dateKey]?.[
-                            editingInjRef.compoundKey
-                        ];
+                        log?.[editingInjRef.dateKey]?.[editingInjRef.compoundKey];
                     const remaining = _injDoseEntries(originalEntry).filter(
-                        (doseEntry) =>
-                            doseEntry.slotId !== editingInjRef.slotId,
+                        (doseEntry) => doseEntry.slotId !== editingInjRef.slotId,
                     );
                     if (remaining.length) {
                         log[editingInjRef.dateKey][editingInjRef.compoundKey] =
@@ -19730,10 +19165,7 @@
                     for (const [, info] of Object.entries(dayEntry || {})) {
                         _injDoseEntries(info).forEach((doseEntry) => {
                             const site = doseEntry.site;
-                            if (
-                                site &&
-                                (!lastUsed[site] || date > lastUsed[site])
-                            )
+                            if (site && (!lastUsed[site] || date > lastUsed[site]))
                                 lastUsed[site] = date;
                         });
                     }
@@ -19833,8 +19265,7 @@
 
             function renderInjectionSiteGuideTargets() {
                 const cardGuide = document.getElementById("injSiteGuide");
-                if (cardGuide)
-                    cardGuide.innerHTML = renderInjectionSiteGuideMarkup();
+                if (cardGuide) cardGuide.innerHTML = renderInjectionSiteGuideMarkup();
                 const modalGuide = document.getElementById("injLogSiteGuide");
                 if (modalGuide)
                     modalGuide.innerHTML = renderInjectionSiteGuideMarkup(true);
@@ -19985,19 +19416,12 @@
                         .filter(Boolean)
                         .join(" - ");
                 }
-                return [
-                    doseLabel,
-                    timeLabel || _injectionTrackerScheduleLabel(compound),
-                ]
+                return [doseLabel, timeLabel || _injectionTrackerScheduleLabel(compound)]
                     .filter(Boolean)
                     .join(" - ");
             }
 
-            function _injectionTrackerHistoryLabel(
-                dateLabel,
-                compound,
-                doseEntry,
-            ) {
+            function _injectionTrackerHistoryLabel(dateLabel, compound, doseEntry) {
                 const timeLabel = _cleanInjectionTrackerText(
                     doseEntry?.time
                         ? _formatScheduleTimeLabel(doseEntry.time)
@@ -20020,9 +19444,7 @@
                         _stackCompoundKey(item) === compoundKey,
                 );
                 if (idx === -1) {
-                    showToast(
-                        "That injection schedule was not found in Current Stack.",
-                    );
+                    showToast("That injection schedule was not found in Current Stack.");
                     return;
                 }
                 if (typeof switchTab2 === "function") switchTab2("stack");
@@ -20045,11 +19467,8 @@
                 const dueToday = compounds.filter((compound) =>
                     _isInjectionDueOnDate(compound),
                 );
-                const {
-                    date: nextDate,
-                    days: daysAway,
-                    due: nextDue,
-                } = _nextInjectionDue(compounds);
+                const { date: nextDate, days: daysAway, due: nextDue } =
+                    _nextInjectionDue(compounds);
 
                 // Next injection banner
                 const banner = document.getElementById("injNextBanner");
@@ -20078,8 +19497,7 @@
                                   const dueNow = _isInjectionDueOnDate(c);
                                   const site = getInjSite(entry);
                                   const siteLabel = site
-                                      ? INJ_SITES.find((s) => s.key === site)
-                                            ?.label || ""
+                                      ? INJ_SITES.find((s) => s.key === site)?.label || ""
                                       : "";
                                   const stateClass = logged
                                       ? "logged"
@@ -20138,8 +19556,7 @@
                         const info = entry[c.key];
                         const site = getInjSite(info);
                         const siteLabel = site
-                            ? INJ_SITES.find((s) => s.key === site)?.label ||
-                              site
+                            ? INJ_SITES.find((s) => s.key === site)?.label || site
                             : "";
                         chips.push(
                             `<button class="inj-hist-chip ${cls}" onclick="openInjectionLogModal(${escapeHtml(JSON.stringify(d))},${escapeHtml(JSON.stringify(c.key))})" title="Edit ${escapeHtml(c.name)} on ${escapeHtml(d)}">${escapeHtml(label)} · ${escapeHtml(c.name)} ${escapeHtml(getInjTime(info))}${siteLabel ? " · " + escapeHtml(siteLabel) : ""}</button>`,
@@ -20171,11 +19588,8 @@
                 const dueToday = compounds.filter((compound) =>
                     _isInjectionDueOnDate(compound),
                 );
-                const {
-                    date: nextDate,
-                    days: daysAway,
-                    due: nextDue,
-                } = _nextInjectionDue(compounds);
+                const { date: nextDate, days: daysAway, due: nextDue } =
+                    _nextInjectionDue(compounds);
 
                 const banner = document.getElementById("injNextBanner");
                 const badge = document.getElementById("injNextBadge");
@@ -20197,9 +19611,7 @@
                     const subtitle = [
                         `${daysAway} day${daysAway !== 1 ? "s" : ""} away`,
                         nextDue.length
-                            ? nextDue
-                                  .map((compound) => compound.name)
-                                  .join(", ")
+                            ? nextDue.map((compound) => compound.name).join(", ")
                             : "",
                     ]
                         .filter(Boolean)
@@ -20234,8 +19646,7 @@
                                       isInjLogged(entry, slot.slotId),
                                   ).length;
                                   const allLogged =
-                                      !!slots.length &&
-                                      loggedCount === slots.length;
+                                      !!slots.length && loggedCount === slots.length;
                                   const scheduleMeta = [
                                       _injectionTrackerScheduleLabel(compound),
                                       slots.length > 1
@@ -20247,10 +19658,9 @@
                                       .map(_cleanInjectionTrackerText)
                                       .filter(Boolean)
                                       .join(" - ");
-                                  const helperCopyRaw =
-                                      _cleanInjectionTrackerText(
-                                          _stackTimingSecondaryText(compound),
-                                      );
+                                  const helperCopyRaw = _cleanInjectionTrackerText(
+                                      _stackTimingSecondaryText(compound),
+                                  );
                                   const helperCopy =
                                       helperCopyRaw &&
                                       !scheduleMeta
@@ -20311,26 +19721,13 @@
                     renderSiteRotation();
                     return;
                 }
-                const todayStr = _dateKeyLocal(new Date());
-                const yesterdayStr = (() => {
-                    const y = new Date(); y.setDate(y.getDate() - 1);
-                    return _dateKeyLocal(y);
-                })();
-                const groups = [];
+                const chips = [];
                 allDates.forEach((d) => {
                     const entry = log[d] || {};
                     const histDate = new Date(d + "T12:00:00");
                     const catalog = [...compoundCatalog];
                     Object.keys(entry || {}).forEach((compoundKey) => {
-<<<<<<< HEAD
-                        if (
-                            !catalog.some(
-                                (compound) => compound.key === compoundKey,
-                            )
-                        ) {
-=======
-                        if (!catalog.some((c) => c.key === compoundKey)) {
->>>>>>> eac0398 (v2.38.3 injection history grouped by date + CSS audit)
+                        if (!catalog.some((compound) => compound.key === compoundKey)) {
                             catalog.push({
                                 key: compoundKey,
                                 name: compoundKey,
@@ -20347,47 +19744,39 @@
                     });
                     const loggedDoseRows = [];
                     catalog.forEach((compound) => {
-                        _injDoseEntries(entry[compound.key]).forEach(
-                            (doseEntry) => {
-                                loggedDoseRows.push({ compound, doseEntry });
-                            },
-                        );
+                        _injDoseEntries(entry[compound.key]).forEach((doseEntry) => {
+                            loggedDoseRows.push({ compound, doseEntry });
+                        });
                     });
-                    if (!loggedDoseRows.length) return;
+                    const count = loggedDoseRows.length;
                     const dueCount = compounds.reduce(
                         (sum, compound) =>
                             sum + _injScheduledDoseCount(compound, histDate),
                         0,
                     );
                     const cls =
-                        dueCount > 0 && loggedDoseRows.length >= dueCount
+                        dueCount > 0 && count >= dueCount
                             ? "full"
-                            : "partial";
-                    const dateHeading =
-                        d === todayStr ? "Today" :
-                        d === yesterdayStr ? "Yesterday" :
-                        histDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-                    const badge = cls === "full" ? "All logged" : `${loggedDoseRows.length} dose${loggedDoseRows.length !== 1 ? "s" : ""}`;
-                    const chipHtml = loggedDoseRows.map(({ compound, doseEntry }) => {
-                        const timeLabel = _cleanInjectionTrackerText(
-                            doseEntry?.time ? _formatScheduleTimeLabel(doseEntry.time) : doseEntry?.label || "",
+                            : count > 0
+                              ? "partial"
+                              : "";
+                    const label = histDate.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                    });
+                    loggedDoseRows.forEach(({ compound, doseEntry }) => {
+                        const chipLabel = _injectionTrackerHistoryLabel(
+                            label,
+                            compound,
+                            doseEntry,
                         );
-                        const siteLabel = _cleanInjectionTrackerText(
-                            _injectionTrackerSiteLabel(doseEntry?.site),
+                        chips.push(
+                            `<button class="inj-hist-chip ${cls}" onclick="openInjectionLogModal(${escapeHtml(JSON.stringify(d))},${escapeHtml(JSON.stringify(compound.key))},${escapeHtml(JSON.stringify(doseEntry.slotId || "dose-1"))})" title="Edit ${escapeHtml(compound.name)} on ${escapeHtml(d)}">${escapeHtml(chipLabel)}</button>`,
                         );
-                        const chipLabel = [compound?.name || "", timeLabel, siteLabel]
-                            .filter(Boolean).join(" · ");
-                        return `<button class="inj-hist-chip ${cls}" onclick="openInjectionLogModal(${escapeHtml(JSON.stringify(d))},${escapeHtml(JSON.stringify(compound.key))},${escapeHtml(JSON.stringify(doseEntry.slotId || "dose-1"))})" title="Edit ${escapeHtml(compound.name)} on ${escapeHtml(d)}">${escapeHtml(chipLabel)}</button>`;
-                    }).join("");
-                    groups.push(
-                        `<div class="inj-hist-group">
-  <div class="inj-hist-date-label">${escapeHtml(dateHeading)}<span class="inj-hist-date-badge ${cls}">${escapeHtml(badge)}</span></div>
-  <div class="inj-hist-chips">${chipHtml}</div>
-</div>`,
-                    );
+                    });
                 });
-                histRow.innerHTML = groups.length
-                    ? groups.join("")
+                histRow.innerHTML = chips.length
+                    ? chips.join("")
                     : `<span style="font-size:12px;color:var(--muted)">No injections logged yet.</span>`;
                 renderInjectionSiteGuideTargets();
                 renderSiteRotation();
@@ -20419,8 +19808,8 @@
                     .join(" - ");
                 const used = computeSiteHistory();
                 const recommended = recommendNextSite();
-                document.getElementById("sitePickerGrid").innerHTML =
-                    INJ_SITES.map((site) => {
+                document.getElementById("sitePickerGrid").innerHTML = INJ_SITES.map(
+                    (site) => {
                         const days = daysSince(used[site.key]);
                         const isRecommended = recommended === site.key;
                         const color = siteColor(days);
@@ -20431,7 +19820,8 @@
       <div style="font-size:18px;font-weight:800;color:${color};margin-top:4px;">${escapeHtml(ageLabel)}</div>
       <div style="font-size:10px;color:${color};">${escapeHtml(ageSub)}</div>
     </button>`;
-                    }).join("");
+                    },
+                ).join("");
                 document.getElementById("sitePickerOverlay").style.display =
                     "flex";
             }
@@ -20445,27 +19835,25 @@
 
             function confirmSitePick(siteKey) {
                 if (!pendingInjRef?.compoundKey) return;
-                const {
-                    compoundKey,
-                    slotId = null,
-                    dateKey = todayKey(),
-                } = pendingInjRef;
+                const { compoundKey, slotId = null, dateKey = todayKey() } =
+                    pendingInjRef;
                 const log = loadInjLog();
                 const now = new Date();
                 const compound = getInjectionCompounds({
                     includePaused: true,
                     includeHeld: true,
                 }).find((item) => item.key === compoundKey);
-                const slot = _injectionDoseSlots(
-                    compound,
-                    new Date(`${dateKey}T12:00:00`),
-                    { includeOffDay: true, includeCustom: true },
-                ).find((item) => item.slotId === slotId) || {
-                    slotId: slotId || "dose-1",
-                    label: "Today",
-                    time: "",
-                    doseLabel: _injectionTrackerDoseLabel(compound),
-                };
+                const slot =
+                    _injectionDoseSlots(
+                        compound,
+                        new Date(`${dateKey}T12:00:00`),
+                        { includeOffDay: true, includeCustom: true },
+                    ).find((item) => item.slotId === slotId) || {
+                        slotId: slotId || "dose-1",
+                        label: "Today",
+                        time: "",
+                        doseLabel: _injectionTrackerDoseLabel(compound),
+                    };
                 if (!log[dateKey]) log[dateKey] = {};
                 const existing = log[dateKey][compoundKey];
                 const alreadyLogged = isInjLogged(existing, slot.slotId);
@@ -21106,7 +20494,7 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                 };
                 const done = () =>
                     showToast(
-                        `✓ Coach briefing copied (${text.length.toLocaleString()} chars) — paste into Claude, ChatGPT, or Gemini`,
+                    `✓ Coach briefing copied (${text.length.toLocaleString()} chars) — paste into Claude, ChatGPT, or Gemini`,
                         4000,
                     );
                 if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -21173,10 +20561,7 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                     : settings.apiKey || "";
             }
             function getActiveCoachKey(settings = loadCoachSettings()) {
-                return getCoachKeyForProvider(
-                    settings,
-                    getCoachProvider(settings),
-                );
+                return getCoachKeyForProvider(settings, getCoachProvider(settings));
             }
             function getCoachModelForProvider(
                 settings = loadCoachSettings(),
@@ -21227,10 +20612,7 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                 settings = loadCoachSettings(),
             ) {
                 const p = normalizeCoachProvider(provider);
-                return coachKeyLooksValid(
-                    p,
-                    getCoachKeyForProvider(settings, p),
-                );
+                return coachKeyLooksValid(p, getCoachKeyForProvider(settings, p));
             }
 
             function renderCoachPresets() {
@@ -21311,8 +20693,7 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                     const clean = String(name || "").trim();
                     if (!clean) return;
                     const key = clean.toLowerCase();
-                    if (!found.has(key))
-                        found.set(key, { name: clean, detail });
+                    if (!found.has(key)) found.set(key, { name: clean, detail });
                     else if (detail && !found.get(key).detail)
                         found.get(key).detail = detail;
                 };
@@ -21333,9 +20714,7 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                     (INJ_COMPOUNDS || []).forEach((compound) => {
                         add(
                             compound.name,
-                            [compound.dose, "injection tracker"]
-                                .filter(Boolean)
-                                .join(" | "),
+                            [compound.dose, "injection tracker"].filter(Boolean).join(" | "),
                         );
                     });
                 } catch {}
@@ -21435,15 +20814,12 @@ Rules:
                     .filter(Boolean);
                 const picked = [];
                 for (const line of lines) {
-                    if (picked.join("\n").length + line.length > maxChars)
-                        break;
+                    if (picked.join("\n").length + line.length > maxChars) break;
                     picked.push(line);
                     if (picked.length >= 22) break;
                 }
                 const summary = picked.join("\n");
-                return (
-                    summary || "No research watch summary text is available."
-                );
+                return summary || "No research watch summary text is available.";
             }
 
             function buildResearchWatchEmailBody(record = loadResearchWatch()) {
@@ -21508,12 +20884,8 @@ Note: Educational research monitoring only. Do not change medications, doses, la
             function emailResearchWatchBrief() {
                 const record = _researchWatchReadyRecord();
                 if (!record) return;
-                const saved =
-                    localStorage.getItem(RESEARCH_WATCH_EMAIL_KEY) || "";
-                const to = prompt(
-                    "Email Research Watch brief to:",
-                    saved || "",
-                );
+                const saved = localStorage.getItem(RESEARCH_WATCH_EMAIL_KEY) || "";
+                const to = prompt("Email Research Watch brief to:", saved || "");
                 if (to == null) return;
                 const email = to.trim();
                 if (!_validEmailAddress(email)) {
@@ -21651,10 +21023,7 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                         const resp = await openaiCall({
                             apiKey,
                             model,
-                            maxTokens: Math.max(
-                                settings.maxTokens || 2200,
-                                2600,
-                            ),
+                            maxTokens: Math.max(settings.maxTokens || 2200, 2600),
                             instructions: RESEARCH_WATCH_SYSTEM,
                             input: [
                                 {
@@ -21670,7 +21039,8 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                                 {
                                     type: "web_search",
                                     filters: {
-                                        allowed_domains: RESEARCH_WATCH_DOMAINS,
+                                        allowed_domains:
+                                            RESEARCH_WATCH_DOMAINS,
                                     },
                                     user_location: {
                                         type: "approximate",
@@ -21690,10 +21060,7 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                         const resp = await geminiCall({
                             apiKey,
                             model,
-                            maxTokens: Math.max(
-                                settings.maxTokens || 2200,
-                                2600,
-                            ),
+                            maxTokens: Math.max(settings.maxTokens || 2200, 2600),
                             system: RESEARCH_WATCH_SYSTEM,
                             contents: [
                                 {
@@ -21709,10 +21076,7 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                         const resp = await anthropicCall({
                             apiKey,
                             model,
-                            maxTokens: Math.max(
-                                settings.maxTokens || 2200,
-                                2600,
-                            ),
+                            maxTokens: Math.max(settings.maxTokens || 2200, 2600),
                             system: RESEARCH_WATCH_SYSTEM,
                             messages: [{ role: "user", content: prompt }],
                             tools: [
@@ -21720,7 +21084,8 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                                     type: "web_search_20250305",
                                     name: "web_search",
                                     max_uses: 6,
-                                    allowed_domains: RESEARCH_WATCH_DOMAINS,
+                                    allowed_domains:
+                                        RESEARCH_WATCH_DOMAINS,
                                     user_location: {
                                         type: "approximate",
                                         country: "US",
@@ -21877,7 +21242,12 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                                 carbs: { type: "number" },
                                 fat: { type: "number" },
                             },
-                            required: ["calories", "protein", "carbs", "fat"],
+                            required: [
+                                "calories",
+                                "protein",
+                                "carbs",
+                                "fat",
+                            ],
                         },
                         confidence: {
                             type: "string",
@@ -22284,9 +21654,7 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                             },
                         ],
                         responseMimeType: "application/json",
-                        responseJsonSchema: jsonSchema
-                            ? jsonSchema.schema
-                            : null,
+                        responseJsonSchema: jsonSchema ? jsonSchema.schema : null,
                     };
                     let resp;
                     try {
@@ -22785,11 +22153,7 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                     ? unitHints[unitMatch[1].toLowerCase()] || food.unit
                     : food.unit;
                 if (qty === null) qty = food.defaultQty || 1;
-                if (
-                    food.unit === "half" &&
-                    unit !== "half" &&
-                    /whole/i.test(text)
-                )
+                if (food.unit === "half" && unit !== "half" && /whole/i.test(text))
                     qty = qty * 2;
                 return { qty: _aiClampNumber(qty, 20, 2), unit };
             }
@@ -22814,15 +22178,8 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                         items.push({
                             name: food.key,
                             quantity: `${qty} ${unit}`,
-                            calories: _aiClampNumber(
-                                food.calories * mult,
-                                5000,
-                            ),
-                            protein: _aiClampNumber(
-                                food.protein * mult,
-                                400,
-                                1,
-                            ),
+                            calories: _aiClampNumber(food.calories * mult, 5000),
+                            protein: _aiClampNumber(food.protein * mult, 400, 1),
                             carbs: _aiClampNumber(food.carbs * mult, 500, 1),
                             fat: _aiClampNumber(food.fat * mult, 300, 1),
                             _qty: qty,
@@ -22948,10 +22305,7 @@ Note: Educational research monitoring only. Do not change medications, doses, la
                             name,
                             matchName,
                             dose: _aiCleanText(raw.dose, 96),
-                            timing: _aiCleanText(
-                                raw.timing || raw.schedule,
-                                120,
-                            ),
+                            timing: _aiCleanText(raw.timing || raw.schedule, 120),
                             status,
                             start: _validIsoDate(raw.start || raw.startDate),
                             note: _aiCleanText(raw.note || raw.notes, 220),
@@ -23087,7 +22441,11 @@ Return JSON only. Use "add" only when the user names a new item. Use "remove" on
                 }
                 pendingAiStackUpdate = null;
                 pendingAiMealUpdate = null;
-                _setAiButtonBusy("aiStackUpdateAiBtn", true, "Using AI...");
+                _setAiButtonBusy(
+                    "aiStackUpdateAiBtn",
+                    true,
+                    "Using AI...",
+                );
                 _aiUpdateLoading("Using AI to build stack preview...");
                 try {
                     const result = await _coachJsonRequest({
@@ -23146,18 +22504,14 @@ Return JSON only. Use "add" only when the user names a new item. Use "remove" on
                         }
                     } else if (a.action === "remove") {
                         if (idx < 0) {
-                            skipped.push(
-                                `No match for ${a.name || a.matchName}`,
-                            );
+                            skipped.push(`No match for ${a.name || a.matchName}`);
                             return;
                         }
                         const removed = stack.splice(idx, 1)[0];
                         applied.push(`Removed ${removed.name}`);
                     } else if (a.action === "pause") {
                         if (idx < 0) {
-                            skipped.push(
-                                `No match for ${a.name || a.matchName}`,
-                            );
+                            skipped.push(`No match for ${a.name || a.matchName}`);
                             return;
                         }
                         stack[idx].status = "paused";
@@ -23165,9 +22519,7 @@ Return JSON only. Use "add" only when the user names a new item. Use "remove" on
                         applied.push(`Paused ${stack[idx].name}`);
                     } else if (a.action === "update") {
                         if (idx < 0) {
-                            skipped.push(
-                                `No match for ${a.name || a.matchName}`,
-                            );
+                            skipped.push(`No match for ${a.name || a.matchName}`);
                             return;
                         }
                         if (a.name) stack[idx].name = a.name;
@@ -23198,15 +22550,16 @@ Return JSON only. Use "add" only when the user names a new item. Use "remove" on
                 const items = rawItems
                     .map((item) => ({
                         name: _aiCleanText(item.name || item.food, 80),
-                        quantity: _aiCleanText(
-                            item.quantity || item.amount,
-                            80,
-                        ),
+                        quantity: _aiCleanText(item.quantity || item.amount, 80),
                         calories: _aiClampNumber(
                             item.calories ?? item.kcal,
                             5000,
                         ),
-                        protein: _aiClampNumber(item.protein ?? item.p, 400, 1),
+                        protein: _aiClampNumber(
+                            item.protein ?? item.p,
+                            400,
+                            1,
+                        ),
                         carbs: _aiClampNumber(item.carbs ?? item.c, 500, 1),
                         fat: _aiClampNumber(item.fat ?? item.f, 300, 1),
                     }))
@@ -23246,10 +22599,8 @@ Return JSON only. Use "add" only when the user names a new item. Use "remove" on
                 return {
                     date: _validIsoDate(root.date) || todayKey(),
                     mealName:
-                        _aiCleanText(
-                            root.mealName || root.name || root.label,
-                            80,
-                        ) || "AI-estimated meal",
+                        _aiCleanText(root.mealName || root.name || root.label, 80) ||
+                        "AI-estimated meal",
                     slot,
                     items,
                     totals: {
@@ -23307,9 +22658,8 @@ Return JSON only. Use "add" only when the user names a new item. Use "remove" on
 
             function _nextMealSlot(data) {
                 return (
-                    MEAL_SLOTS.find(
-                        (slot) => !_mealSlotHasMacros(data[slot]),
-                    ) || MEAL_SLOTS[MEAL_SLOTS.length - 1]
+                    MEAL_SLOTS.find((slot) => !_mealSlotHasMacros(data[slot])) ||
+                    MEAL_SLOTS[MEAL_SLOTS.length - 1]
                 );
             }
 
@@ -23582,10 +22932,7 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                     status.innerHTML = `<span style="color:#ef4444;">⚠ OpenAI key should start with "sk-". Double-check and paste again.</span>`;
                     return;
                 }
-                if (
-                    geminiApiKey &&
-                    !coachKeyLooksValid("gemini", geminiApiKey)
-                ) {
+                if (geminiApiKey && !coachKeyLooksValid("gemini", geminiApiKey)) {
                     status.innerHTML = `<span style="color:#ef4444;">⚠ Gemini key should usually start with "AIza". Double-check and paste again.</span>`;
                     return;
                 }
@@ -23648,13 +22995,13 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                           ? document
                                 .getElementById("coachGeminiApiKey")
                                 .value.trim()
-                          : document.getElementById("coachApiKey").value.trim();
+                        : document.getElementById("coachApiKey").value.trim();
                 const model =
                     provider === "openai"
                         ? document.getElementById("coachOpenaiModel").value
                         : provider === "gemini"
                           ? document.getElementById("coachGeminiModel").value
-                          : document.getElementById("coachModel").value;
+                        : document.getElementById("coachModel").value;
                 const status = document.getElementById("coachSettingsStatus");
                 if (!apiKey) {
                     status.innerHTML = `<span style="color:#ef4444;">Paste a key first.</span>`;
@@ -23871,8 +23218,7 @@ Return JSON only. If the user says yesterday or another date, convert it to YYYY
                 const chunks = [];
                 (resp?.candidates || []).forEach((candidate) => {
                     (candidate?.content?.parts || []).forEach((part) => {
-                        if (typeof part?.text === "string")
-                            chunks.push(part.text);
+                        if (typeof part?.text === "string") chunks.push(part.text);
                     });
                 });
                 return chunks.join("\n").trim();
@@ -24217,9 +23563,7 @@ Style:
                 if (!q) return;
                 const thread = loadCoachThread();
                 if (!thread) {
-                    showToast(
-                        "No active coach thread — pick a preset first.",
-                    );
+                    showToast("No active coach thread — pick a preset first.");
                     return;
                 }
                 thread.messages.push({ role: "user", content: q });
@@ -24499,8 +23843,7 @@ Style:
                         ? buildCoachBundle("weekly")
                         : `Weekly report context:\n\n${r?.text || ""}`);
                 const messages = [{ role: "user", content: briefing }];
-                if (r?.text)
-                    messages.push({ role: "assistant", content: r.text });
+                if (r?.text) messages.push({ role: "assistant", content: r.text });
                 return messages;
             }
 
@@ -24525,10 +23868,7 @@ Style:
                         .map((m) => {
                             const isUser = m.role === "user";
                             const body = isUser
-                                ? escapeHtml(m.content || "").replace(
-                                      /\n/g,
-                                      "<br>",
-                                  )
+                                ? escapeHtml(m.content || "").replace(/\n/g, "<br>")
                                 : renderMarkdown(m.content || "");
                             const align = isUser ? "align-self:flex-end;" : "";
                             const bg = isUser
@@ -24540,19 +23880,16 @@ Style:
                             const label = isUser ? "You" : "Coach";
                             return `<div style="${align}max-width:92%;background:${bg};border:1px solid ${border};border-radius:8px;padding:8px 10px;">
           <div style="font-size:10px;color:var(--muted);font-weight:800;margin-bottom:3px;">${label}</div>
-          <div style="font-size:12px;line-height:1.55;color:var(--text);">${body || '<span style="color:var(--muted);">Thinking...</span>'}</div>
+          <div style="font-size:12px;line-height:1.55;color:var(--text);">${body || "<span style=\"color:var(--muted);\">Thinking...</span>"}</div>
         </div>`;
                         })
                         .join("");
                 }
                 const provider = normalizeCoachProvider(r.provider);
                 const modelLabel = `${getCoachProviderLabel(provider)} - ${r.model || "coach"}`;
-                if (r.chatStreaming)
-                    meta.textContent = `${modelLabel} replying...`;
-                else if (r.chatError)
-                    meta.textContent = `Chat error: ${r.chatError}`;
-                else
-                    meta.textContent = `Replies use ${modelLabel}. API keys stay local to this device.`;
+                if (r.chatStreaming) meta.textContent = `${modelLabel} replying...`;
+                else if (r.chatError) meta.textContent = `Chat error: ${r.chatError}`;
+                else meta.textContent = `Replies use ${modelLabel}. API keys stay local to this device.`;
             }
 
             function renderWeeklyReport() {
@@ -24585,10 +23922,7 @@ Style:
                 renderWeeklyReport();
             }
 
-            async function generateWeeklyReview(
-                force = false,
-                providerOverride = null,
-            ) {
+            async function generateWeeklyReview(force = false, providerOverride = null) {
                 const settings = loadCoachSettings();
                 const provider = normalizeCoachProvider(
                     providerOverride || getCoachProvider(settings),
@@ -24955,8 +24289,7 @@ Style:
                 const parts = ["Connected"];
                 if (data.lastSync) {
                     const last = new Date(data.lastSync);
-                    if (!isNaN(last))
-                        parts.push("last sync " + relativeTime(last));
+                    if (!isNaN(last)) parts.push("last sync " + relativeTime(last));
                 }
                 if (data.expiresAt) {
                     const exp = new Date(data.expiresAt);
@@ -25027,9 +24360,7 @@ Style:
                         : "";
                 }
 
-                const scopeNote = document.getElementById(
-                    "fitbitConnectStatus",
-                );
+                const scopeNote = document.getElementById("fitbitConnectStatus");
                 if (scopeNote) {
                     scopeNote.innerHTML = connected
                         ? `<span style="color:var(--muted);">${escapeHtml(_fitbitDescribeScope(data))}</span>`
@@ -25153,10 +24484,7 @@ Style:
                             suppressToast: true,
                         });
                     } catch (syncError) {
-                        console.warn(
-                            "Fitbit initial backfill failed",
-                            syncError,
-                        );
+                        console.warn("Fitbit initial backfill failed", syncError);
                     }
                     renderFitbitStatus();
                     openFitbitSettings();
@@ -25296,9 +24624,7 @@ Style:
                     const wj = await fitbitFetch(
                         `/1/user/-/body/log/weight/date/${dateKey}.json`,
                     );
-                    const weightLog = Array.isArray(wj.weight)
-                        ? wj.weight[0]
-                        : null;
+                    const weightLog = Array.isArray(wj.weight) ? wj.weight[0] : null;
                     const lb = Number(weightLog?.weight);
                     if (Number.isFinite(lb) && lb > 0) {
                         _fitbitUpsertWeightEntry(dateKey, lb);
@@ -25339,9 +24665,7 @@ Style:
                     const sleeps = Array.isArray(sj.sleep) ? sj.sleep : [];
                     const main = sleeps.find((s) => s.isMainSleep) || sleeps[0];
                     if (main && Number.isFinite(Number(main.minutesAsleep))) {
-                        const hours = +(
-                            Number(main.minutesAsleep) / 60
-                        ).toFixed(1);
+                        const hours = +(Number(main.minutesAsleep) / 60).toFixed(1);
                         compliancePatch.sleep_hours = hours;
                         summary.sleepHours = hours;
                         if (Number.isFinite(Number(main.efficiency))) {
@@ -25376,9 +24700,7 @@ Style:
             async function _fitbitRunSync(dateKeys, options = {}) {
                 if (fitbitSyncInFlight) return fitbitSyncInFlight;
                 fitbitSyncInFlight = (async () => {
-                    const dates = [
-                        ...new Set((dateKeys || []).filter(Boolean)),
-                    ];
+                    const dates = [...new Set((dateKeys || []).filter(Boolean))];
                     const pre = document.getElementById("fitbitSyncLog");
                     const showLog = !options.silent && !!pre;
                     const lines = [];
@@ -25399,10 +24721,7 @@ Style:
                         if (!selectedSummary && dateKey === todayKey()) {
                             selectedSummary = result.summary;
                         }
-                        if (
-                            !selectedSummary &&
-                            _fitbitSummaryText(result.summary)
-                        ) {
+                        if (!selectedSummary && _fitbitSummaryText(result.summary)) {
                             selectedSummary = result.summary;
                         }
                         if (showLog) {
@@ -26413,55 +25732,7 @@ Style:
       <div class="spinner" style="width:16px;height:16px;border:2px solid var(--muted);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
       <span>Reading <strong>${escapeHtml(file.name || "file")}</strong> (${(file.size / 1024).toFixed(0)} KB)… this usually takes 10–30 seconds.</span>
     </div>
-    <style>@keyframes spin { to { transform: rotate(360deg); } }/* --- INJECTED AMOLED THEME --- */
-:root {
-    --bg: #000000;
-    --surface: #080a0f;
-    --surface2: #0f131c;
-    --border: #1a202c;
-    --accent: #00d4ff;
-    --accent2: #7c3aed;
-    --green: #10b981;
-    --yellow: #f59e0b;
-    --red: #ef4444;
-    --orange: #f97316;
-    --text: #f8fafc;
-    --muted: #64748b;
-    --card-radius: 12px;
-}
-
-html, body {
-    background: var(--bg) !important;
-    color: var(--text) !important;
-    scrollbar-color: var(--border) var(--bg);
-    scrollbar-width: thin;
-}
-
-.topbar {
-    background: rgba(8, 10, 15, 0.85) !important;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-}
-
-.btn-primary {
-    box-shadow: 0 0 12px rgba(0, 212, 255, 0.15) !important;
-}
-
-.btn-primary:hover {
-    box-shadow: 0 0 20px rgba(0, 212, 255, 0.35) !important;
-}
-
-.fab {
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.7), 0 0 0 2px rgba(0, 212, 255, 0.15), 0 0 15px rgba(0, 212, 255, 0.25) !important;
-}
-
-.critical-flow-card {
-    border-color: rgba(0, 212, 255, 0.35) !important;
-    background: linear-gradient(135deg, rgba(0, 212, 255, 0.04), transparent 40%), var(--surface) !important;
-    box-shadow: inset 0 0 24px rgba(0, 212, 255, 0.03) !important;
-}
-/* ----------------------------- */
-</style>`;
+    <style>@keyframes spin { to { transform: rotate(360deg); } }</style>`;
                 document.getElementById("labExtractBody").innerHTML = "";
                 document.getElementById("labExtractActions").style.display =
                     "none";
@@ -26788,9 +26059,7 @@ Rules:
                 const first = candidate.indexOf("{");
                 const last = candidate.lastIndexOf("}");
                 if (first >= 0 && last > first) {
-                    const obj = parseCandidate(
-                        candidate.slice(first, last + 1),
-                    );
+                    const obj = parseCandidate(candidate.slice(first, last + 1));
                     if (obj !== null) return obj;
                 }
                 const firstArr = candidate.indexOf("[");
@@ -27914,10 +27183,7 @@ Rules:
                 return `supp_${_protocolOsSlug(entry?.name || "item")}_${blockId}`;
             }
 
-            function _suppSourceStack(
-                stateLike = null,
-                category = "supplement",
-            ) {
+            function _suppSourceStack(stateLike = null, category = "supplement") {
                 const source = Array.isArray(stateLike?.domains?.stackItems)
                     ? stateLike.domains.stackItems
                     : (loadStack() || []).map((item, index) =>
@@ -27928,11 +27194,7 @@ Rules:
                 );
             }
 
-            function _workflowChecklistKey(
-                entry,
-                blockId,
-                category = "supplement",
-            ) {
+            function _workflowChecklistKey(entry, blockId, category = "supplement") {
                 if (category === "supplement")
                     return _suppChecklistKey(entry, blockId);
                 return `${category}_${_protocolOsSlug(entry?.name || "item")}_${blockId}`;
@@ -27950,45 +27212,45 @@ Rules:
                 const seen = new Set();
                 _suppSourceStack(stateLike, category).forEach(
                     (entry, fallbackIndex) => {
-                        _protocolEntrySlots(entry).forEach((slot) => {
-                            const meta = _suppResolveBlock(slot);
-                            let block = byId.get(meta.id);
-                            if (!block) {
-                                block = { ...meta, items: [] };
-                                byId.set(meta.id, block);
-                                blocks.push(block);
-                            }
-                            const dose =
-                                _protocolDoseSummary(
-                                    slot.doseOverride || entry.dose,
-                                ) || "Dose not set";
-                            const dedupeKey = [
+                    _protocolEntrySlots(entry).forEach((slot) => {
+                        const meta = _suppResolveBlock(slot);
+                        let block = byId.get(meta.id);
+                        if (!block) {
+                            block = { ...meta, items: [] };
+                            byId.set(meta.id, block);
+                            blocks.push(block);
+                        }
+                        const dose =
+                            _protocolDoseSummary(
+                                slot.doseOverride || entry.dose,
+                            ) || "Dose not set";
+                        const dedupeKey = [
+                            block.id,
+                            _stackNameKey(entry.name),
+                            dose,
+                        ].join("|");
+                        if (seen.has(dedupeKey)) return;
+                        seen.add(dedupeKey);
+                        block.items.push({
+                            key: _workflowChecklistKey(
+                                entry,
                                 block.id,
-                                _stackNameKey(entry.name),
-                                dose,
-                            ].join("|");
-                            if (seen.has(dedupeKey)) return;
-                            seen.add(dedupeKey);
-                            block.items.push({
-                                key: _workflowChecklistKey(
-                                    entry,
-                                    block.id,
-                                    category,
-                                ),
-                                name: String(entry.name || "Unnamed").trim(),
-                                dose,
-                                routeLabel: entry.routeLabel || "",
-                                categoryLabel: entry.categoryLabel || "",
-                                injectable: !!entry.injectable,
-                                injectionKey: entry.compoundKey || "",
-                                stackIndex:
-                                    Number.isFinite(entry.index) &&
-                                    entry.index >= 0
-                                        ? entry.index
-                                        : fallbackIndex,
-                            });
+                                category,
+                            ),
+                            name: String(entry.name || "Unnamed").trim(),
+                            dose,
+                            routeLabel: entry.routeLabel || "",
+                            categoryLabel: entry.categoryLabel || "",
+                            injectable: !!entry.injectable,
+                            injectionKey: entry.compoundKey || "",
+                            stackIndex:
+                                Number.isFinite(entry.index) &&
+                                entry.index >= 0
+                                    ? entry.index
+                                    : fallbackIndex,
                         });
-                    },
+                    });
+                },
                 );
                 return blocks
                     .filter((block) => block.items.length)
@@ -28009,10 +27271,7 @@ Rules:
                         total++;
                         if (log[item.key]) checked++;
                     });
-                    if (
-                        !nextBlock &&
-                        block.items.some((item) => !log[item.key])
-                    ) {
+                    if (!nextBlock && block.items.some((item) => !log[item.key])) {
                         nextBlock = block.block;
                     }
                 });
@@ -28021,8 +27280,7 @@ Rules:
                     checked,
                     pct: total ? Math.round((checked / total) * 100) : 0,
                     nextBlock:
-                        nextBlock ||
-                        (total ? "All complete" : "Nothing scheduled"),
+                        nextBlock || (total ? "All complete" : "Nothing scheduled"),
                 };
             }
 
@@ -28056,8 +27314,7 @@ Rules:
                 if (doseEl) doseEl.value = preset.dose || "";
                 if (timingEl)
                     timingEl.value = _suppQuickAddTimingChoice(preset.timing);
-                if (noteEl && !noteEl.value.trim())
-                    noteEl.value = preset.note || "";
+                if (noteEl && !noteEl.value.trim()) noteEl.value = preset.note || "";
             }
 
             function openSupplementQuickAdd() {
@@ -28111,12 +27368,10 @@ Rules:
                     return;
                 }
                 const selected =
-                    document.getElementById("suppAddTiming")?.value ||
-                    "Morning";
+                    document.getElementById("suppAddTiming")?.value || "Morning";
                 const customTiming =
-                    document
-                        .getElementById("suppAddTimingCustom")
-                        ?.value.trim() || "";
+                    document.getElementById("suppAddTimingCustom")?.value.trim() ||
+                    "";
                 const timing = customTiming || selected;
                 const status = /\b(thursday|sunday|thu|sun)\b/i.test(timing)
                     ? "weekly"
@@ -28124,14 +27379,12 @@ Rules:
                 const entry = {
                     name,
                     dose:
-                        document.getElementById("suppAddDose")?.value.trim() ||
-                        "",
+                        document.getElementById("suppAddDose")?.value.trim() || "",
                     timing,
                     status,
                     start: todayKey(),
                     note:
-                        document.getElementById("suppAddNote")?.value.trim() ||
-                        "",
+                        document.getElementById("suppAddNote")?.value.trim() || "",
                 };
                 const stack = loadStack();
                 stack.push(entry);
@@ -28192,9 +27445,7 @@ Rules:
 
             function _workflowItemDone(item, dateKey, log = null) {
                 if (item.injectable) {
-                    return isInjLogged(
-                        _injEntryFor(dateKey, item.injectionKey),
-                    );
+                    return isInjLogged(_injEntryFor(dateKey, item.injectionKey));
                 }
                 const currentLog = log || loadSuppLog(dateKey);
                 return !!currentLog[item.key];
@@ -28225,8 +27476,7 @@ Rules:
                     checked,
                     pct: total ? Math.round((checked / total) * 100) : 0,
                     nextBlock:
-                        nextBlock ||
-                        (total ? "All complete" : "Nothing scheduled"),
+                        nextBlock || (total ? "All complete" : "Nothing scheduled"),
                 };
             }
 
@@ -28301,9 +27551,7 @@ Rules:
                         const itemsHtml = block.items
                             .map((item) => {
                                 const isChecked = _workflowItemDone(item, dk);
-                                const streak = item.injectable
-                                    ? 0
-                                    : suppStreak(item.key);
+                                const streak = item.injectable ? 0 : suppStreak(item.key);
                                 const pipCls =
                                     streak >= 7
                                         ? "s-high"
@@ -28313,10 +27561,7 @@ Rules:
                                 const itemAction = item.injectable
                                     ? `openInjectionLogModal('${dk}','${item.injectionKey}')`
                                     : `toggleSupp('${item.key}')`;
-                                const secondaryMeta = [
-                                    item.dose,
-                                    item.routeLabel,
-                                ]
+                                const secondaryMeta = [item.dose, item.routeLabel]
                                     .filter(Boolean)
                                     .join(" · ");
                                 return `<div class="supp-item ${isChecked ? "si-checked" : ""}" onclick="${itemAction}">
@@ -28365,14 +27610,12 @@ Rules:
                         actions: [
                             {
                                 label: "+ Add peptide",
-                                onclick:
-                                    "openStackEdit(-1, { category: 'peptide', route: 'injection' })",
+                                onclick: "openStackEdit(-1, { category: 'peptide', route: 'injection' })",
                                 primary: true,
                             },
                             {
                                 label: "Open injections",
-                                onclick:
-                                    "bottomNavJump('injectionTrackerCard')",
+                                onclick: "bottomNavJump('injectionTrackerCard')",
                             },
                             {
                                 label: "Open stack",
@@ -28397,8 +27640,7 @@ Rules:
                         actions: [
                             {
                                 label: "+ Add supplement",
-                                onclick:
-                                    "openStackEdit(-1, { category: 'supplement', route: 'oral' })",
+                                onclick: "openStackEdit(-1, { category: 'supplement', route: 'oral' })",
                                 primary: true,
                             },
                             {
@@ -28424,8 +27666,7 @@ Rules:
                         actions: [
                             {
                                 label: "+ Add medication",
-                                onclick:
-                                    "openStackEdit(-1, { category: 'medication' })",
+                                onclick: "openStackEdit(-1, { category: 'medication' })",
                                 primary: true,
                             },
                             {
@@ -30799,10 +30040,8 @@ Rules:
                     "display:block;border:1px solid rgba(0,212,255,0.35);background:rgba(0,212,255,0.08);margin-bottom:12px;";
                 const refreshOnly =
                     info.refreshRecommended &&
-                    _appCompareVersions(
-                        info.latestVersion,
-                        info.currentVersion,
-                    ) <= 0;
+                    _appCompareVersions(info.latestVersion, info.currentVersion) <=
+                        0;
                 const title = refreshOnly
                     ? "App refresh ready"
                     : "App update available";
@@ -30842,8 +30081,7 @@ Rules:
                             checkedAt: new Date().toISOString(),
                         };
                         renderAppUpdateBanner();
-                        if (!opts.silent)
-                            showToast("App update available", 3500);
+                        if (!opts.silent) showToast("App update available", 3500);
                         return _appUpdateInfo;
                     }
                     _appUpdateInfo = null;
@@ -30878,8 +30116,7 @@ Rules:
                 if (!("serviceWorker" in navigator)) return;
                 if (location.protocol === "file:") return; // SW unsupported on file://
                 const manifest = document.getElementById("pwaManifest");
-                if (manifest)
-                    manifest.href = `manifest.json?v=${encodeURIComponent(VERSION)}`;
+                if (manifest) manifest.href = `manifest.json?v=${encodeURIComponent(VERSION)}`;
                 swReady = navigator.serviceWorker
                     .register(`sw.js?v=${encodeURIComponent(VERSION)}`, {
                         scope: "./",
@@ -31582,8 +30819,7 @@ Rules:
                         .filter(Boolean)
                         .sort()
                         .pop();
-                    if (latest)
-                        title += " · " + relativeTime(new Date(latest));
+                    if (latest) title += " · " + relativeTime(new Date(latest));
                 } else {
                     color = "#eab308";
                     text = "☁ …";
@@ -31760,10 +30996,7 @@ Rules:
                     );
                     return;
                 }
-                showToast(
-                    `✓ Restored ${r.restored} keys from snapshot`,
-                    3000,
-                );
+                showToast(`✓ Restored ${r.restored} keys from snapshot`, 3000);
                 try {
                     if (typeof render === "function") render();
                 } catch {}
@@ -32276,54 +31509,6 @@ Rules:
     h2 { page-break-after: avoid; }
   }
   @page { margin: 0.6in; }
-/* --- INJECTED AMOLED THEME --- */
-:root {
-    --bg: #000000;
-    --surface: #080a0f;
-    --surface2: #0f131c;
-    --border: #1a202c;
-    --accent: #00d4ff;
-    --accent2: #7c3aed;
-    --green: #10b981;
-    --yellow: #f59e0b;
-    --red: #ef4444;
-    --orange: #f97316;
-    --text: #f8fafc;
-    --muted: #64748b;
-    --card-radius: 12px;
-}
-
-html, body {
-    background: var(--bg) !important;
-    color: var(--text) !important;
-    scrollbar-color: var(--border) var(--bg);
-    scrollbar-width: thin;
-}
-
-.topbar {
-    background: rgba(8, 10, 15, 0.85) !important;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-}
-
-.btn-primary {
-    box-shadow: 0 0 12px rgba(0, 212, 255, 0.15) !important;
-}
-
-.btn-primary:hover {
-    box-shadow: 0 0 20px rgba(0, 212, 255, 0.35) !important;
-}
-
-.fab {
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.7), 0 0 0 2px rgba(0, 212, 255, 0.15), 0 0 15px rgba(0, 212, 255, 0.25) !important;
-}
-
-.critical-flow-card {
-    border-color: rgba(0, 212, 255, 0.35) !important;
-    background: linear-gradient(135deg, rgba(0, 212, 255, 0.04), transparent 40%), var(--surface) !important;
-    box-shadow: inset 0 0 24px rgba(0, 212, 255, 0.03) !important;
-}
-/* ----------------------------- */
 </style>
 </head><body>
 <div class="print-bar">
@@ -33085,9 +32270,7 @@ ${parts.join("\n")}
                             return;
                         }
                         const headers = rows[0].map((h) =>
-                            String(h || "")
-                                .trim()
-                                .toLowerCase(),
+                            String(h || "").trim().toLowerCase(),
                         );
                         const col = (n) => headers.indexOf(n);
                         const idx = {
@@ -33117,15 +32300,15 @@ ${parts.join("\n")}
                                 (c) => !String(c || "").trim(),
                             );
                             if (blank) continue;
-                            const rawName = String(row[idx.name] || "").trim();
+                            const rawName = String(
+                                row[idx.name] || "",
+                            ).trim();
                             if (!rawName) {
                                 skipped.push(i + 1);
                                 continue;
                             }
                             const pull = (key) =>
-                                idx[key] >= 0
-                                    ? String(row[idx[key]] || "")
-                                    : "";
+                                idx[key] >= 0 ? String(row[idx[key]] || "") : "";
                             const entry = {
                                 name: rawName,
                                 dose: pull("dose"),
@@ -33142,14 +32325,19 @@ ${parts.join("\n")}
                                         ? pull("category")
                                         : undefined,
                                 route:
-                                    idx.route >= 0 ? pull("route") : undefined,
+                                    idx.route >= 0
+                                        ? pull("route")
+                                        : undefined,
                                 scheduleDays: pull("scheduleDays"),
                                 scheduleTimes: pull("scheduleTimes"),
                             };
                             entries.push(_normalizeStackEntry(entry));
                         }
                         if (!entries.length) {
-                            showToast("✕ No valid rows found in CSV", 3000);
+                            showToast(
+                                "✕ No valid rows found in CSV",
+                                3000,
+                            );
                             return;
                         }
                         const current = loadStack() || [];
@@ -33314,7 +32502,8 @@ ${parts.join("\n")}
                     )
                         return;
                     const route = String(entry.route || "").toLowerCase();
-                    const isInj = route === "injection" || !!entry.injectable;
+                    const isInj =
+                        route === "injection" || !!entry.injectable;
                     if (!isInj) return; // v1: injection-route compounds only
 
                     const sDays = Array.isArray(entry.scheduleDays)
@@ -33344,7 +32533,8 @@ ${parts.join("\n")}
                         if (!sDays.includes(d.getDay())) continue;
                         const dateKey = _dateKeyLocal(d);
                         const dayLog = injLog[dateKey];
-                        const compoundEntry = dayLog && dayLog[compoundKey];
+                        const compoundEntry =
+                            dayLog && dayLog[compoundKey];
                         const doses = compoundEntry
                             ? _injDoseEntries(compoundEntry) || []
                             : [];
@@ -33358,7 +32548,8 @@ ${parts.join("\n")}
                                 // the same-day match instead of dropping the dose.
                                 if (!logTime || !scheduledTime) return true;
                                 const [lh, lm = "0"] = logTime.split(":");
-                                const [sh, sm = "0"] = scheduledTime.split(":");
+                                const [sh, sm = "0"] =
+                                    scheduledTime.split(":");
                                 const diffMin = Math.abs(
                                     parseInt(lh, 10) * 60 +
                                         parseInt(lm, 10) -
@@ -33399,7 +32590,9 @@ ${parts.join("\n")}
                         expected: totalExpected,
                         logged: totalLogged,
                         pct: totalExpected
-                            ? Math.round((totalLogged / totalExpected) * 100)
+                            ? Math.round(
+                                  (totalLogged / totalExpected) * 100,
+                              )
                             : null,
                     },
                     items,
@@ -34688,10 +33881,7 @@ ${parts.join("\n")}
                     const water = loadWater();
                     const day = water[todayKey()];
                     if (Array.isArray(day))
-                        return day.reduce(
-                            (sum, entry) => sum + (+entry.oz || 0),
-                            0,
-                        );
+                        return day.reduce((sum, entry) => sum + (+entry.oz || 0), 0);
                     if (typeof day === "number") return day;
                     if (day && typeof day.oz === "number") return day.oz;
                 } catch {}
@@ -34703,10 +33893,7 @@ ${parts.join("\n")}
                 const latest = {};
                 labs.forEach((lab) => {
                     if (!lab || !lab.marker) return;
-                    if (
-                        !latest[lab.marker] ||
-                        lab.date > latest[lab.marker].date
-                    )
+                    if (!latest[lab.marker] || lab.date > latest[lab.marker].date)
                         latest[lab.marker] = lab;
                 });
                 return Object.values(latest)
@@ -34722,25 +33909,19 @@ ${parts.join("\n")}
                     signals: [],
                 };
                 const signals = (guardrails.signals || []).slice();
-                const redCount = signals.filter(
-                    (s) => s.status === "red",
-                ).length;
+                const redCount = signals.filter((s) => s.status === "red").length;
                 const yellowCount = signals.filter(
                     (s) => s.status === "yellow",
                 ).length;
                 const firstSignal =
                     signals
-                        .filter(
-                            (s) => s.status === "red" || s.status === "yellow",
-                        )
+                        .filter((s) => s.status === "red" || s.status === "yellow")
                         .sort(
                             (a, b) =>
                                 _workflowStatusRank(a.status) -
                                 _workflowStatusRank(b.status),
                         )[0] || null;
-                const status = firstSignal
-                    ? firstSignal.status
-                    : guardrails.overall;
+                const status = firstSignal ? firstSignal.status : guardrails.overall;
                 const target = firstSignal
                     ? CRITICAL_WORKFLOW_TARGETS[firstSignal.key] ||
                       "guardrailCenter"
@@ -34776,9 +33957,7 @@ ${parts.join("\n")}
                 const waterTotal = workflow.waterTotal;
                 const waterPct = workflow.waterPct;
                 if (waterPct < 0.5) {
-                    actions.push(
-                        `water is ${Math.round(waterTotal)}/${goalOz} oz`,
-                    );
+                    actions.push(`water is ${Math.round(waterTotal)}/${goalOz} oz`);
                     if (status !== "red") status = "yellow";
                     if (target === "todaysPlanCard") target = "waterCard";
                 }
@@ -34827,9 +34006,7 @@ ${parts.join("\n")}
                         .join(", ");
                     const hasCriticalText = out.some((l) =>
                         /critical|urgent|panic|very abnormal/i.test(
-                            [l.notes, l.flag, l.label]
-                                .filter(Boolean)
-                                .join(" "),
+                            [l.notes, l.flag, l.label].filter(Boolean).join(" "),
                         ),
                     );
                     return {
@@ -34944,13 +34121,7 @@ ${parts.join("\n")}
                 setTimeout(() => el.classList.remove("flash-target"), 1400);
             }
 
-            function renderCriticalWorkflow(
-                stateLike,
-                cw,
-                avg,
-                plateau,
-                nextCp,
-            ) {
+            function renderCriticalWorkflow(stateLike, cw, avg, plateau, nextCp) {
                 const state = _coerceProtocolOsState(stateLike);
                 const card = document.getElementById("criticalWorkflowCard");
                 if (!card) return;
@@ -34964,12 +34135,7 @@ ${parts.join("\n")}
                 const safety = _workflowSafetyStep(state);
                 const today = _workflowTodayStep(state);
                 const labs = _workflowLabsStep(state);
-                const coach = _workflowCoachStep(
-                    state,
-                    [safety, today, labs],
-                    plateau,
-                    avg,
-                );
+                const coach = _workflowCoachStep(state, [safety, today, labs], plateau, avg);
                 const steps = [safety, today, labs, coach];
                 const overall = steps
                     .slice()
@@ -35016,9 +34182,7 @@ ${parts.join("\n")}
                         : `Daily closeout is ${closeout.okCount}/${closeout.total}. Core inputs are current, so the rest of the dashboard is ready for review and AI interpretation.`;
                     const listItems = openInputs.length
                         ? openInputs.slice(0, 4)
-                        : inputItems
-                              .filter((item) => item.state === "done")
-                              .slice(0, 3);
+                        : inputItems.filter((item) => item.state === "done").slice(0, 3);
                     mainSummary.innerHTML = `
     <div class="workflow-main-title">${_escHtml(title)}</div>
     <div class="workflow-main-body">${_escHtml(body)}</div>
@@ -35032,9 +34196,7 @@ ${parts.join("\n")}
         .join("")}</div>`;
                 }
 
-                const inputsEl = document.getElementById(
-                    "criticalWorkflowInputs",
-                );
+                const inputsEl = document.getElementById("criticalWorkflowInputs");
                 if (inputsEl) {
                     inputsEl.innerHTML = inputItems
                         .map((item) => {
@@ -35430,7 +34592,8 @@ ${parts.join("\n")}
                     .slice()
                     .sort((a, b) => a.date.localeCompare(b.date));
                 const outliers = [];
-                const todayStr = opts.today || todayKey();
+                const todayStr =
+                    opts.today || todayKey();
 
                 // ---- 1. Impossible / bounds + duplicate + future
                 const BOUNDS = {
@@ -35741,7 +34904,10 @@ ${parts.join("\n")}
             const _CLOSEOUT_KEY_PREFIX = "tp_day_closed_";
 
             function _closeoutKey(dateStr) {
-                return _CLOSEOUT_KEY_PREFIX + (dateStr || todayKey());
+                return (
+                    _CLOSEOUT_KEY_PREFIX +
+                    (dateStr || todayKey())
+                );
             }
 
             function isTodayClosed(dateStr) {
@@ -35767,7 +34933,8 @@ ${parts.join("\n")}
             function computeTodayCloseoutStatus(opts) {
                 opts = opts || {};
                 const entries = opts.entries || loadEntries();
-                const dateStr = opts.date || todayKey();
+                const dateStr =
+                    opts.date || todayKey();
 
                 // Find today's entry
                 const todayEntry = entries.find((e) => e && e.date === dateStr);
@@ -35904,7 +35071,8 @@ ${parts.join("\n")}
 
             function closeToday(opts) {
                 opts = opts || {};
-                const dateStr = opts.date || todayKey();
+                const dateStr =
+                    opts.date || todayKey();
                 const status = computeTodayCloseoutStatus({
                     date: dateStr,
                     entries: opts.entries,
@@ -36453,7 +35621,10 @@ ${parts.join("\n")}
                         "notifications",
                         _escHtml(r.features.notificationsPermission),
                     ],
-                    ["manifest", _escHtml(r.features.manifestHref || "—")],
+                    [
+                        "manifest",
+                        _escHtml(r.features.manifestHref || "—"),
+                    ],
                     [
                         "appUpdate",
                         _escHtml(
@@ -36855,18 +36026,8 @@ ${parts.join("\n")}
                 const detailBits = [];
                 if (previous) {
                     [
-                        _vitalsCoachDiff(
-                            "SBP",
-                            entry.sbp,
-                            previous.sbp,
-                            "mmHg",
-                        ),
-                        _vitalsCoachDiff(
-                            "DBP",
-                            entry.dbp,
-                            previous.dbp,
-                            "mmHg",
-                        ),
+                        _vitalsCoachDiff("SBP", entry.sbp, previous.sbp, "mmHg"),
+                        _vitalsCoachDiff("DBP", entry.dbp, previous.dbp, "mmHg"),
                         _vitalsCoachDiff("RHR", entry.hr, previous.hr, "bpm"),
                     ]
                         .filter(Boolean)
@@ -36895,10 +36056,14 @@ ${parts.join("\n")}
                     );
                 }
                 const nextMap = {
-                    danger: "Recheck after a few minutes of quiet rest and keep logging before making protocol decisions off one number alone.",
-                    warn: "Watch the next few morning pre-caffeine readings and pair them with hydration, sleep, caffeine timing, and symptoms.",
-                    good: "Keep logging in the same morning window so the trend stays comparable and the coach can spot drift early.",
-                    info: "Try to log SBP, DBP, and resting HR together so the coach can build a cleaner baseline.",
+                    danger:
+                        "Recheck after a few minutes of quiet rest and keep logging before making protocol decisions off one number alone.",
+                    warn:
+                        "Watch the next few morning pre-caffeine readings and pair them with hydration, sleep, caffeine timing, and symptoms.",
+                    good:
+                        "Keep logging in the same morning window so the trend stays comparable and the coach can spot drift early.",
+                    info:
+                        "Try to log SBP, DBP, and resting HR together so the coach can build a cleaner baseline.",
                 };
                 return {
                     level,
@@ -37342,9 +36507,7 @@ ${parts.join("\n")}
                     const aiLabel = m.label
                         ? `<div style="font-size:10px;color:var(--muted);font-weight:500;margin-top:2px;">${escapeHtml(m.label)}</div>`
                         : "";
-                    const kcal = m.kcal
-                        ? ` · ${Math.round(+m.kcal)} kcal`
-                        : "";
+                    const kcal = m.kcal ? ` · ${Math.round(+m.kcal)} kcal` : "";
                     return `<div class="meal-row">
       <div class="meal-label">${slot}${aiLabel}</div>
       <div class="meal-macros">
@@ -37918,7 +37081,11 @@ ${parts.join("\n")}
                 ctx.fillStyle = "#888";
                 ctx.font = "14px Arial";
                 ctx.textAlign = "right";
-                ctx.fillText(todayKey(), canvas.width - 20, 30);
+                ctx.fillText(
+                    todayKey(),
+                    canvas.width - 20,
+                    30,
+                );
                 ctx.textAlign = "left";
 
                 // Load images (data URLs so no cross-origin issues)
@@ -38419,8 +37586,7 @@ ${parts.join("\n")}
                 enabled: "Enabled",
                 blocked: "Blocked",
                 blockedSettings: "Blocked (change in browser settings)",
-                blockedUnblock:
-                    "Blocked - unblock notifications in browser settings",
+                blockedUnblock: "Blocked - unblock notifications in browser settings",
                 remindersOn: "Reminders on",
                 enableReminders: "Enable reminders",
                 remindMe: "Remind me",
@@ -38469,8 +37635,7 @@ ${parts.join("\n")}
                     let stim = {};
                     try {
                         stim = JSON.parse(
-                            localStorage.getItem("tp_stim_" + todayKey()) ||
-                                "{}",
+                            localStorage.getItem("tp_stim_" + todayKey()) || "{}",
                         );
                     } catch {
                         stim = {};
@@ -38665,7 +37830,10 @@ ${parts.join("\n")}
                 );
                 if (!force && total >= (settings.goalOz || 100)) return;
 
-                const remaining = Math.max(0, (settings.goalOz || 100) - total);
+                const remaining = Math.max(
+                    0,
+                    (settings.goalOz || 100) - total,
+                );
                 const hoursSince = lastDrink
                     ? Math.round((sinceDrink / 3600000) * 10) / 10
                     : null;
@@ -38981,13 +38149,10 @@ ${parts.join("\n")}
                     });
             }
 
-            const MOBILE_LAYOUT_DEFAULTS_KEY =
-                "tp_mobile_layout_defaults_v2.36.8";
+            const MOBILE_LAYOUT_DEFAULTS_KEY = "tp_mobile_layout_defaults_v2.36.8";
             function applyMobileReadableDefaults() {
-                if (typeof window === "undefined" || window.innerWidth > 560)
-                    return;
-                if (localStorage.getItem(MOBILE_LAYOUT_DEFAULTS_KEY) === "1")
-                    return;
+                if (typeof window === "undefined" || window.innerWidth > 560) return;
+                if (localStorage.getItem(MOBILE_LAYOUT_DEFAULTS_KEY) === "1") return;
 
                 // Review note: mobile needs a stronger default hierarchy than desktop.
                 // Expand only the highest-frequency logging surfaces on first load and
@@ -39031,13 +38196,7 @@ ${parts.join("\n")}
                     if (card) _setCardCollapsed(card, true, true);
                 });
 
-                [
-                    "injectionTrackerCard",
-                    "waterCard",
-                    "mealLogCard",
-                    "trainingCard",
-                    "vitalsCard",
-                ].forEach((id) => {
+                ["injectionTrackerCard", "waterCard", "mealLogCard", "trainingCard", "vitalsCard"].forEach((id) => {
                     const card = document.getElementById(id);
                     if (card) _setCardCollapsed(card, !openIds.has(id), true);
                 });
@@ -39155,56 +38314,44 @@ ${parts.join("\n")}
                     const FLAG = "tp_migration_v2_37_0_purge";
                     if (localStorage.getItem(FLAG) === "done") return;
                     const orphans = [
-                        "tp_inventory", // Inventory Manager (removed)
-                        "tp_inventory_notify", // Inventory low-stock toggle
-                        "tp_healthConnect", // Health Connect bridge state
-                        "tp_cal_settings", // Calendar Export settings
-                        "tp_reminderGistId", // Calendar live-feed gist id
-                        "tp_reminderToken", // Calendar live-feed token
+                        "tp_inventory",          // Inventory Manager (removed)
+                        "tp_inventory_notify",   // Inventory low-stock toggle
+                        "tp_healthConnect",      // Health Connect bridge state
+                        "tp_cal_settings",       // Calendar Export settings
+                        "tp_reminderGistId",     // Calendar live-feed gist id
+                        "tp_reminderToken",      // Calendar live-feed token
                     ];
                     orphans.forEach((k) => {
-                        try {
-                            localStorage.removeItem(k);
-                        } catch {}
+                        try { localStorage.removeItem(k); } catch {}
                     });
                     localStorage.setItem(FLAG, "done");
-                } catch {
-                    /* purge is best-effort */
-                }
+                } catch { /* purge is best-effort */ }
             })();
             (function purgeOrphanedV2380Keys() {
                 try {
                     const FLAG = "tp_migration_v2_38_0_purge";
                     if (localStorage.getItem(FLAG) === "done") return;
                     const orphans = [
-                        "tp_plateau_snooze", // Plateau Insight Card snooze (folded into aiCoachCard)
+                        "tp_plateau_snooze",     // Plateau Insight Card snooze (folded into aiCoachCard)
                     ];
                     orphans.forEach((k) => {
-                        try {
-                            localStorage.removeItem(k);
-                        } catch {}
+                        try { localStorage.removeItem(k); } catch {}
                     });
                     localStorage.setItem(FLAG, "done");
-                } catch {
-                    /* purge is best-effort */
-                }
+                } catch { /* purge is best-effort */ }
             })();
             (function purgeOrphanedV2381Keys() {
                 try {
                     const FLAG = "tp_migration_v2_38_1_purge";
                     if (localStorage.getItem(FLAG) === "done") return;
                     const orphans = [
-                        "tp_injections", // Legacy flat array, replaced by tp_inj keyed log
+                        "tp_injections",         // Legacy flat array, replaced by tp_inj keyed log
                     ];
                     orphans.forEach((k) => {
-                        try {
-                            localStorage.removeItem(k);
-                        } catch {}
+                        try { localStorage.removeItem(k); } catch {}
                     });
                     localStorage.setItem(FLAG, "done");
-                } catch {
-                    /* purge is best-effort */
-                }
+                } catch { /* purge is best-effort */ }
             })();
             initMojibakeRepair();
             scheduleMojibakeRepair(80);
