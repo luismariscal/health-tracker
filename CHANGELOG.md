@@ -2,6 +2,12 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.38.9 - 2026-04-25
+
+- Calmed down the injection recent log palette. Stopped applying the partial/full color class to individual chips — a logged dose isn't itself partial, only the day's overall status is, so chips now use the neutral muted style by default.
+- Softened the partial date badge to muted/neutral. Only the green "All logged" badge stays colored, which keeps the at-a-glance schedule-hit signal without flooding the section with orange.
+- Synced the in-app version badge and service worker version to v2.38.9.
+
 ## v2.38.8 - 2026-04-25
 
 - Re-applied the AMOLED stealth theme as a clean inline CSS block in the head `<style>` (no PowerShell script). True-black backgrounds for OLED contrast plus subtle cyan neon glows on primary buttons, FAB, and the critical-flow card.

@@ -2435,9 +2435,9 @@
                 border: 1px solid rgba(34, 197, 94, 0.3);
             }
             .inj-hist-date-badge.partial {
-                background: rgba(234, 179, 8, 0.12);
-                color: var(--yellow);
-                border: 1px solid rgba(234, 179, 8, 0.3);
+                background: var(--surface2);
+                color: var(--muted);
+                border: 1px solid var(--border);
             }
             .inj-hist-chips {
                 display: flex;
@@ -9853,8 +9853,19 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.38.8";
+            const VERSION = "2.38.9";
             const VERSION_CHANGES = [
+                {
+                    version: "2.38.9",
+                    date: "2026-04-25",
+                    summary:
+                        "Calm down injection recent log: neutral chips, only \"All logged\" stays green",
+                    details: [
+                        "Stopped applying the partial/full color class to individual chips in the injection recent log. A logged dose isn't itself partial — only the day's overall status is — so chips now use the neutral muted style by default.",
+                        "Softened the partial date badge to muted/neutral too. Only the green \"All logged\" badge stays colored, which keeps the at-a-glance \"did I hit my schedule\" signal without flooding the section with orange.",
+                        "Synced the in-app version badge and service worker version to v2.38.9.",
+                    ],
+                },
                 {
                     version: "2.38.8",
                     date: "2026-04-25",
@@ -19866,7 +19877,7 @@
                         );
                         const chipLabel = [compound?.name || "", timeLabel, siteLabel]
                             .filter(Boolean).join(" · ");
-                        return `<button class="inj-hist-chip ${cls}" onclick="openInjectionLogModal(${escapeHtml(JSON.stringify(d))},${escapeHtml(JSON.stringify(compound.key))},${escapeHtml(JSON.stringify(doseEntry.slotId || "dose-1"))})" title="Edit ${escapeHtml(compound.name)} on ${escapeHtml(d)}">${escapeHtml(chipLabel)}</button>`;
+                        return `<button class="inj-hist-chip" onclick="openInjectionLogModal(${escapeHtml(JSON.stringify(d))},${escapeHtml(JSON.stringify(compound.key))},${escapeHtml(JSON.stringify(doseEntry.slotId || "dose-1"))})" title="Edit ${escapeHtml(compound.name)} on ${escapeHtml(d)}">${escapeHtml(chipLabel)}</button>`;
                     }).join("");
                     groups.push(
                         `<div class="inj-hist-group">
