@@ -9697,8 +9697,21 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.38.0";
+            const VERSION = "2.38.1";
             const VERSION_CHANGES = [
+                {
+                    version: "2.38.1",
+                    date: "2026-04-25",
+                    summary:
+                        "Migrate legacy tp_injections reads to the primary tp_inj log; deepen adherence breakdown",
+                    details: [
+                        "Migrated five legacy tp_injections read sites (compareWeeks injection counting, daily review injections-today check, diagnostics counter, symptom/compound correlation analysis) to read the primary tp_inj keyed log via a new flattenInjLogToList() helper. These features were silently broken because tp_injections was read but never written.",
+                        "Removed an unused tp_injections read in showBriefing() that loaded the legacy array but never referenced the result.",
+                        "Added a one-shot v2.38.1 migration that purges the now-orphaned tp_injections localStorage key.",
+                        "Deepened the adherence coach item: below-target compounds now show their percentage and last-missed date, sorted by worst first, with overflow rolled up.",
+                        "Synced the in-app version badge and service worker version to v2.38.1.",
+                    ],
+                },
                 {
                     version: "2.38.0",
                     date: "2026-04-25",
@@ -14020,18 +14033,41 @@
                         const adherence = computeStackAdherence(7);
                         if (adherence.overall.expected > 0) {
                             const pct = adherence.overall.pct;
-                            const lowItems = adherence.items.filter(
-                                (it) => it.pct < 100,
-                            );
+                            const lowItems = adherence.items
+                                .filter((it) => it.pct < 100)
+                                .sort((a, b) => a.pct - b.pct);
+                            const fmtMissDate = (key) => {
+                                if (!key) return "";
+                                const parts = String(key).split("-");
+                                if (parts.length < 3) return key;
+                                const m = [
+                                    "Jan","Feb","Mar","Apr","May","Jun",
+                                    "Jul","Aug","Sep","Oct","Nov","Dec",
+                                ][parseInt(parts[1], 10) - 1] || "";
+                                return `${m} ${parseInt(parts[2], 10)}`;
+                            };
                             let body = `${adherence.overall.logged}/${adherence.overall.expected} scheduled doses logged in the last 7 days (${pct}%).`;
                             if (lowItems.length) {
                                 const lowSummary = lowItems
-                                    .map(
-                                        (it) =>
-                                            `${it.name} ${it.logged}/${it.expected}`,
-                                    )
-                                    .join(", ");
-                                body += ` Below target: ${lowSummary}.`;
+                                    .slice(0, 4)
+                                    .map((it) => {
+                                        const lastMiss = (it.missing || [])
+                                            .slice()
+                                            .sort((a, b) =>
+                                                String(b.date).localeCompare(
+                                                    String(a.date),
+                                                ),
+                                            )[0];
+                                        const tail = lastMiss
+                                            ? ` · last missed ${fmtMissDate(lastMiss.date)}`
+                                            : "";
+                                        return `${it.name} ${it.logged}/${it.expected} (${it.pct}%${tail})`;
+                                    })
+                                    .join("; ");
+                                const more = lowItems.length > 4
+                                    ? ` (+${lowItems.length - 4} more)`
+                                    : "";
+                                body += ` Below target: ${lowSummary}${more}.`;
                             } else {
                                 body += " Every scheduled dose logged on time.";
                             }
@@ -18439,6 +18475,29 @@
                 } catch {
                     return {};
                 }
+            }
+            // Flatten the keyed tp_inj log into a flat [{date, compound}] list,
+            // one entry per logged dose. Used by older surfaces (compareWeeks,
+            // daily review, correlations) that were originally written against
+            // the legacy tp_injections array.
+            function flattenInjLogToList() {
+                const log = loadInjLog();
+                const out = [];
+                Object.keys(log || {}).forEach((dateKey) => {
+                    const dayLog = log[dateKey];
+                    if (!dayLog || typeof dayLog !== "object") return;
+                    Object.keys(dayLog).forEach((compoundKey) => {
+                        const doses = (typeof _injDoseEntries === "function"
+                            ? _injDoseEntries(dayLog[compoundKey])
+                            : []) || [];
+                        doses.forEach((dose) => {
+                            if (dose && dose.done !== false) {
+                                out.push({ date: dateKey, compound: compoundKey });
+                            }
+                        });
+                    });
+                });
+                return out;
             }
             function saveInjLog(obj) {
                 localStorage.setItem("tp_inj", JSON.stringify(obj));
@@ -34158,13 +34217,8 @@ ${parts.join("\n")}
                     return out;
                 }
 
-                // Injection count in window
-                let injections = [];
-                try {
-                    injections = JSON.parse(
-                        localStorage.getItem("tp_injections") || "[]",
-                    );
-                } catch {}
+                // Injection count in window (sourced from tp_inj primary log)
+                const injections = flattenInjLogToList();
                 function countInj(start, end) {
                     return injections.filter(
                         (i) => i && i.date && inRange(i.date, start, end),
@@ -34822,13 +34876,8 @@ ${parts.join("\n")}
                     /* fall back */
                 }
 
-                // Injections today
-                let injections = [];
-                try {
-                    injections = JSON.parse(
-                        localStorage.getItem("tp_injections") || "[]",
-                    );
-                } catch {}
+                // Injections today (sourced from tp_inj primary log)
+                const injections = flattenInjLogToList();
                 const injToday = injections.filter(
                     (i) => i && i.date === dateStr,
                 );
@@ -35168,7 +35217,11 @@ ${parts.join("\n")}
                     }
                 }
                 report.counts.entries = safeLen("tp_entries");
-                report.counts.injections = safeLen("tp_injections");
+                try {
+                    report.counts.injections = flattenInjLogToList().length;
+                } catch {
+                    report.counts.injections = 0;
+                }
                 report.counts.symptoms = safeLen("tp_symptoms");
                 report.counts.labs = safeLen("tp_labs");
                 report.counts.measurements = safeLen("tp_measurements");
@@ -37215,15 +37268,7 @@ ${parts.join("\n")}
                         return [];
                     }
                 })();
-                const inj = (() => {
-                    try {
-                        return JSON.parse(
-                            localStorage.getItem("tp_injections") || "[]",
-                        );
-                    } catch {
-                        return [];
-                    }
-                })();
+                const inj = flattenInjLogToList();
                 const body = document.getElementById("correlationBody");
                 if (!symptoms.length) {
                     body.innerHTML =
@@ -37891,15 +37936,6 @@ ${parts.join("\n")}
                 const avg = avgWeeklyLoss(entries);
                 const plateau = isPlateaued(entries);
                 const p = computeTodaysPlan(entries, cw, avg, plateau);
-                const inj = (() => {
-                    try {
-                        return JSON.parse(
-                            localStorage.getItem("tp_injections") || "[]",
-                        );
-                    } catch {
-                        return [];
-                    }
-                })();
                 const dow = new Date().getDay();
                 const isRetaDay = dow === 4 || dow === 0; // Thu or Sun
                 const items =
@@ -38196,6 +38232,19 @@ ${parts.join("\n")}
                     if (localStorage.getItem(FLAG) === "done") return;
                     const orphans = [
                         "tp_plateau_snooze",     // Plateau Insight Card snooze (folded into aiCoachCard)
+                    ];
+                    orphans.forEach((k) => {
+                        try { localStorage.removeItem(k); } catch {}
+                    });
+                    localStorage.setItem(FLAG, "done");
+                } catch { /* purge is best-effort */ }
+            })();
+            (function purgeOrphanedV2381Keys() {
+                try {
+                    const FLAG = "tp_migration_v2_38_1_purge";
+                    if (localStorage.getItem(FLAG) === "done") return;
+                    const orphans = [
+                        "tp_injections",         // Legacy flat array, replaced by tp_inj keyed log
                     ];
                     orphans.forEach((k) => {
                         try { localStorage.removeItem(k); } catch {}

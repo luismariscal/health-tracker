@@ -2,6 +2,14 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.38.1 - 2026-04-25
+
+- Migrated five legacy `tp_injections` read sites (compareWeeks injection counting, daily review injections-today check, diagnostics counter, symptom/compound correlation analysis) to read the primary `tp_inj` keyed log via a new `flattenInjLogToList()` helper. These features were silently broken because `tp_injections` was read but never written.
+- Removed an unused `tp_injections` read in `showBriefing()` that loaded the legacy array but never referenced the result.
+- Added a one-shot v2.38.1 migration that purges the now-orphaned `tp_injections` localStorage key.
+- Deepened the adherence coach item: below-target compounds now show their percentage and last-missed date, sorted by worst first, with overflow rolled up.
+- Synced the in-app version badge and service worker version to v2.38.1.
+
 ## v2.38.0 - 2026-04-25
 
 - Added Stack Adherence Analytics in the AI coach feed: tracks expected-vs-logged injections per compound across the last 14 days using each entry's structured `scheduleDays`/`scheduleTimes` with a ±2hr tolerance, surfacing drift (<95%), warning (<80%), and protocol-gap (<50%) tiers.
