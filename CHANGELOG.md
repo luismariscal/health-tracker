@@ -2,6 +2,13 @@
 
 All notable changes to this project should be recorded here.
 
+
+## v2.38.3 - 2026-04-25
+
+- Injected true-black AMOLED stealth theme into the UI.
+- Replaced dark blue/gray backgrounds with #000000 for infinite contrast on OLED displays.
+- Added subtle cyan neon glows to primary actions and floating action buttons.
+
 ## v2.38.2 - 2026-04-25
 
 - Restored the WATER INTAKE CSS block that was accidentally removed during the v2.37.0 trim. `water-progress`, `water-stat`, `water-quick`, `water-timeline`, `water-entry`, and the 7-day `water-trend` strip rules are back, so the hydration card stops rendering recent log entries and the Last 7 Days breakdown as bare unstyled text.
