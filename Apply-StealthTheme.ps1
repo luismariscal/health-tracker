@@ -19,7 +19,7 @@ Copy-Item -Path $htmlFile -Destination $backupFile -Force
 Write-Host "[+] Created backup: $backupFile" -ForegroundColor Green
 
 # 3. Read the HTML content
-$content = Get-Content -Path $htmlFile -Raw
+$content = Get-Content -Path $htmlFile -Raw -Encoding UTF8
 
 # 4. Prevent double-injection
 if ($content -match "/\* --- INJECTED AMOLED THEME --- \*/") {

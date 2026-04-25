@@ -2,6 +2,13 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.38.6 - 2026-04-25
+
+- Completed the v2.38.3 AMOLED-encoding mojibake repair. v2.38.5 only patched the 9 most common patterns; a deeper scan exposed 615 additional corrupted sequences, including all 4-byte emoji corruptions (🫀 heart, ⚡ bolt, ⚠ warning, ⚖ scale, ⭐ star, ✓ check, ✕ cross, ▶ play, ▼ down) and 2-byte symbols (← → ↓ arrows, ≤ ≥ inequalities). Used a generalized CP1252-to-byte reverse-mapping repair instead of per-pattern strings.
+- Verified DOM ID coverage: all 397 IDs from the pre-AMOLED snapshot are still present — no UI elements were lost.
+- Hardened `Apply-StealthTheme.ps1` to read with explicit `-Encoding UTF8`. The original script defaulted to Windows CP1252, which is what corrupted every multi-byte UTF-8 sequence in the first place.
+- Synced the in-app version badge and service worker version to v2.38.6.
+
 ## v2.38.5 - 2026-04-25
 
 - Repaired 888 mojibake sequences introduced when the v2.38.3 PowerShell theme script read `index.html` with the wrong encoding (CP1252 instead of UTF-8) and wrote it back. Fixed em-dashes, en-dashes, ellipsis, right single quotes, bullets, middle dots, plus-minus signs, degree signs, and multiplication/division signs throughout the file.
