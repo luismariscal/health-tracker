@@ -2,6 +2,11 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.38.5 - 2026-04-25
+
+- Repaired 888 mojibake sequences introduced when the v2.38.3 PowerShell theme script read `index.html` with the wrong encoding (CP1252 instead of UTF-8) and wrote it back. Fixed em-dashes, en-dashes, ellipsis, right single quotes, bullets, middle dots, plus-minus signs, degree signs, and multiplication/division signs throughout the file.
+- Synced the in-app version badge and service worker version to v2.38.5.
+
 ## v2.38.4 - 2026-04-25
 
 - Redesigned the injection recent log: history chips are now grouped by date with a Today/Yesterday/date header row and an "All logged" or dose-count badge per day. Chips show compound · time · site without a date prefix, replacing the flat unlabeled chip soup.
