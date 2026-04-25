@@ -2,6 +2,15 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.37.0 - 2026-04-24
+
+- Removed Health Connect integration end-to-end; Fitbit remains the supported wearable bridge.
+- Removed the AI Quick Capture and Voice Capture surfaces in favor of the single primary AI coach panel.
+- Removed the Peak Week AI card; planning lives in the main coach surface now.
+- Removed the Inventory Manager (card, modal, low-stock notifications, reorder thresholds, and per-injection decrement hooks).
+- Removed Calendar Export (ICS download, live Gist feed, calendar reminders modal).
+- Synced the in-app version badge and service worker version to v2.37.0.
+
 ## v2.36.10 - 2026-04-24
 
 - Refreshed the protocol compounds in Current Stack from the new dosing sheet: MOTS-c, KLOW80, Semax, HCG, weekly Retatrutide, Tesamorelin, AHK-Cu, and Selank.
