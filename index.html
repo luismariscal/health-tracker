@@ -5581,9 +5581,6 @@
             <!-- MORNING WEIGH-IN NUDGE (v2.11.0) -->
             <div id="morningNudge" style="display: none"></div>
 
-            <!-- PLATEAU INSIGHT CARD (v2.12.0) -->
-            <div id="plateauInsight" style="display: none"></div>
-
             <!-- DATA QUALITY SCORE (v2.18.0) -->
             <div id="dataQualityScore" style="display: none"></div>
 
@@ -9700,8 +9697,22 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.37.1";
+            const VERSION = "2.38.0";
             const VERSION_CHANGES = [
+                {
+                    version: "2.38.0",
+                    date: "2026-04-25",
+                    summary:
+                        "Stack adherence analytics, plateau diagnosis folded into the unified coach feed",
+                    details: [
+                        "Added Stack Adherence Analytics: the AI coach now tracks expected-vs-logged injections per compound across the last 14 days using each entry's structured scheduleDays/scheduleTimes (±2hr tolerance), with severity tiers for drift (<95%), warning (<80%), and protocol gap (<50%).",
+                        "Folded the standalone Plateau Insight Card into the primary aiCoachCard feed: the plateau item now inlines the buildPlateauDiagnosis culprits inline rather than rendering a separate card surface.",
+                        "Fixed a latent bug in _plateauInjectionAdherence that hardcoded a Thu/Sun-only cadence and used a broken date:compound key shape that never matched real injection logs; it now delegates to computeStackAdherence(14) and respects each compound's own schedule.",
+                        "Audited the Drive backup flow and confirmed the dynamic-inclusive backup pattern fully covers v2.36+ structured stack fields (scheduleDays, scheduleTimes, route, category) without any schema fix needed.",
+                        "Added a one-shot v2.38.0 migration that purges the now-orphaned tp_plateau_snooze localStorage key so it stops showing up in Diagnostics.",
+                        "Synced the in-app version badge and service worker version to v2.38.0.",
+                    ],
+                },
                 {
                     version: "2.37.1",
                     date: "2026-04-25",
@@ -12691,8 +12702,6 @@
                 renderCriticalWorkflow(state);
                 if (typeof renderMorningNudge === "function")
                     renderMorningNudge();
-                if (typeof renderPlateauInsight === "function")
-                    renderPlateauInsight(plateau);
                 if (typeof renderDataQualityScore === "function")
                     renderDataQualityScore(entries);
                 if (typeof renderGuardrailCenter === "function")
@@ -13972,13 +13981,87 @@
                         plateau === "confirmed"
                             ? "Confirmed Plateau (10–14 day)"
                             : "Potential Plateau";
+                    // v2.38.0: fold the standalone Plateau Insight diagnosis
+                    // into the coach feed so plateau guidance lives in one
+                    // place. buildPlateauDiagnosis returns ranked culprits
+                    // (water, protein, injection, adaptive thermogenesis).
+                    let body = "Weight stalled.";
+                    try {
+                        if (typeof buildPlateauDiagnosis === "function") {
+                            const culprits = buildPlateauDiagnosis(plateau);
+                            if (culprits && culprits.length) {
+                                const summary = culprits
+                                    .map(
+                                        (c) =>
+                                            `${c.emoji} ${c.title}`,
+                                    )
+                                    .join("; ");
+                                body = `Weight stalled. Likely culprits: ${summary}.`;
+                            }
+                        }
+                    } catch {}
+                    body +=
+                        " Action: tighten calories ~200 kcal, add a refeed day, or bump steps. Dose change is LAST resort.";
                     items.push({
                         priority: 4,
                         type: "warn",
                         heading: label,
-                        body: "Weight stalled. Action: tighten calories ~200 kcal, add a refeed day, or bump steps. Dose change is LAST resort.",
+                        body,
                     });
                 }
+
+                // === INJECTION ADHERENCE (v2.38.0) ===
+                // Surface scheduled-vs-logged ratio per the structured
+                // scheduleDays/scheduleTimes. Skips when nothing's scheduled
+                // (e.g. as-needed only) so this only nags users who set up
+                // a recurring injection cadence in Current Stack.
+                try {
+                    if (typeof computeStackAdherence === "function") {
+                        const adherence = computeStackAdherence(7);
+                        if (adherence.overall.expected > 0) {
+                            const pct = adherence.overall.pct;
+                            const lowItems = adherence.items.filter(
+                                (it) => it.pct < 100,
+                            );
+                            let body = `${adherence.overall.logged}/${adherence.overall.expected} scheduled doses logged in the last 7 days (${pct}%).`;
+                            if (lowItems.length) {
+                                const lowSummary = lowItems
+                                    .map(
+                                        (it) =>
+                                            `${it.name} ${it.logged}/${it.expected}`,
+                                    )
+                                    .join(", ");
+                                body += ` Below target: ${lowSummary}.`;
+                            } else {
+                                body += " Every scheduled dose logged on time.";
+                            }
+                            let type, prio, heading;
+                            if (pct >= 95) {
+                                type = "good";
+                                prio = 0;
+                                heading = `Adherence ${pct}% — on protocol`;
+                            } else if (pct >= 80) {
+                                type = "info";
+                                prio = 5;
+                                heading = `Adherence ${pct}%`;
+                            } else if (pct >= 50) {
+                                type = "warn";
+                                prio = 4;
+                                heading = `Adherence ${pct}% — drift`;
+                            } else {
+                                type = "warn";
+                                prio = 1;
+                                heading = `Adherence ${pct}% — protocol gap`;
+                            }
+                            items.push({
+                                priority: prio,
+                                type,
+                                heading,
+                                body,
+                            });
+                        }
+                    }
+                } catch {}
                 if (avg && avg < 1.0 && !plateau) {
                     items.push({
                         priority: 1,
@@ -32162,21 +32245,6 @@ ${parts.join("\n")}
             // water adherence, protein, injection compliance, sleep, steps.
             // Dismissable for 3 days so it doesn't nag after the user acts.
             // =========================================================
-            const PLATEAU_INSIGHT_SNOOZE_DAYS = 3;
-
-            function _plateauLoadSnooze() {
-                try {
-                    return JSON.parse(
-                        localStorage.getItem("tp_plateau_snooze") || "{}",
-                    );
-                } catch {
-                    return {};
-                }
-            }
-            function _plateauSaveSnooze(obj) {
-                localStorage.setItem("tp_plateau_snooze", JSON.stringify(obj));
-            }
-
             function _plateauWindowDays() {
                 // Return the window of entries for analysis — last 14 days
                 return 14;
@@ -32239,31 +32307,156 @@ ${parts.join("\n")}
                 };
             }
 
-            // Injection compliance: of the last 2 injection days (Thu/Sun), how many logged?
-            function _plateauInjectionAdherence() {
-                const log = loadInjLog() || {};
+            // =========================================================
+            // STACK ADHERENCE (v2.38.0)
+            // Compute scheduled-vs-logged adherence for active injection
+            // stack items using their structured scheduleDays + scheduleTimes
+            // (introduced in v2.36.0). Replaces the older Thu/Sun hardcode.
+            // Returns { overall:{expected,logged,pct}, items:[{name,expected,
+            // logged,pct,missing}] } so renderers can summarize or break out.
+            // Supplement adherence is intentionally out of scope for v1
+            // because the supp log is per-day boolean per checklist block,
+            // which doesn't round-trip to scheduleTimes cleanly.
+            // =========================================================
+            const ADHERENCE_TIME_TOLERANCE_HOURS = 2;
+            function computeStackAdherence(days = 7) {
+                const stack =
+                    (typeof loadStack === "function" ? loadStack() : []) || [];
+                const injLog =
+                    (typeof loadInjLog === "function" ? loadInjLog() : {}) ||
+                    {};
                 const today = new Date();
-                let expected = 0,
-                    logged = 0;
-                // Walk back up to 21 days, count Thursdays and Sundays
-                for (let i = 0; i < 21 && expected < 4; i++) {
-                    const d = new Date(today);
-                    d.setDate(d.getDate() - i);
-                    if (d.getDay() === 4 || d.getDay() === 0) {
-                        expected++;
-                    const dateKey = _dateKeyLocal(d);
-                        // Check for any logged injection on this date
-                        const hasLog = Object.keys(log).some((k) => {
-                            if (!k.startsWith(dateKey + ":")) return false;
-                            return isInjLogged(log[k]);
+                today.setHours(0, 0, 0, 0);
+
+                const items = [];
+                let totalExpected = 0;
+                let totalLogged = 0;
+
+                stack.forEach((entry) => {
+                    if (!entry) return;
+                    const status = String(entry.status || "").toLowerCase();
+                    if (
+                        status === "paused" ||
+                        status === "held" ||
+                        status === "planned"
+                    )
+                        return;
+                    const route = String(entry.route || "").toLowerCase();
+                    const isInj =
+                        route === "injection" || !!entry.injectable;
+                    if (!isInj) return; // v1: injection-route compounds only
+
+                    const sDays = Array.isArray(entry.scheduleDays)
+                        ? entry.scheduleDays
+                        : [];
+                    const sTimes = Array.isArray(entry.scheduleTimes)
+                        ? entry.scheduleTimes
+                        : [];
+                    if (!sDays.length || !sTimes.length) return;
+
+                    const compoundKey =
+                        entry.compoundKey ||
+                        (typeof _stackNameKey === "function"
+                            ? _stackNameKey(entry.name)
+                            : String(entry.name || "")
+                                  .toLowerCase()
+                                  .replace(/[^a-z0-9]+/g, " ")
+                                  .trim());
+
+                    let expected = 0;
+                    let logged = 0;
+                    const missing = [];
+
+                    for (let i = 0; i < days; i++) {
+                        const d = new Date(today);
+                        d.setDate(d.getDate() - i);
+                        if (!sDays.includes(d.getDay())) continue;
+                        const dateKey = _dateKeyLocal(d);
+                        const dayLog = injLog[dateKey];
+                        const compoundEntry =
+                            dayLog && dayLog[compoundKey];
+                        const doses = compoundEntry
+                            ? _injDoseEntries(compoundEntry) || []
+                            : [];
+
+                        sTimes.forEach((scheduledTime) => {
+                            expected++;
+                            const hit = doses.some((dose) => {
+                                if (!dose || dose.done === false) return false;
+                                const logTime = _parseScheduleTime(dose.time);
+                                // Permissive: if either side has no time, accept
+                                // the same-day match instead of dropping the dose.
+                                if (!logTime || !scheduledTime) return true;
+                                const [lh, lm = "0"] = logTime.split(":");
+                                const [sh, sm = "0"] =
+                                    scheduledTime.split(":");
+                                const diffMin = Math.abs(
+                                    parseInt(lh, 10) * 60 +
+                                        parseInt(lm, 10) -
+                                        (parseInt(sh, 10) * 60 +
+                                            parseInt(sm, 10)),
+                                );
+                                return (
+                                    diffMin <=
+                                    ADHERENCE_TIME_TOLERANCE_HOURS * 60
+                                );
+                            });
+                            if (hit) {
+                                logged++;
+                            } else {
+                                missing.push({
+                                    name: entry.name,
+                                    date: dateKey,
+                                    time: scheduledTime,
+                                });
+                            }
                         });
-                        if (hasLog) logged++;
                     }
-                }
+
+                    if (expected === 0) return;
+                    items.push({
+                        name: entry.name,
+                        expected,
+                        logged,
+                        pct: Math.round((logged / expected) * 100),
+                        missing,
+                    });
+                    totalExpected += expected;
+                    totalLogged += logged;
+                });
+
                 return {
-                    expected,
-                    logged,
-                    pct: expected ? Math.round((logged / expected) * 100) : 100,
+                    overall: {
+                        expected: totalExpected,
+                        logged: totalLogged,
+                        pct: totalExpected
+                            ? Math.round(
+                                  (totalLogged / totalExpected) * 100,
+                              )
+                            : null,
+                    },
+                    items,
+                };
+            }
+
+            // Injection compliance window for plateau diagnosis.
+            // v2.38.0: delegates to computeStackAdherence so it uses the
+            // actual stack schedule instead of the stale Thu/Sun hardcode.
+            // The previous implementation also had a key-shape bug:
+            // Object.keys(log).some(k => k.startsWith(dateKey + ":")) never
+            // matched because the log keys are date strings, not date:compound.
+            function _plateauInjectionAdherence() {
+                const adherence = computeStackAdherence(14);
+                return {
+                    expected: adherence.overall.expected,
+                    logged: adherence.overall.logged,
+                    pct: adherence.overall.expected
+                        ? Math.round(
+                              (adherence.overall.logged /
+                                  adherence.overall.expected) *
+                                  100,
+                          )
+                        : 100,
                 };
             }
 
@@ -32299,7 +32492,7 @@ ${parts.join("\n")}
                         emoji: "💉",
                         title: `Injection adherence ${inj.logged}/${inj.expected} recent sessions`,
                         detail: "Missing or late injections creates dose-level valleys where appetite returns and water retention increases.",
-                        action: "Check your injection log — re-establish the Thu + Sun cadence.",
+                        action: "Check your injection log — re-establish the cadence set in Current Stack.",
                     });
                 }
 
@@ -32337,79 +32530,6 @@ ${parts.join("\n")}
                 }
 
                 return culprits;
-            }
-
-            function renderPlateauInsight(plateauState) {
-                const el = document.getElementById("plateauInsight");
-                if (!el) return;
-                if (
-                    plateauState !== "confirmed" &&
-                    plateauState !== "potential"
-                ) {
-                    el.style.display = "none";
-                    return;
-                }
-
-                // Check snooze
-                const snooze = _plateauLoadSnooze();
-                if (
-                    snooze.until &&
-                    new Date(snooze.until).getTime() > Date.now()
-                ) {
-                    el.style.display = "none";
-                    return;
-                }
-
-                const culprits = buildPlateauDiagnosis(plateauState);
-                const isConfirmed = plateauState === "confirmed";
-                const bgColor = isConfirmed
-                    ? "rgba(239,68,68,0.08)"
-                    : "rgba(234,179,8,0.08)";
-                const borderColor = isConfirmed
-                    ? "rgba(239,68,68,0.3)"
-                    : "rgba(234,179,8,0.3)";
-                const accentColor = isConfirmed ? "#ef4444" : "#eab308";
-                const headerIcon = isConfirmed ? "🚨" : "⚠️";
-                const headerText = isConfirmed
-                    ? "Confirmed plateau — diagnostic"
-                    : "Possible plateau forming — early signals";
-
-                el.innerHTML = `
-    <div style="background:${bgColor};border:1px solid ${borderColor};border-radius:12px;padding:16px;margin-bottom:14px;">
-      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px;">
-        <div style="font-size:26px;line-height:1;flex:none;">${headerIcon}</div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:15px;font-weight:800;color:${accentColor};">${headerText}</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;">Your weight hasn't moved meaningfully. Based on your logs, here's what's most likely driving it:</div>
-        </div>
-        <button onclick="snoozePlateauInsight()" title="Snooze 3 days" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;flex:none;padding:2px 6px;">✕</button>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        ${culprits
-            .map(
-                (c) => `
-          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid ${c.severity === "high" ? "#ef4444" : c.severity === "info" ? "#60a5fa" : "#eab308"};">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-              <span style="font-size:16px;">${c.emoji}</span>
-              <div style="font-size:13px;font-weight:700;color:var(--text);">${c.title}</div>
-            </div>
-            <div style="font-size:11px;color:var(--muted);line-height:1.55;margin-bottom:4px;">${c.detail}</div>
-            <div style="font-size:11px;color:var(--accent);font-weight:600;line-height:1.5;">→ ${c.action}</div>
-          </div>`,
-            )
-            .join("")}
-      </div>
-      <div style="font-size:10px;color:var(--muted);margin-top:10px;text-align:center;">Snooze hides this for 3 days · auto-returns if stall persists</div>
-    </div>`;
-                el.style.display = "block";
-            }
-
-            function snoozePlateauInsight() {
-                const until = new Date();
-                until.setDate(until.getDate() + PLATEAU_INSIGHT_SNOOZE_DAYS);
-                _plateauSaveSnooze({ until: until.toISOString() });
-                renderPlateauInsight("none"); // force hide
-                showToast("Snoozed for 3 days", 2000);
             }
 
             // =========================================================
@@ -38050,8 +38170,8 @@ ${parts.join("\n")}
             // INIT
             // =========================================================
             registerServiceWorker(); // register ./sw.js (https:// or localhost only)
-            // v2.37.1: one-shot purge of localStorage keys orphaned by the
-            // v2.37.0 surface removals. Runs once per browser, then no-ops.
+            // v2.37.1 / v2.38.0: one-shot purges of localStorage keys orphaned
+            // by surface removals. Each migration runs once per browser then no-ops.
             (function purgeOrphanedV2370Keys() {
                 try {
                     const FLAG = "tp_migration_v2_37_0_purge";
@@ -38063,6 +38183,19 @@ ${parts.join("\n")}
                         "tp_cal_settings",       // Calendar Export settings
                         "tp_reminderGistId",     // Calendar live-feed gist id
                         "tp_reminderToken",      // Calendar live-feed token
+                    ];
+                    orphans.forEach((k) => {
+                        try { localStorage.removeItem(k); } catch {}
+                    });
+                    localStorage.setItem(FLAG, "done");
+                } catch { /* purge is best-effort */ }
+            })();
+            (function purgeOrphanedV2380Keys() {
+                try {
+                    const FLAG = "tp_migration_v2_38_0_purge";
+                    if (localStorage.getItem(FLAG) === "done") return;
+                    const orphans = [
+                        "tp_plateau_snooze",     // Plateau Insight Card snooze (folded into aiCoachCard)
                     ];
                     orphans.forEach((k) => {
                         try { localStorage.removeItem(k); } catch {}

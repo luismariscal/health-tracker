@@ -2,6 +2,15 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.38.0 - 2026-04-25
+
+- Added Stack Adherence Analytics in the AI coach feed: tracks expected-vs-logged injections per compound across the last 14 days using each entry's structured `scheduleDays`/`scheduleTimes` with a ±2hr tolerance, surfacing drift (<95%), warning (<80%), and protocol-gap (<50%) tiers.
+- Folded the standalone Plateau Insight Card into the primary `aiCoachCard` feed; the plateau coach item now inlines the `buildPlateauDiagnosis` culprits rather than rendering a separate card surface.
+- Fixed a latent bug in `_plateauInjectionAdherence` that hardcoded a Thu/Sun-only cadence and used a broken `date:compound` key-shape check that never matched real injection logs. It now delegates to `computeStackAdherence(14)` and respects each compound's own schedule.
+- Audited the Drive backup flow and confirmed the dynamic-inclusive backup pattern fully covers v2.36+ structured stack fields (`scheduleDays`, `scheduleTimes`, `route`, `category`) without any schema fix needed.
+- Added a one-shot v2.38.0 migration that purges the now-orphaned `tp_plateau_snooze` localStorage key so it stops showing up in Diagnostics.
+- Synced the in-app version badge and service worker version to v2.38.0.
+
 ## v2.37.1 - 2026-04-25
 
 - Added a one-shot v2.37.0 migration that purges orphaned localStorage keys (`tp_inventory`, `tp_inventory_notify`, `tp_healthConnect`, `tp_cal_settings`, `tp_reminderGistId`, `tp_reminderToken`) on first boot so they stop showing up in Diagnostics.
