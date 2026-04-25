@@ -2,6 +2,12 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.38.2 - 2026-04-25
+
+- Restored the WATER INTAKE CSS block that was accidentally removed during the v2.37.0 trim. `water-progress`, `water-stat`, `water-quick`, `water-timeline`, `water-entry`, and the 7-day `water-trend` strip rules are back, so the hydration card stops rendering recent log entries and the Last 7 Days breakdown as bare unstyled text.
+- Fixed Injection Tracker dose rows wrapping one character per line. When each compound card was narrow (the desktop grid uses `minmax(170px, 1fr)`), the row's grid layout starved the time/dose label of horizontal space because the Log button held a 132px min-width. Switched `.inj-slot-row` to a flex column so the label and full-width button always stack, matching the existing mobile treatment.
+- Synced the in-app version badge and service worker version to v2.38.2.
+
 ## v2.38.1 - 2026-04-25
 
 - Migrated five legacy `tp_injections` read sites (compareWeeks injection counting, daily review injections-today check, diagnostics counter, symptom/compound correlation analysis) to read the primary `tp_inj` keyed log via a new `flattenInjLogToList()` helper. These features were silently broken because `tp_injections` was read but never written.

@@ -2370,10 +2370,10 @@
                 margin-top: 4px;
             }
             .inj-slot-row {
-                display: grid;
-                grid-template-columns: minmax(0, 1fr) auto;
+                display: flex;
+                flex-direction: column;
                 gap: 8px;
-                align-items: center;
+                align-items: stretch;
                 padding: 10px;
                 border-radius: 8px;
                 background: rgba(15, 23, 42, 0.38);
@@ -2397,7 +2397,8 @@
             }
             .inj-slot-row .inj-btn {
                 margin-top: 0;
-                min-width: 132px;
+                width: 100%;
+                min-width: 0;
                 padding: 8px 12px;
             }
             .inj-history-row {
@@ -4419,6 +4420,83 @@
                     max-height: calc(100vh - 80px);
                     overflow-y: auto;
                 }
+            }
+
+            /* WATER INTAKE — restored in v2.38.2 after the v2.37.0 trim
+               accidentally removed these rules along with adjacent peak-week
+               styles, leaving the water card unstyled. */
+            .water-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+            .water-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+            .water-progress-outer {
+                width: 100%; height: 16px; border-radius: 20px;
+                background: var(--surface2); border: 1px solid var(--border);
+                overflow: hidden; position: relative;
+            }
+            .water-progress-fill {
+                height: 100%; border-radius: 20px;
+                background: linear-gradient(90deg, #38bdf8, #0ea5e9 50%, #0284c7);
+                box-shadow: 0 0 8px rgba(56,189,248,0.45) inset;
+                transition: width 0.3s ease;
+            }
+            .water-progress-txt {
+                position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+                font-size: 11px; font-weight: 800; color: #e6f6ff; text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+                letter-spacing: 0.3px;
+            }
+            .water-stat-row {
+                display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;
+                font-size: 11px; color: var(--muted);
+            }
+            .water-stat-pill {
+                background: var(--surface2); border: 1px solid var(--border);
+                border-radius: 8px; padding: 5px 10px;
+            }
+            .water-stat-pill b { color: var(--text); font-weight: 800; }
+            .water-quick-row {
+                display: grid; grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));
+                gap: 8px; margin-top: 14px;
+            }
+            .water-quick-btn {
+                background: var(--surface2); border: 1px solid rgba(56,189,248,0.35);
+                border-radius: 10px; padding: 10px 6px; cursor: pointer; color: var(--text);
+                font-size: 12px; font-weight: 700; transition: all 0.15s; text-align: center;
+                min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+            }
+            .water-quick-btn:hover { border-color: #38bdf8; background: rgba(56,189,248,0.08); }
+            .water-quick-btn:active { transform: scale(0.96); }
+            .water-quick-btn .wq-emoji { font-size: 16px; line-height: 1; }
+            .water-quick-btn .wq-label { font-size: 11px; color: var(--muted); font-weight: 600; }
+            .water-timeline {
+                display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px;
+                padding: 6px 0; border-top: 1px dashed var(--border);
+            }
+            .water-entry {
+                display: inline-flex; align-items: center; gap: 4px;
+                background: var(--surface2); border: 1px solid var(--border);
+                border-radius: 6px; padding: 3px 8px; font-size: 11px;
+            }
+            .water-entry .we-del {
+                color: var(--muted); cursor: pointer; padding: 0 3px;
+                font-size: 12px; opacity: 0.6;
+            }
+            .water-entry .we-del:hover { color: var(--red); opacity: 1; }
+            .water-timeline-empty { font-size: 11px; color: var(--muted); padding: 6px 0; font-style: italic; }
+            .water-trend-wrap { padding-top: 10px; border-top: 1px solid var(--border); }
+            .water-trend-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 8px; display:flex; justify-content:space-between; align-items:center; }
+            .water-trend-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+            .water-trend-day { display:flex; flex-direction:column; align-items:center; gap:4px; background: var(--surface2); border:1px solid var(--border); border-radius:8px; padding:6px 2px; min-width:0; }
+            .water-trend-day.today { border-color: rgba(14,165,233,0.6); background: rgba(14,165,233,0.08); }
+            .water-trend-day .wt-label { font-size: 10px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+            .water-trend-day .wt-bar-outer { width: 100%; height: 38px; background: rgba(100,116,139,0.15); border-radius: 4px; position: relative; overflow: hidden; display:flex; align-items:flex-end; }
+            .water-trend-day .wt-bar-fill { width: 100%; background: linear-gradient(to top, #0ea5e9, #38bdf8); border-radius: 4px 4px 0 0; min-height: 2px; transition: height 0.25s; }
+            .water-trend-day .wt-bar-fill.hit { background: linear-gradient(to top, #22c55e, #4ade80); }
+            .water-trend-day .wt-val { font-size: 10px; font-weight: 700; color: var(--text); }
+            .water-trend-day .wt-val.muted { color: var(--muted); font-weight: 600; }
+            @media (max-width: 560px) {
+                .water-quick-row { grid-template-columns: repeat(3, 1fr); }
+                .water-trend-day { padding: 4px 1px; }
+                .water-trend-day .wt-label { font-size: 9px; }
+                .water-trend-day .wt-val { font-size: 9px; }
             }
         </style>
     </head>
@@ -9697,8 +9775,19 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.38.1";
+            const VERSION = "2.38.2";
             const VERSION_CHANGES = [
+                {
+                    version: "2.38.2",
+                    date: "2026-04-25",
+                    summary:
+                        "Restore water card CSS and fix injection dose-row letter-by-letter wrap",
+                    details: [
+                        "Restored the WATER INTAKE CSS block that was accidentally removed during the v2.37.0 trim — water-progress, water-stat, water-quick, water-timeline, water-entry, and the 7-day water-trend strip rules are back, so the hydration card stops rendering recent log entries and the Last 7 Days breakdown as bare unstyled text.",
+                        "Fixed Injection Tracker dose rows wrapping one character per line: when each compound card was narrow, the grid layout starved the time/dose label of horizontal space because the Log button held a 132px min-width. Switched the row to a flex column so the label and full-width button always stack, matching the existing mobile treatment.",
+                        "Synced the in-app version badge and service worker version to v2.38.2.",
+                    ],
+                },
                 {
                     version: "2.38.1",
                     date: "2026-04-25",
