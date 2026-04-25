@@ -2408,7 +2408,45 @@
             }
             .inj-history-row {
                 display: flex;
-                gap: 6px;
+                flex-direction: column;
+                gap: 10px;
+            }
+            .inj-hist-group {
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+            }
+            .inj-hist-date-label {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 11px;
+                font-weight: 700;
+                color: var(--muted);
+                text-transform: uppercase;
+                letter-spacing: 0.6px;
+            }
+            .inj-hist-date-badge {
+                font-size: 10px;
+                font-weight: 700;
+                padding: 1px 8px;
+                border-radius: 10px;
+                text-transform: none;
+                letter-spacing: 0;
+            }
+            .inj-hist-date-badge.full {
+                background: rgba(34, 197, 94, 0.15);
+                color: var(--green);
+                border: 1px solid rgba(34, 197, 94, 0.3);
+            }
+            .inj-hist-date-badge.partial {
+                background: rgba(234, 179, 8, 0.12);
+                color: var(--yellow);
+                border: 1px solid rgba(234, 179, 8, 0.3);
+            }
+            .inj-hist-chips {
+                display: flex;
+                gap: 5px;
                 flex-wrap: wrap;
             }
             .inj-hist-chip {
@@ -10050,8 +10088,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.38.3";
+            const VERSION = "2.38.4";
             const VERSION_CHANGES = [
+                {
+                    version: "2.38.4",
+                    date: "2026-04-25",
+                    summary:
+                        "Injection history grouped by date; CSS audit clean",
+                    details: [
+                        "Redesigned the injection recent log: history chips are now grouped by date with a Today/Yesterday/Apr 25 header row and an 'All logged' or dose-count badge per day. Chips show compound · time · site without the date prefix, eliminating the flat unlabeled chip soup.",
+                        "CSS audit confirmed the water-* block (restored in v2.38.2) was the only structural CSS casualty from v2.37.0. Remaining orphan class hits are inline-styled selector handles (lx-*, power-tools-grid, spinner) or inherit from global input rules (stack-time-input) — no additional rules needed.",
+                    ],
+                },
                 {
                     version: "2.38.3",
                     date: "2026-04-25",
@@ -20242,17 +20290,26 @@
                     renderSiteRotation();
                     return;
                 }
-                const chips = [];
+                const todayStr = _dateKeyLocal(new Date());
+                const yesterdayStr = (() => {
+                    const y = new Date(); y.setDate(y.getDate() - 1);
+                    return _dateKeyLocal(y);
+                })();
+                const groups = [];
                 allDates.forEach((d) => {
                     const entry = log[d] || {};
                     const histDate = new Date(d + "T12:00:00");
                     const catalog = [...compoundCatalog];
                     Object.keys(entry || {}).forEach((compoundKey) => {
+<<<<<<< HEAD
                         if (
                             !catalog.some(
                                 (compound) => compound.key === compoundKey,
                             )
                         ) {
+=======
+                        if (!catalog.some((c) => c.key === compoundKey)) {
+>>>>>>> eac0398 (v2.38.3 injection history grouped by date + CSS audit)
                             catalog.push({
                                 key: compoundKey,
                                 name: compoundKey,
@@ -20275,35 +20332,41 @@
                             },
                         );
                     });
-                    const count = loggedDoseRows.length;
+                    if (!loggedDoseRows.length) return;
                     const dueCount = compounds.reduce(
                         (sum, compound) =>
                             sum + _injScheduledDoseCount(compound, histDate),
                         0,
                     );
                     const cls =
-                        dueCount > 0 && count >= dueCount
+                        dueCount > 0 && loggedDoseRows.length >= dueCount
                             ? "full"
-                            : count > 0
-                              ? "partial"
-                              : "";
-                    const label = histDate.toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                    });
-                    loggedDoseRows.forEach(({ compound, doseEntry }) => {
-                        const chipLabel = _injectionTrackerHistoryLabel(
-                            label,
-                            compound,
-                            doseEntry,
+                            : "partial";
+                    const dateHeading =
+                        d === todayStr ? "Today" :
+                        d === yesterdayStr ? "Yesterday" :
+                        histDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                    const badge = cls === "full" ? "All logged" : `${loggedDoseRows.length} dose${loggedDoseRows.length !== 1 ? "s" : ""}`;
+                    const chipHtml = loggedDoseRows.map(({ compound, doseEntry }) => {
+                        const timeLabel = _cleanInjectionTrackerText(
+                            doseEntry?.time ? _formatScheduleTimeLabel(doseEntry.time) : doseEntry?.label || "",
                         );
-                        chips.push(
-                            `<button class="inj-hist-chip ${cls}" onclick="openInjectionLogModal(${escapeHtml(JSON.stringify(d))},${escapeHtml(JSON.stringify(compound.key))},${escapeHtml(JSON.stringify(doseEntry.slotId || "dose-1"))})" title="Edit ${escapeHtml(compound.name)} on ${escapeHtml(d)}">${escapeHtml(chipLabel)}</button>`,
+                        const siteLabel = _cleanInjectionTrackerText(
+                            _injectionTrackerSiteLabel(doseEntry?.site),
                         );
-                    });
+                        const chipLabel = [compound?.name || "", timeLabel, siteLabel]
+                            .filter(Boolean).join(" · ");
+                        return `<button class="inj-hist-chip ${cls}" onclick="openInjectionLogModal(${escapeHtml(JSON.stringify(d))},${escapeHtml(JSON.stringify(compound.key))},${escapeHtml(JSON.stringify(doseEntry.slotId || "dose-1"))})" title="Edit ${escapeHtml(compound.name)} on ${escapeHtml(d)}">${escapeHtml(chipLabel)}</button>`;
+                    }).join("");
+                    groups.push(
+                        `<div class="inj-hist-group">
+  <div class="inj-hist-date-label">${escapeHtml(dateHeading)}<span class="inj-hist-date-badge ${cls}">${escapeHtml(badge)}</span></div>
+  <div class="inj-hist-chips">${chipHtml}</div>
+</div>`,
+                    );
                 });
-                histRow.innerHTML = chips.length
-                    ? chips.join("")
+                histRow.innerHTML = groups.length
+                    ? groups.join("")
                     : `<span style="font-size:12px;color:var(--muted)">No injections logged yet.</span>`;
                 renderInjectionSiteGuideTargets();
                 renderSiteRotation();

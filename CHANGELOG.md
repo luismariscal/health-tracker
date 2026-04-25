@@ -2,6 +2,11 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.38.4 - 2026-04-25
+
+- Redesigned the injection recent log: history chips are now grouped by date with a Today/Yesterday/date header row and an "All logged" or dose-count badge per day. Chips show compound · time · site without a date prefix, replacing the flat unlabeled chip soup.
+- CSS audit confirmed the `water-*` block (restored in v2.38.2) was the only structural CSS casualty from v2.37.0. Remaining orphan class hits are inline-styled selector handles (`lx-*`, `power-tools-grid`, `spinner`) or inherit from global input rules (`stack-time-input`) — no additional rules needed.
+- Synced the in-app version badge and service worker version to v2.38.4.
 
 ## v2.38.3 - 2026-04-25
 
