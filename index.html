@@ -747,15 +747,38 @@
             }
 
             /* CHARTS */
-            .charts-grid {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 20px;
+            .charts-card-head {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                flex-wrap: wrap;
+                margin-bottom: 10px;
             }
-            @media (max-width: 900px) {
-                .charts-grid {
-                    grid-template-columns: 1fr;
-                }
+            .charts-toggle {
+                display: inline-flex;
+                gap: 4px;
+                padding: 3px;
+                background: var(--surface2);
+                border: 1px solid var(--border);
+                border-radius: 8px;
+            }
+            .charts-toggle-btn {
+                font-size: 11px;
+                font-weight: 700;
+                padding: 5px 12px;
+                border-radius: 5px;
+                border: none;
+                background: transparent;
+                color: var(--muted);
+                cursor: pointer;
+            }
+            .charts-toggle-btn.active {
+                background: var(--accent);
+                color: #001018;
+            }
+            .charts-toggle-btn:not(.active):hover {
+                color: var(--text);
             }
             .chart-wrap {
                 position: relative;
@@ -3631,11 +3654,53 @@
                 box-shadow: 0 0 0 2px var(--accent);
             }
 
-            /* WHAT-IF SLIDER */
+            /* WHAT-IF SLIDER (folded into projectionCard in v2.39.0) */
+            .whatif-block {
+                margin-top: 14px;
+                padding-top: 12px;
+                border-top: 1px solid var(--border);
+            }
+            .whatif-block-head {
+                display: flex;
+                align-items: baseline;
+                gap: 10px;
+                flex-wrap: wrap;
+                margin-bottom: 4px;
+            }
+            .whatif-block-title {
+                font-size: 11px;
+                font-weight: 800;
+                text-transform: uppercase;
+                letter-spacing: 0.6px;
+                color: var(--muted);
+            }
+            .whatif-block-sub {
+                font-size: 11px;
+                color: var(--muted);
+            }
+            .whatif-slider-row {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                margin-top: 4px;
+            }
+            .whatif-slider-bound {
+                font-size: 11px;
+                color: var(--muted);
+            }
+            .whatif-current {
+                text-align: center;
+                margin: 6px 0 8px;
+            }
+            .whatif-current-unit {
+                color: var(--muted);
+                font-size: 13px;
+            }
             .whatif-slider {
                 width: 100%;
-                margin: 10px 0;
+                margin: 0;
                 accent-color: var(--accent);
+                flex: 1;
             }
             .whatif-value {
                 font-size: 24px;
@@ -5980,25 +6045,50 @@
             <!-- KPI ROW -->
             <div class="kpi-grid" id="kpiGrid"></div>
 
-            <!-- PROJECTION ROW -->
+            <!-- PROJECTION ROW + WHAT-IF SLIDER (merged in v2.39.0) -->
             <div class="card card-collapsible" id="projectionCard">
                 <div class="card-title">4-Week Projection</div>
                 <div class="proj-row" id="projRow"></div>
+                <div class="whatif-block">
+                    <div class="whatif-block-head">
+                        <span class="whatif-block-title">What-If</span>
+                        <span class="whatif-block-sub">Drag to simulate different weekly loss rates</span>
+                    </div>
+                    <div class="whatif-slider-row">
+                        <span class="whatif-slider-bound">0.5 lb/wk</span>
+                        <input
+                            type="range"
+                            id="whatifSlider"
+                            class="whatif-slider"
+                            min="0.5"
+                            max="3.0"
+                            step="0.1"
+                            value="1.5"
+                            oninput="renderWhatIf()"
+                        />
+                        <span class="whatif-slider-bound">3.0 lb/wk</span>
+                    </div>
+                    <div class="whatif-current">
+                        <span class="whatif-value" id="whatifValue"></span><span class="whatif-current-unit"> lb/wk</span>
+                    </div>
+                    <div class="whatif-results" id="whatifResults"></div>
+                </div>
             </div>
 
-            <!-- CHARTS -->
-            <div class="charts-grid">
-                <div class="card card-collapsible" id="weightChartCard">
-                    <div class="card-title">Weight Trend</div>
-                    <div class="chart-wrap">
-                        <canvas id="weightChart"></canvas>
+            <!-- CHARTS — unified card, toggle between Trend/Weekly -->
+            <div class="card card-collapsible" id="chartsCard">
+                <div class="charts-card-head">
+                    <div class="card-title" style="margin-bottom: 0">Weight Trend</div>
+                    <div class="charts-toggle" role="tablist">
+                        <button type="button" class="charts-toggle-btn active" data-chart="weight" onclick="switchChart('weight')" role="tab" aria-selected="true">Trend</button>
+                        <button type="button" class="charts-toggle-btn" data-chart="loss" onclick="switchChart('loss')" role="tab" aria-selected="false">Weekly Loss</button>
                     </div>
                 </div>
-                <div class="card card-collapsible" id="lossChartCard">
-                    <div class="card-title">Weekly Loss</div>
-                    <div class="chart-wrap">
-                        <canvas id="lossChart"></canvas>
-                    </div>
+                <div class="chart-wrap" id="weightChartWrap">
+                    <canvas id="weightChart"></canvas>
+                </div>
+                <div class="chart-wrap" id="lossChartWrap" style="display:none">
+                    <canvas id="lossChart"></canvas>
                 </div>
             </div>
 
@@ -7622,51 +7712,6 @@
             </div>
 
             <!-- WHAT-IF PROJECTION -->
-            <div class="card card-collapsible" id="whatIfCard">
-                <div class="card-title">📊 What-If Projection</div>
-                <div
-                    style="
-                        font-size: 11px;
-                        color: var(--muted);
-                        margin-bottom: 6px;
-                    "
-                >
-                    Drag slider to simulate different weekly loss rates.
-                </div>
-                <div
-                    style="
-                        display: flex;
-                        align-items: center;
-                        gap: 12px;
-                        margin-bottom: 8px;
-                    "
-                >
-                    <span style="font-size: 11px; color: var(--muted)"
-                        >0.5 lb/wk</span
-                    >
-                    <input
-                        type="range"
-                        id="whatifSlider"
-                        class="whatif-slider"
-                        min="0.5"
-                        max="3.0"
-                        step="0.1"
-                        value="1.5"
-                        oninput="renderWhatIf()"
-                    />
-                    <span style="font-size: 11px; color: var(--muted)"
-                        >3.0 lb/wk</span
-                    >
-                </div>
-                <div style="text-align: center; margin-bottom: 8px">
-                    <span class="whatif-value" id="whatifValue"></span
-                    ><span style="color: var(--muted); font-size: 13px">
-                        lb/wk</span
-                    >
-                </div>
-                <div class="whatif-results" id="whatifResults"></div>
-            </div>
-
             <!-- PROGRESS PHOTO VAULT -->
             <div class="card card-collapsible" id="photosCard">
                 <div
@@ -9853,8 +9898,20 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.38.9";
+            const VERSION = "2.39.0";
             const VERSION_CHANGES = [
+                {
+                    version: "2.39.0",
+                    date: "2026-04-25",
+                    summary:
+                        "Surface consolidation: merged weight charts and folded what-if into projection",
+                    details: [
+                        "Merged weightChartCard + lossChartCard into a single chartsCard with a Trend / Weekly Loss toggle. Both canvases stay rendered (renderCharts updates both); the toggle just switches which is visible. Selection persists in tp_chart_view.",
+                        "Folded whatIfCard into projectionCard. The slider, value, and results now sit at the bottom of the 4-Week Projection card under a divider, so future scenarios live next to the current forecast instead of in a separate scroll.",
+                        "Updated card descriptions and the auto-collapse list in the workflow controller to reference the new IDs (chartsCard) and drop the removed ones (weightChartCard, lossChartCard, whatIfCard).",
+                        "Synced the in-app version badge and service worker version to v2.39.0.",
+                    ],
+                },
                 {
                     version: "2.38.9",
                     date: "2026-04-25",
@@ -13851,6 +13908,34 @@
 
             let weightChartInst = null,
                 lossChartInst = null;
+
+            // Toggle between Weight Trend and Weekly Loss inside the unified
+            // chartsCard. Both canvases stay in the DOM (renderCharts updates
+            // both); only one wrapper is visible at a time. Choice persists
+            // across reloads via tp_chart_view.
+            function switchChart(which) {
+                const valid = which === "loss" ? "loss" : "weight";
+                try { localStorage.setItem("tp_chart_view", valid); } catch {}
+                const wWrap = document.getElementById("weightChartWrap");
+                const lWrap = document.getElementById("lossChartWrap");
+                if (wWrap) wWrap.style.display = valid === "weight" ? "" : "none";
+                if (lWrap) lWrap.style.display = valid === "loss" ? "" : "none";
+                document.querySelectorAll("#chartsCard .charts-toggle-btn").forEach((btn) => {
+                    const isActive = btn.dataset.chart === valid;
+                    btn.classList.toggle("active", isActive);
+                    btn.setAttribute("aria-selected", isActive ? "true" : "false");
+                });
+                const titleEl = document.querySelector("#chartsCard .card-title");
+                if (titleEl) titleEl.textContent = valid === "weight" ? "Weight Trend" : "Weekly Loss";
+            }
+            // Restore saved choice on first paint.
+            try {
+                const saved = localStorage.getItem("tp_chart_view");
+                if (saved === "loss") {
+                    setTimeout(() => switchChart("loss"), 0);
+                }
+            } catch {}
+
             function renderCharts(entries) {
                 const labels = entries.map((e) => e.date.slice(5));
                 const weights = entries.map((e) => e.weight);
@@ -15794,9 +15879,8 @@
             const COLLAPSIBLE_CARD_PREVIEWS = {
                 weeklyReportCard: "Weekly AI coach report and follow-up chat.",
                 waterCard: "Hydration progress, quick adds, and daily timeline.",
-                projectionCard: "Forecast of the next four weeks.",
-                weightChartCard: "Weight trend chart.",
-                lossChartCard: "Weekly loss pace.",
+                projectionCard: "Forecast of the next four weeks plus what-if slider.",
+                chartsCard: "Weight trend and weekly loss charts (toggleable).",
                 coachModeCard: "Coach guidance generated from your latest data.",
                 cycleControlCard: "Cycle state, active stack, and planned changes.",
                 injectionTrackerCard: "Next dose, recent injections, and site rotation.",
@@ -15807,7 +15891,6 @@
                 macroCalcCard: "Macro targets by phase and weight.",
                 mealLogCard: "Today's food log and macro progress.",
                 refeedCard: "Refeed and diet-break timing.",
-                whatIfCard: "Simulate alternate weekly loss rates.",
                 photosCard: "Progress photo vault and comparison tools.",
                 streaksCard: "Logging streaks and weight checkpoints.",
                 siteRotatorCard: "Recommended injection sites by rest time.",
@@ -38275,8 +38358,7 @@ ${parts.join("\n")}
                 const collapseIds = [
                     "todaysPlanCard",
                     "projectionCard",
-                    "weightChartCard",
-                    "lossChartCard",
+                    "chartsCard",
                     "coachModeCard",
                     "cycleControlCard",
                     "recoveryCard",
@@ -38284,7 +38366,6 @@ ${parts.join("\n")}
                     "dtpCard",
                     "macroCalcCard",
                     "refeedCard",
-                    "whatIfCard",
                     "photosCard",
                     "streaksCard",
                     "siteRotatorCard",

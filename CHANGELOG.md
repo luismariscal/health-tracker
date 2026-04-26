@@ -2,6 +2,14 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.39.0 - 2026-04-25
+
+- **Surface consolidation pass.** Merged `weightChartCard` + `lossChartCard` into a single `chartsCard` with a Trend / Weekly Loss toggle. Both canvases stay rendered; the toggle just switches which one is visible. Selection persists in `tp_chart_view`.
+- Folded `whatIfCard` into `projectionCard`. The slider, value, and results now sit at the bottom of the 4-Week Projection card under a divider, so future scenarios live next to the current forecast instead of in a separate card further down the scroll.
+- Updated the card-description map and the auto-collapse list in the workflow controller to reference the new ID (`chartsCard`) and drop the removed ones (`weightChartCard`, `lossChartCard`, `whatIfCard`).
+- Synced the in-app version badge and service worker version to v2.39.0.
+- Net change: **36 → 34 cards**, same information, less hunting.
+
 ## v2.38.9 - 2026-04-25
 
 - Calmed down the injection recent log palette. Stopped applying the partial/full color class to individual chips — a logged dose isn't itself partial, only the day's overall status is, so chips now use the neutral muted style by default.
