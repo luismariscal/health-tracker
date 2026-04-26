@@ -6255,6 +6255,16 @@
                         >
                             ⌚ Fitbit
                         </button>
+                        <button
+                            id="fitbitSettingsBtn"
+                            class="btn btn-ghost"
+                            onclick="openFitbitSettings()"
+                            style="font-size: 11px; padding: 4px 8px; display: none"
+                            title="Fitbit settings, range sync, and disconnect"
+                            aria-label="Fitbit settings"
+                        >
+                            ⚙
+                        </button>
                         <span
                             id="recoveryInsight"
                             style="font-size: 11px; color: var(--muted)"
@@ -9892,8 +9902,20 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.39.1";
+            const VERSION = "2.39.2";
             const VERSION_CHANGES = [
+                {
+                    version: "2.39.2",
+                    date: "2026-04-25",
+                    summary:
+                        "One-click Fitbit sync: primary button now syncs today directly when connected",
+                    details: [
+                        "Made the ⌚ Fitbit button do real work on click instead of always opening the settings modal. When connected it now runs fitbitSyncToday() directly with a Syncing… loading state and the existing toast on completion. When not connected, it still opens setup as before.",
+                        "Added a small ⚙ button next to ⌚ that opens the full Fitbit settings (range sync, disconnect, manual reconnect). Hidden until you're connected so the not-yet-set-up state stays simple.",
+                        "Updated the primary button label to reflect what it does: \"⌚ Connect Fitbit\" → \"⌚ Sync now\" once connected, \"⌚ Syncing…\" during the in-flight call.",
+                        "Synced the in-app version badge and service worker version to v2.39.2.",
+                    ],
+                },
                 {
                     version: "2.39.1",
                     date: "2026-04-25",
@@ -24466,8 +24488,34 @@ Style:
                 return { verifier, challenge };
             }
 
-            function fitbitPrimaryAction() {
-                openFitbitSettings();
+            // Primary action: when not connected, open the setup modal.
+            // When connected, sync today directly with one click and surface
+            // a toast — no modal hop required for the common case.
+            async function fitbitPrimaryAction() {
+                const data = loadFitbit();
+                if (!data.accessToken) {
+                    openFitbitSettings();
+                    return;
+                }
+                const btn = document.getElementById("fitbitActionBtn");
+                const originalText = btn ? btn.textContent : "";
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = "⌚ Syncing…";
+                }
+                try {
+                    await fitbitSyncToday({ silent: true });
+                } catch (e) {
+                    showToast("Fitbit sync failed — open ⚙ to reconnect");
+                } finally {
+                    if (btn) {
+                        btn.disabled = false;
+                        // renderFitbitStatus restores the button label below;
+                        // fall back to original text in case the renderer is gone.
+                        btn.textContent = originalText;
+                    }
+                    renderFitbitStatus();
+                }
             }
 
             function _fitbitSetText(id, text) {
@@ -25009,14 +25057,18 @@ Style:
             function renderFitbitStatus() {
                 const statusEl = document.getElementById("fitbitStatus");
                 const actionBtn = document.getElementById("fitbitActionBtn");
+                const settingsBtn = document.getElementById("fitbitSettingsBtn");
                 const data = loadFitbit();
                 if (actionBtn) {
                     actionBtn.textContent = data.accessToken
-                        ? "Manage Fitbit"
-                        : "Connect Fitbit";
+                        ? "⌚ Sync now"
+                        : "⌚ Connect Fitbit";
                     actionBtn.title = data.accessToken
-                        ? "Open Fitbit sync and settings"
-                        : "Connect Fitbit and manage sync";
+                        ? "Sync today's Fitbit data (weight, steps, sleep, resting HR)"
+                        : "Connect Fitbit to pull weight, steps, sleep, and resting HR";
+                }
+                if (settingsBtn) {
+                    settingsBtn.style.display = data.accessToken ? "" : "none";
                 }
                 if (!statusEl) return;
                 if (!data.accessToken) {

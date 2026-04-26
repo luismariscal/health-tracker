@@ -2,6 +2,13 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.39.2 - 2026-04-25
+
+- One-click Fitbit sync. The `⌚ Fitbit` button in the Recovery & Activity card now runs `fitbitSyncToday()` directly when you're already connected, with a "Syncing…" loading state and the existing success toast. No more open-modal → click-sync two-step for the common case.
+- Added a small `⚙` button next to `⌚` that opens the full Fitbit settings modal (range sync, disconnect, manual reconnect). Hidden until you're connected so the not-yet-set-up state stays simple.
+- Button label now reflects state: `⌚ Connect Fitbit` → `⌚ Sync now` once connected → `⌚ Syncing…` during the in-flight call.
+- Synced the in-app version badge and service worker version to v2.39.2.
+
 ## v2.39.1 - 2026-04-25
 
 - Removed `macroPhasesCard`. It declared `<div id="macroGrid">` as a sibling of the same ID inside `macroCalcCard`, so `renderMacros()` only ever found the first match (in `macroCalcCard`) and `macroPhasesCard` rendered as a permanently empty container on every load. Cleaned up the card-description map and auto-collapse list to drop the orphaned ID.
