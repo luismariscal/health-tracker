@@ -2,6 +2,13 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.39.4 - 2026-04-25
+
+- Added a `🔬 Diagnose` button to the Fitbit settings modal. Clicking it hits each Fitbit endpoint we use (weight, activity, sleep, heart rate) independently and reports the HTTP status, response time, and error body for each — so you can tell at a glance whether failures are scope/auth (401/403), rate-limit (429), Fitbit server (5xx), or pure network/firewall blocking (`Failed to fetch`).
+- Diagnostic also enumerates the granted OAuth scopes from the saved token and flags any missing scopes with a hint to Disconnect + Connect to re-grant.
+- Output is appended to the existing `fitbitSyncLog` block, with a short legend explaining each status code.
+- Synced the in-app version badge and service worker version to v2.39.4.
+
 ## v2.39.3 - 2026-04-25
 
 - Wrapped `fitbitFetch` with one auto-retry on TypeError "Failed to fetch" (the bare network-level error from `fetch` itself). 600ms delay between attempts handles brief DNS hiccups, ad blockers waking up, or VPN reconnects without user intervention.

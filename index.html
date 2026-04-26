@@ -6916,6 +6916,13 @@
                             >
                                 Sync last 7 days
                             </button>
+                            <button
+                                class="btn btn-ghost"
+                                onclick="fitbitDiagnose()"
+                                title="Test each Fitbit endpoint independently and report which scopes are granted"
+                            >
+                                🔬 Diagnose
+                            </button>
                         </div>
                         <pre
                             id="fitbitSyncLog"
@@ -9902,8 +9909,20 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.39.3";
+            const VERSION = "2.39.4";
             const VERSION_CHANGES = [
+                {
+                    version: "2.39.4",
+                    date: "2026-04-25",
+                    summary:
+                        "Fitbit diagnostic: per-endpoint health check with HTTP-status reporting",
+                    details: [
+                        "Added a 🔬 Diagnose button to the Fitbit settings modal. Clicking it hits each Fitbit endpoint we use (weight, activity, sleep, heart rate) independently and reports the HTTP status, response time, and error body for each — so you can tell at a glance whether failures are scope/auth (401/403), rate-limit (429), Fitbit server (5xx), or pure network/firewall blocking (TypeError \"Failed to fetch\").",
+                        "Diagnostic also enumerates the granted OAuth scopes from the saved token and flags any missing scopes (weight/activity/sleep/heartrate) with a hint to Disconnect + Connect to re-grant.",
+                        "Output is appended to the existing fitbitSyncLog block so it lives where users already look for sync output, with a short legend explaining each status code.",
+                        "Synced the in-app version badge and service worker version to v2.39.4.",
+                    ],
+                },
                 {
                     version: "2.39.3",
                     date: "2026-04-25",
@@ -25075,6 +25094,84 @@ Style:
                     header: `Syncing last ${days} days...`,
                     ...options,
                 });
+            }
+
+            // Hits each Fitbit endpoint independently and reports HTTP status
+            // or network error per call. Helps pinpoint whether failures are
+            // scope-related (HTTP 401/403), rate-limit (429), or network/CORS
+            // blocking (TypeError "Failed to fetch"). Output goes into the
+            // existing fitbitSyncLog <pre> block.
+            async function fitbitDiagnose() {
+                const pre = document.getElementById("fitbitSyncLog");
+                if (!pre) return;
+                pre.style.display = "block";
+                pre.textContent = "Running diagnostics...\n";
+                const data = loadFitbit();
+                const lines = [];
+                const append = (s) => {
+                    lines.push(s);
+                    pre.textContent = lines.join("\n");
+                };
+                append(`Connected: ${data.accessToken ? "yes" : "no"}`);
+                append(`Granted scopes: ${data.scope || "(unknown)"}`);
+                const wanted = ["weight", "activity", "sleep", "heartrate"];
+                const missingScopes = wanted.filter(
+                    (s) => !(data.scope || "").toLowerCase().includes(s),
+                );
+                if (missingScopes.length) {
+                    append(`Missing scopes: ${missingScopes.join(", ")} — Disconnect + Connect to re-grant`);
+                } else {
+                    append("All required scopes granted.");
+                }
+                append("");
+                if (!data.accessToken) {
+                    append("Not connected — connect first, then re-run diagnostics.");
+                    return;
+                }
+                let token;
+                try {
+                    token = await fitbitRefreshIfNeeded();
+                } catch (e) {
+                    append(`Token refresh failed: ${e.message}`);
+                    return;
+                }
+                const today = todayKey();
+                const endpoints = [
+                    { name: "Weight  ", path: `/1/user/-/body/log/weight/date/${today}.json` },
+                    { name: "Activity", path: `/1/user/-/activities/date/${today}.json` },
+                    { name: "Sleep   ", path: `/1.2/user/-/sleep/date/${today}.json` },
+                    { name: "HR      ", path: `/1/user/-/activities/heart/date/${today}/1d.json` },
+                ];
+                for (const ep of endpoints) {
+                    const t0 = performance.now();
+                    try {
+                        const resp = await fetch("https://api.fitbit.com" + ep.path, {
+                            headers: {
+                                authorization: "Bearer " + token,
+                                "accept-language": "en_US",
+                            },
+                        });
+                        const ms = Math.round(performance.now() - t0);
+                        let detail = "";
+                        if (!resp.ok) {
+                            const body = await resp.text();
+                            detail = ` — ${body.slice(0, 80).replace(/\s+/g, " ")}`;
+                        }
+                        append(`${ep.name} HTTP ${resp.status} (${ms}ms)${detail}`);
+                    } catch (e) {
+                        const ms = Math.round(performance.now() - t0);
+                        append(`${ep.name} NETWORK FAIL (${ms}ms) — ${e.message}`);
+                    }
+                }
+                append("");
+                append("Reading the result:");
+                append("- 200 = endpoint reachable, scope granted, data accessible");
+                append("- 401 = token expired or scope missing — Disconnect + Connect");
+                append("- 403 = insufficient permissions on the Fitbit dev app");
+                append("- 429 = rate limit hit (150 req/hr per app) — wait then retry");
+                append("- NETWORK FAIL = blocked at network layer (router/Pi-hole/firewall");
+                append("  rules, ISP filter, or VPN). Test by switching to a different");
+                append("  network (e.g. phone hotspot) and re-running this diagnostic.");
             }
 
             function fitbitShouldAutoSync(now = new Date()) {
