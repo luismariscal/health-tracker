@@ -2,6 +2,13 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.39.3 - 2026-04-25
+
+- Wrapped `fitbitFetch` with one auto-retry on TypeError "Failed to fetch" (the bare network-level error from `fetch` itself). 600ms delay between attempts handles brief DNS hiccups, ad blockers waking up, or VPN reconnects without user intervention.
+- Translated common HTTP errors into actionable hints rather than raw response bodies: 401 → "token expired — open ⚙ to reconnect"; 429 → "rate limit reached — wait ~1h then retry"; 5xx → "server error — try again in a minute". Persistent network failures now say "network unreachable — check connection or VPN/extension blocker".
+- The one-click `⌚ Sync now` button now scans the per-endpoint log for any "error:" lines and surfaces the first one in a 4-second toast. Previously it only showed "Fitbit synced" even if Activity or Sleep silently failed.
+- Synced the in-app version badge and service worker version to v2.39.3.
+
 ## v2.39.2 - 2026-04-25
 
 - One-click Fitbit sync. The `⌚ Fitbit` button in the Recovery & Activity card now runs `fitbitSyncToday()` directly when you're already connected, with a "Syncing…" loading state and the existing success toast. No more open-modal → click-sync two-step for the common case.
