@@ -4,7 +4,7 @@
 // hydration + injection reminders, and basic cache shell.
 // Served from GitHub Pages at /health-tracker/sw.js.
 // =========================================================
-const SW_VERSION = 'tp-sw-v2.39.0';
+const SW_VERSION = 'tp-sw-v2.39.1';
 const SCOPE = self.registration.scope;
 
 self.addEventListener('install', (e) => {

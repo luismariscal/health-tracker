@@ -8982,12 +8982,6 @@
                 <div class="checkpoint-track" id="cpTrack"></div>
             </div>
 
-            <!-- MACROS -->
-            <div class="card card-collapsible" id="macroPhasesCard">
-                <div class="card-title">Macro Targets by Phase</div>
-                <div class="macro-grid" id="macroGrid"></div>
-            </div>
-
             <!-- SHOPPING CART -->
             <div class="card card-collapsible" id="shopCard">
                 <div
@@ -9898,8 +9892,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.39.0";
+            const VERSION = "2.39.1";
             const VERSION_CHANGES = [
+                {
+                    version: "2.39.1",
+                    date: "2026-04-25",
+                    summary:
+                        "Remove dead macroPhasesCard duplicate (macroGrid ID collision)",
+                    details: [
+                        "Removed macroPhasesCard. It declared <div id=\"macroGrid\"> as a sibling of the same ID inside macroCalcCard. Since renderMacros() uses getElementById, only the first match (in macroCalcCard) ever rendered, leaving macroPhasesCard as a permanently empty container card on every load. Cleaned up the card-description map and auto-collapse list to drop the orphaned ID.",
+                        "Synced the in-app version badge and service worker version to v2.39.1.",
+                    ],
+                },
                 {
                     version: "2.39.0",
                     date: "2026-04-25",
@@ -15905,7 +15909,6 @@
                 libraryCard: "Workout, peptide, supplement, and injection reference.",
                 symptomsCard: "Side-effect chips, severity, and recent entries.",
                 checkpointsCard: "Weight checkpoints and next target.",
-                macroPhasesCard: "Macro targets by phase.",
                 shopCard: "Walmart shopping list by week count.",
                 protocolStackCard: "Daily protocol and current stack.",
             };
@@ -38379,7 +38382,6 @@ ${parts.join("\n")}
                     "libraryCard",
                     "symptomsCard",
                     "checkpointsCard",
-                    "macroPhasesCard",
                     "shopCard",
                     "protocolStackCard",
                 ];

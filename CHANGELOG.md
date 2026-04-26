@@ -2,6 +2,11 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.39.1 - 2026-04-25
+
+- Removed `macroPhasesCard`. It declared `<div id="macroGrid">` as a sibling of the same ID inside `macroCalcCard`, so `renderMacros()` only ever found the first match (in `macroCalcCard`) and `macroPhasesCard` rendered as a permanently empty container on every load. Cleaned up the card-description map and auto-collapse list to drop the orphaned ID.
+- Synced the in-app version badge and service worker version to v2.39.1.
+
 ## v2.39.0 - 2026-04-25
 
 - **Surface consolidation pass.** Merged `weightChartCard` + `lossChartCard` into a single `chartsCard` with a Trend / Weekly Loss toggle. Both canvases stay rendered; the toggle just switches which one is visible. Selection persists in `tp_chart_view`.
