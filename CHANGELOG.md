@@ -2,6 +2,12 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.39.6 - 2026-04-28
+
+- Added a dedicated Fitbit action button to the top critical-workflow block so wearable sync is visible without hunting through the workflow chips.
+- The new top button reflects connection state (`Connect Fitbit` before setup, `Sync Fitbit` after setup) and reuses the same one-click sync path as the Recovery card.
+- Kept the Fitbit workflow chip too, so wearable import still shows up in the daily input checklist while also becoming easier to find.
+
 ## v2.39.5 - 2026-04-28
 
 - Added a Fitbit sync chip to the top daily workflow so wearable import now sits alongside the main daily input actions instead of being buried in Recovery & Activity.

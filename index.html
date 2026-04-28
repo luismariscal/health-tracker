@@ -5764,6 +5764,14 @@
                         >
                             Open AI Coach
                         </button>
+                        <button
+                            id="workflowFitbitBtn"
+                            class="btn btn-ghost"
+                            onclick="fitbitPrimaryAction()"
+                            style="font-size: 12px"
+                        >
+                            Fitbit
+                        </button>
                     </div>
                 </div>
                 <div class="workflow-input-strip" id="criticalWorkflowInputs"></div>
@@ -9909,8 +9917,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.39.5";
+            const VERSION = "2.39.6";
             const VERSION_CHANGES = [
+                {
+                    version: "2.39.6",
+                    date: "2026-04-28",
+                    summary: "Make Fitbit sync visible in the top workflow block",
+                    details: [
+                        "Added a dedicated Fitbit action button to the top critical-workflow area so wearable sync is visible without hunting through the chip strip.",
+                        "The button label now reflects connection state: Connect Fitbit before setup, Sync Fitbit after setup, and it reuses the same one-click sync path.",
+                        "Kept the workflow chip too, so Fitbit remains part of the daily input checklist while also being easier to find.",
+                    ],
+                },
                 {
                     version: "2.39.5",
                     date: "2026-04-28",
@@ -12785,6 +12803,16 @@
                 previewEl.textContent = preview.preview;
             }
 
+            function renderWorkflowFitbitAction() {
+                const btn = document.getElementById("workflowFitbitBtn");
+                if (!btn || typeof loadFitbit !== "function") return;
+                const data = loadFitbit() || {};
+                btn.textContent = data.accessToken ? "Sync Fitbit" : "Connect Fitbit";
+                btn.title = data.accessToken
+                    ? "Sync today's Fitbit data into weight, sleep, steps, and resting HR"
+                    : "Connect Fitbit to pull weight, sleep, steps, and resting HR";
+            }
+
             async function sendWorkflowCoachReply() {
                 const input = document.getElementById("workflowCoachInput");
                 const question = String(input?.value || "").trim();
@@ -12878,6 +12906,7 @@
                 window.buildProtocolOsState = buildProtocolOsState;
                 window.selectWorkflowSummary = selectWorkflowSummary;
                 window.sendWorkflowCoachReply = sendWorkflowCoachReply;
+                window.renderWorkflowFitbitAction = renderWorkflowFitbitAction;
                 window.openWorkflowInputActionFromButton =
                     openWorkflowInputActionFromButton;
                 window.mountWorkflowInputZone = mountWorkflowInputZone;
@@ -25284,6 +25313,9 @@ Style:
                     actionBtn.title = data.accessToken
                         ? "Sync today's Fitbit data (weight, steps, sleep, resting HR)"
                         : "Connect Fitbit to pull weight, steps, sleep, and resting HR";
+                }
+                if (typeof renderWorkflowFitbitAction === "function") {
+                    renderWorkflowFitbitAction();
                 }
                 if (settingsBtn) {
                     settingsBtn.style.display = data.accessToken ? "" : "none";
