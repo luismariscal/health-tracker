@@ -9909,8 +9909,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.39.4";
+            const VERSION = "2.39.5";
             const VERSION_CHANGES = [
+                {
+                    version: "2.39.5",
+                    date: "2026-04-28",
+                    summary: "Pull Fitbit sync into the top daily workflow",
+                    details: [
+                        "Added a Fitbit sync chip to the top workflow input strip so wearable import sits beside weight, doses, water, food, exercise, and vitals instead of being buried in Recovery.",
+                        "The new chip reflects connection + freshness state from the saved Fitbit session and reuses the existing one-click sync path when connected.",
+                        "Kept Fitbit imports flowing into their natural destinations: weight entries, resting HR vitals, and sleep/steps compliance, so the workflow updates where that data actually belongs.",
+                    ],
+                },
                 {
                     version: "2.39.4",
                     date: "2026-04-25",
@@ -12569,6 +12579,39 @@
                 ).length;
             }
 
+            function _workflowFitbitChipState() {
+                if (typeof loadFitbit !== "function") {
+                    return {
+                        label: "Fitbit",
+                        meta: "Unavailable",
+                        state: "optional",
+                        summary: "",
+                    };
+                }
+                const data = loadFitbit() || {};
+                if (!data.accessToken) {
+                    return {
+                        label: "Fitbit",
+                        meta: "Connect wearable import",
+                        state: "optional",
+                        summary: "",
+                    };
+                }
+                const last = data.lastSync ? new Date(data.lastSync) : null;
+                const validLast = last && !Number.isNaN(last.getTime()) ? last : null;
+                const syncedToday =
+                    validLast && _injDateKey(validLast) === todayKey();
+                const lastLabel = validLast ? relativeTime(validLast) : "not synced";
+                return {
+                    label: "Fitbit sync",
+                    meta: syncedToday ? `Synced ${lastLabel}` : `Last ${lastLabel}`,
+                    state: syncedToday ? "done" : "pending",
+                    summary: syncedToday
+                        ? ""
+                        : "wearable data has not been refreshed today",
+                };
+            }
+
             function _workflowDailyInputItems(stateLike) {
                 const state = _coerceProtocolOsState(stateLike);
                 const workflow = selectWorkflowSummary(state);
@@ -12589,6 +12632,7 @@
                     0,
                     Math.round((workflow.waterGoal || 0) - (workflow.waterTotal || 0)),
                 );
+                const fitbit = _workflowFitbitChipState();
                 return [
                     {
                         key: "weight",
@@ -12607,6 +12651,14 @@
                         state: "optional",
                         action: "aiVoice",
                         summary: "",
+                    },
+                    {
+                        key: "fitbit",
+                        label: fitbit.label,
+                        meta: fitbit.meta,
+                        state: fitbit.state,
+                        action: "fitbitSync",
+                        summary: fitbit.summary,
                     },
                     {
                         key: "doses",
@@ -12768,6 +12820,13 @@
                 }
                 if (action === "training" && typeof openTrainingModal === "function") {
                     openTrainingModal();
+                    return;
+                }
+                if (
+                    action === "fitbitSync" &&
+                    typeof fitbitPrimaryAction === "function"
+                ) {
+                    fitbitPrimaryAction();
                     return;
                 }
                 if (target) openCriticalWorkflowItem(target);

@@ -2,6 +2,12 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.39.5 - 2026-04-28
+
+- Added a Fitbit sync chip to the top daily workflow so wearable import now sits alongside the main daily input actions instead of being buried in Recovery & Activity.
+- Reused the existing one-click Fitbit sync path from that workflow chip, with status based on connection state and whether Fitbit has refreshed today.
+- Kept Fitbit data flowing into its natural destinations: weight entries, resting-HR vitals, and sleep/steps compliance, so the top workflow updates where that information actually belongs.
+
 ## v2.39.4 - 2026-04-25
 
 - Added a `🔬 Diagnose` button to the Fitbit settings modal. Clicking it hits each Fitbit endpoint we use (weight, activity, sleep, heart rate) independently and reports the HTTP status, response time, and error body for each — so you can tell at a glance whether failures are scope/auth (401/403), rate-limit (429), Fitbit server (5xx), or pure network/firewall blocking (`Failed to fetch`).
