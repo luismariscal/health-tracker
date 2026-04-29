@@ -544,7 +544,7 @@
                 .workflow-zone-top,
                 .scroll-top-fab,
                 .inj-site-rotation,
-                #fitbitStatus,
+                #healthConnectStatus,
                 #recoveryInsight {
                     display: none !important;
                 }
@@ -5766,12 +5766,12 @@
                             Open AI Coach
                         </button>
                         <button
-                            id="workflowFitbitBtn"
+                            id="workflowHealthConnectBtn"
                             class="btn btn-ghost"
-                            onclick="fitbitPrimaryAction()"
+                            onclick="healthConnectPrimaryAction()"
                             style="font-size: 12px"
                         >
-                            Fitbit
+                            Health Connect
                         </button>
                     </div>
                 </div>
@@ -6252,25 +6252,25 @@
                         "
                     >
                         <span
-                            id="fitbitStatus"
+                            id="healthConnectStatus"
                             style="font-size: 11px; color: var(--muted)"
                         ></span>
                         <button
-                            id="fitbitActionBtn"
+                            id="healthConnectActionBtn"
                             class="btn btn-ghost"
-                            onclick="fitbitPrimaryAction()"
+                            onclick="healthConnectPrimaryAction()"
                             style="font-size: 11px; padding: 4px 10px"
-                            title="Connect Fitbit and manage sync"
+                            title="Open Health Connect sync and setup"
                         >
-                            âŒš Fitbit
+                            Health Connect
                         </button>
                         <button
-                            id="fitbitSettingsBtn"
+                            id="healthConnectSettingsBtn"
                             class="btn btn-ghost"
-                            onclick="openFitbitSettings()"
-                            style="font-size: 11px; padding: 4px 8px; display: none"
-                            title="Fitbit settings, range sync, and disconnect"
-                            aria-label="Fitbit settings"
+                            onclick="openHealthConnectSettings()"
+                            style="font-size: 11px; padding: 4px 8px"
+                            title="Health Connect settings and sync details"
+                            aria-label="Health Connect settings"
                         >
                             âš™
                         </button>
@@ -6868,10 +6868,10 @@
                             id="fitbitModalTitle"
                             style="font-size: 16px; font-weight: 800"
                         >
-                            âŒš Fitbit Integration
+                            Health Connect
                         </div>
                         <button
-                            onclick="closeFitbitSettings()"
+                            onclick="closeHealthConnectSettings()"
                             style="
                                 background: none;
                                 border: none;
@@ -6880,8 +6880,90 @@
                                 cursor: pointer;
                             "
                         >
-                            âœ•
+                            ×
                         </button>
+                    </div>
+                    <div
+                        id="healthConnectPanel"
+                        style="
+                            display: none;
+                            border-top: 1px solid var(--border);
+                            padding-top: 14px;
+                        "
+                    >
+                        <div
+                            id="healthConnectBanner"
+                            style="
+                                background: rgba(34, 197, 94, 0.08);
+                                border: 1px solid rgba(34, 197, 94, 0.22);
+                                border-radius: 8px;
+                                padding: 10px 12px;
+                                font-size: 11px;
+                                color: var(--text);
+                                margin-bottom: 14px;
+                                line-height: 1.5;
+                            "
+                        >
+                            Health Connect is the supported Android wearable path.
+                            This app can read imported weight, steps, sleep, and resting
+                            HR when an Android shell or native bridge sends the data in.
+                        </div>
+                        <div
+                            id="healthConnectSummary"
+                            style="
+                                font-size: 12px;
+                                color: var(--muted);
+                                margin-bottom: 14px;
+                                line-height: 1.6;
+                            "
+                        ></div>
+                        <div
+                            style="
+                                display: flex;
+                                gap: 8px;
+                                flex-wrap: wrap;
+                                margin-bottom: 12px;
+                            "
+                        >
+                            <button
+                                id="healthConnectSyncBtn"
+                                class="btn btn-primary"
+                                type="button"
+                                onclick="healthConnectRequestSync()"
+                            >
+                                Sync from Android
+                            </button>
+                            <button
+                                class="btn btn-ghost"
+                                type="button"
+                                onclick="healthConnectShowHelp()"
+                            >
+                                Setup help
+                            </button>
+                            <button
+                                class="btn btn-ghost"
+                                type="button"
+                                onclick="healthConnectDisconnect()"
+                                style="color: #ef4444"
+                            >
+                                Clear Health Connect
+                            </button>
+                        </div>
+                        <pre
+                            id="healthConnectLog"
+                            style="
+                                background: var(--surface2);
+                                border: 1px solid var(--border);
+                                border-radius: 8px;
+                                padding: 10px;
+                                font-size: 11px;
+                                color: var(--text);
+                                max-height: 220px;
+                                overflow: auto;
+                                white-space: pre-wrap;
+                                display: none;
+                            "
+                        ></pre>
                     </div>
                     <div id="fitbitConnected" style="display: none">
                         <div
@@ -9966,8 +10048,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.39.7";
+            const VERSION = "2.39.8";
             const VERSION_CHANGES = [
+                {
+                    version: "2.39.8",
+                    date: "2026-04-29",
+                    summary: "Replace Fitbit with Health Connect",
+                    details: [
+                        "Replaced the visible Fitbit workflow and Recovery actions with a Health Connect flow aimed at Android-native import instead of browser OAuth.",
+                        "Added a Health Connect settings panel with honest setup guidance, Android sync hooks, and provider-owned import handling for weight, steps, sleep, and resting HR.",
+                        "Retired saved Fitbit connection state during startup so the old Fitbit sync path stops driving the app.",
+                    ],
+                },
                 {
                     version: "2.39.7",
                     date: "2026-04-28",
@@ -11693,6 +11785,7 @@
                 "tp_sync",
                 "tp_drive_backup",
                 "tp_fitbit",
+                "tp_health_connect",
                 "tp_sync_lastSnapshot",
             ]);
             const SYNC_META_EXCLUDE = new Set([
@@ -12656,31 +12749,33 @@
                 ).length;
             }
 
-            function _workflowFitbitChipState() {
-                if (typeof loadFitbit !== "function") {
-                    return {
-                        label: "Fitbit",
-                        meta: "Unavailable",
-                        state: "optional",
-                        summary: "",
-                    };
-                }
-                const data = loadFitbit() || {};
-                if (!data.accessToken) {
-                    return {
-                        label: "Fitbit",
-                        meta: "Connect wearable import",
-                        state: "optional",
-                        summary: "",
-                    };
-                }
+            function _workflowHealthConnectChipState() {
+                const data =
+                    typeof loadHealthConnect === "function"
+                        ? loadHealthConnect() || {}
+                        : {};
                 const last = data.lastSync ? new Date(data.lastSync) : null;
                 const validLast = last && !Number.isNaN(last.getTime()) ? last : null;
                 const syncedToday =
                     validLast && _injDateKey(validLast) === todayKey();
-                const lastLabel = validLast ? relativeTime(validLast) : "not synced";
+                const bridgeReady =
+                    typeof healthConnectBridgeAvailable === "function" &&
+                    healthConnectBridgeAvailable();
+                if (!validLast) {
+                    return {
+                        label: "Health Connect",
+                        meta: bridgeReady
+                            ? "Android bridge ready"
+                            : "Android setup needed",
+                        state: "optional",
+                        summary: bridgeReady
+                            ? "sync today's wearable data"
+                            : "connect through the Android shell or native bridge",
+                    };
+                }
+                const lastLabel = relativeTime(validLast);
                 return {
-                    label: "Fitbit sync",
+                    label: "Health Connect",
                     meta: syncedToday ? `Synced ${lastLabel}` : `Last ${lastLabel}`,
                     state: syncedToday ? "done" : "pending",
                     summary: syncedToday
@@ -12709,7 +12804,7 @@
                     0,
                     Math.round((workflow.waterGoal || 0) - (workflow.waterTotal || 0)),
                 );
-                const fitbit = _workflowFitbitChipState();
+                const healthConnect = _workflowHealthConnectChipState();
                 return [
                     {
                         key: "weight",
@@ -12730,12 +12825,12 @@
                         summary: "",
                     },
                     {
-                        key: "fitbit",
-                        label: fitbit.label,
-                        meta: fitbit.meta,
-                        state: fitbit.state,
-                        action: "fitbitSync",
-                        summary: fitbit.summary,
+                        key: "healthConnect",
+                        label: healthConnect.label,
+                        meta: healthConnect.meta,
+                        state: healthConnect.state,
+                        action: "healthConnectSync",
+                        summary: healthConnect.summary,
                     },
                     {
                         key: "doses",
@@ -12862,14 +12957,24 @@
                 previewEl.textContent = preview.preview;
             }
 
-            function renderWorkflowFitbitAction() {
-                const btn = document.getElementById("workflowFitbitBtn");
-                if (!btn || typeof loadFitbit !== "function") return;
-                const data = loadFitbit() || {};
-                btn.textContent = data.accessToken ? "Sync Fitbit" : "Connect Fitbit";
-                btn.title = data.accessToken
-                    ? "Sync today's Fitbit data into weight, sleep, steps, and resting HR"
-                    : "Connect Fitbit to pull weight, sleep, steps, and resting HR";
+            function renderWorkflowHealthConnectAction() {
+                const btn = document.getElementById("workflowHealthConnectBtn");
+                if (!btn) return;
+                const data =
+                    typeof loadHealthConnect === "function"
+                        ? loadHealthConnect() || {}
+                        : {};
+                const bridgeReady =
+                    typeof healthConnectBridgeAvailable === "function" &&
+                    healthConnectBridgeAvailable();
+                btn.textContent = data.lastSync
+                    ? "Sync Health Connect"
+                    : bridgeReady
+                      ? "Import Health Connect"
+                      : "Health Connect";
+                btn.title = bridgeReady
+                    ? "Import today's weight, sleep, steps, and resting HR from Android Health Connect"
+                    : "Open Health Connect setup and Android sync details";
             }
 
             async function sendWorkflowCoachReply() {
@@ -12910,10 +13015,10 @@
                     return;
                 }
                 if (
-                    action === "fitbitSync" &&
-                    typeof fitbitPrimaryAction === "function"
+                    action === "healthConnectSync" &&
+                    typeof healthConnectPrimaryAction === "function"
                 ) {
-                    fitbitPrimaryAction();
+                    healthConnectPrimaryAction();
                     return;
                 }
                 if (target) openCriticalWorkflowItem(target);
@@ -12965,7 +13070,8 @@
                 window.buildProtocolOsState = buildProtocolOsState;
                 window.selectWorkflowSummary = selectWorkflowSummary;
                 window.sendWorkflowCoachReply = sendWorkflowCoachReply;
-                window.renderWorkflowFitbitAction = renderWorkflowFitbitAction;
+                window.renderWorkflowHealthConnectAction =
+                    renderWorkflowHealthConnectAction;
                 window.openWorkflowInputActionFromButton =
                     openWorkflowInputActionFromButton;
                 window.mountWorkflowInputZone = mountWorkflowInputZone;
@@ -13212,7 +13318,7 @@
                 renderTraining();
                 renderSymptoms();
                 renderRecovery();
-                if (typeof renderFitbitStatus === "function") renderFitbitStatus();
+                if (typeof renderHealthConnectStatus === "function") renderHealthConnectStatus();
                 renderLabs();
                 renderLibrary();
                 renderCoachPresets();
@@ -16088,7 +16194,7 @@
                 coachModeCard: "Coach guidance generated from your latest data.",
                 cycleControlCard: "Cycle state, active stack, and planned changes.",
                 injectionTrackerCard: "Next dose, recent injections, and site rotation.",
-                recoveryCard: "Sleep, steps, Fitbit status, and recovery trend.",
+                recoveryCard: "Sleep, steps, Health Connect status, and recovery trend.",
                 aiCoachCard: "Ask Claude, ChatGPT, or Gemini about your protocol.",
                 vitalsCard: "Blood pressure, resting HR, alerts, and trend.",
                 dtpCard: "Retatrutide dose ladder and titration plan.",
@@ -16856,6 +16962,7 @@
                     "tp_coach_settings", // AI provider API keys
                     "tp_sync", // GitHub gist token
                     "tp_fitbit", // Fitbit OAuth tokens
+                    "tp_health_connect", // Health Connect device state
                     "tp_sync_lastSnapshot",
                     "tp_lock", // PIN hash
                     "tp_gist_token", // GitHub sync token
@@ -17660,7 +17767,7 @@
                         : "Not connected yet";
                 body.innerHTML = `
       <div style="font-size:13px;line-height:1.55;color:var(--text);margin-bottom:14px;">
-        Save one sanitized JSON backup into Google Drive's hidden <strong>app data</strong> folder so you can recover after local storage loss. API keys, GitHub tokens, Fitbit auth, and other local-only secrets stay on this device.
+        Save one sanitized JSON backup into Google Drive's hidden <strong>app data</strong> folder so you can recover after local storage loss. API keys, GitHub tokens, Health Connect state, and other local-only secrets stay on this device.
       </div>
 
       <div style="background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.25);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;line-height:1.55;">
@@ -24617,6 +24724,270 @@ Style:
                 if (existing && existing.weekKey === weekKey) return; // already have this week's
                 generateWeeklyReview(false);
             }
+            // =========================================================
+            // HEALTH CONNECT INTEGRATION - Android bridge import
+            // Review note: Health Connect is the supported mobile wearable
+            // path. Browser/PWA cannot talk to Health Connect directly.
+            // =========================================================
+            function loadHealthConnect() {
+                try {
+                    return JSON.parse(
+                        localStorage.getItem("tp_health_connect") || "{}",
+                    );
+                } catch {
+                    return {};
+                }
+            }
+            function saveHealthConnect(obj) {
+                localStorage.setItem("tp_health_connect", JSON.stringify(obj));
+            }
+            function healthConnectBridgeAvailable() {
+                return !!(
+                    window.healthConnectBridge?.sync ||
+                    window.AndroidHealthConnect?.sync ||
+                    window.HealthTrackerAndroid?.requestHealthConnectSync ||
+                    window.webkit?.messageHandlers?.healthConnect
+                );
+            }
+            function _healthConnectSetLog(lines) {
+                const pre = document.getElementById("healthConnectLog");
+                if (!pre) return;
+                pre.style.display = "block";
+                pre.textContent = Array.isArray(lines) ? lines.join("\n") : String(lines || "");
+            }
+            function _healthConnectUpsertWeightEntry(dateKey, lb) {
+                const entries = loadEntries();
+                const existing = entries.find((e) => e.date === dateKey);
+                if (!existing) {
+                    entries.push({
+                        date: dateKey,
+                        weight: +lb.toFixed(1),
+                        protein: null,
+                        water: null,
+                        notes: "Health Connect",
+                    });
+                    entries.sort((a, b) => a.date.localeCompare(b.date));
+                    saveEntries(entries);
+                    return;
+                }
+                if (existing.notes === "Health Connect") {
+                    existing.weight = +lb.toFixed(1);
+                    saveEntries(entries);
+                }
+            }
+            function _healthConnectUpsertVitals(dateKey, restingHr) {
+                if (!Number.isFinite(restingHr) || restingHr <= 0) return;
+                const arr = loadVitals();
+                const existing = arr.find((v) => v.date === dateKey);
+                if (!existing) {
+                    arr.push({
+                        date: dateKey,
+                        sbp: null,
+                        dbp: null,
+                        hr: Math.round(restingHr),
+                        source: "health_connect",
+                    });
+                    arr.sort((a, b) => a.date.localeCompare(b.date));
+                    saveVitalsArr(arr);
+                    return;
+                }
+                if (existing.source === "health_connect") {
+                    existing.hr = Math.round(restingHr);
+                    saveVitalsArr(arr);
+                }
+            }
+            function _applyHealthConnectDay(record) {
+                if (!record || typeof record !== "object") return "";
+                const dateKey = record.date || todayKey();
+                const log = [];
+                if (Number.isFinite(Number(record.weightLb))) {
+                    _healthConnectUpsertWeightEntry(dateKey, Number(record.weightLb));
+                    log.push(`Weight ${Number(record.weightLb).toFixed(1)} lb`);
+                }
+                const compliancePatch = {};
+                if (Number.isFinite(Number(record.steps))) {
+                    compliancePatch.steps = Math.round(Number(record.steps));
+                    log.push(`${Math.round(Number(record.steps)).toLocaleString()} steps`);
+                }
+                if (Number.isFinite(Number(record.sleepHours))) {
+                    compliancePatch.sleep_hours = +Number(record.sleepHours).toFixed(1);
+                    log.push(`${Number(record.sleepHours).toFixed(1)}h sleep`);
+                }
+                if (Number.isFinite(Number(record.restingHr))) {
+                    _healthConnectUpsertVitals(dateKey, Number(record.restingHr));
+                    log.push(`${Math.round(Number(record.restingHr))} bpm`);
+                }
+                if (Object.keys(compliancePatch).length) {
+                    setComplianceForDate(dateKey, compliancePatch);
+                }
+                return `${dateKey}: ${log.join(" | ") || "no imported data"}`;
+            }
+            function applyHealthConnectSync(payload) {
+                const records = Array.isArray(payload?.records)
+                    ? payload.records
+                    : [payload || {}];
+                const lines = records.map(_applyHealthConnectDay).filter(Boolean);
+                saveHealthConnect({
+                    ...loadHealthConnect(),
+                    connectedAt:
+                        loadHealthConnect().connectedAt || new Date().toISOString(),
+                    lastSync: new Date().toISOString(),
+                    lastSyncSummary:
+                        lines[0] || "Imported Health Connect data",
+                    source: "android_bridge",
+                });
+                _healthConnectSetLog(lines.length ? lines : "No Health Connect data received");
+                renderHealthConnectStatus();
+                render();
+                showToast("Health Connect imported", 3000);
+            }
+            async function healthConnectRequestSync() {
+                const lines = ["Requesting Health Connect sync..."];
+                _healthConnectSetLog(lines);
+                try {
+                    if (window.HealthTrackerAndroid?.requestHealthConnectSync) {
+                        const maybe = await window.HealthTrackerAndroid.requestHealthConnectSync();
+                        if (maybe && typeof maybe === "object") applyHealthConnectSync(maybe);
+                        return;
+                    }
+                    if (window.AndroidHealthConnect?.sync) {
+                        const maybe = await window.AndroidHealthConnect.sync();
+                        if (maybe && typeof maybe === "object") applyHealthConnectSync(maybe);
+                        return;
+                    }
+                    if (window.healthConnectBridge?.sync) {
+                        const maybe = await window.healthConnectBridge.sync();
+                        if (maybe && typeof maybe === "object") applyHealthConnectSync(maybe);
+                        return;
+                    }
+                    if (window.webkit?.messageHandlers?.healthConnect) {
+                        window.webkit.messageHandlers.healthConnect.postMessage({
+                            type: "sync",
+                        });
+                        return;
+                    }
+                } catch (e) {
+                    _healthConnectSetLog([
+                        "Health Connect sync failed.",
+                        String(e?.message || e || "Unknown error"),
+                    ]);
+                    showToast("Health Connect sync failed", 4000);
+                    return;
+                }
+                _healthConnectSetLog([
+                    "Health Connect is not available in this browser session.",
+                    "Use the Android shell/native bridge to import wearable data.",
+                ]);
+                showToast("Health Connect needs the Android app shell", 4000);
+            }
+            function healthConnectShowHelp() {
+                _healthConnectSetLog([
+                    "Health Connect setup",
+                    "",
+                    "1. Open the Android app shell build.",
+                    "2. Grant Health Connect access for weight, sleep, steps, and heart rate.",
+                    "3. Return here and tap Sync from Android.",
+                    "",
+                    "The browser/PWA alone cannot read Health Connect directly.",
+                ]);
+            }
+            function healthConnectPrimaryAction() {
+                if (healthConnectBridgeAvailable()) {
+                    healthConnectRequestSync();
+                    return;
+                }
+                openHealthConnectSettings();
+            }
+            function openHealthConnectSettings() {
+                const overlay = document.getElementById("fitbitSettingsOverlay");
+                const panel = document.getElementById("healthConnectPanel");
+                const fitbitConnected = document.getElementById("fitbitConnected");
+                const fitbitNotConnected = document.getElementById("fitbitNotConnected");
+                const summary = document.getElementById("healthConnectSummary");
+                const pre = document.getElementById("healthConnectLog");
+                const data = loadHealthConnect();
+                const bridgeReady = healthConnectBridgeAvailable();
+                _fitbitSetText("fitbitModalTitle", "Health Connect");
+                if (fitbitConnected) fitbitConnected.style.display = "none";
+                if (fitbitNotConnected) fitbitNotConnected.style.display = "none";
+                if (panel) panel.style.display = "block";
+                if (summary) {
+                    const parts = [];
+                    parts.push(
+                        bridgeReady
+                            ? "Android bridge detected."
+                            : "No Android bridge detected in this browser session.",
+                    );
+                    if (data.lastSync) {
+                        const last = new Date(data.lastSync);
+                        if (!isNaN(last)) parts.push(`Last import ${relativeTime(last)}.`);
+                    } else {
+                        parts.push("No Health Connect import yet.");
+                    }
+                    parts.push(
+                        "Imports land in weight, recovery/activity, and vitals where that data belongs.",
+                    );
+                    summary.textContent = parts.join(" ");
+                }
+                if (pre) {
+                    pre.style.display = "none";
+                    pre.textContent = "";
+                }
+                if (overlay) overlay.style.display = "flex";
+            }
+            function closeHealthConnectSettings() {
+                const overlay = document.getElementById("fitbitSettingsOverlay");
+                const panel = document.getElementById("healthConnectPanel");
+                if (panel) panel.style.display = "none";
+                if (overlay) overlay.style.display = "none";
+            }
+            function healthConnectDisconnect() {
+                if (
+                    !confirm(
+                        "Clear saved Health Connect connection state? Imported entries stay intact.",
+                    )
+                ) {
+                    return;
+                }
+                localStorage.removeItem("tp_health_connect");
+                renderHealthConnectStatus();
+                closeHealthConnectSettings();
+                showToast("Health Connect state cleared");
+            }
+            function renderHealthConnectStatus() {
+                const statusEl = document.getElementById("healthConnectStatus");
+                const actionBtn = document.getElementById("healthConnectActionBtn");
+                const settingsBtn = document.getElementById("healthConnectSettingsBtn");
+                const data = loadHealthConnect();
+                const bridgeReady = healthConnectBridgeAvailable();
+                if (actionBtn) {
+                    actionBtn.textContent = data.lastSync
+                        ? "Sync Health Connect"
+                        : "Health Connect";
+                    actionBtn.title = bridgeReady
+                        ? "Import today's weight, sleep, steps, and resting HR from Android"
+                        : "Open Health Connect setup";
+                }
+                if (settingsBtn) settingsBtn.style.display = "";
+                if (typeof renderWorkflowHealthConnectAction === "function") {
+                    renderWorkflowHealthConnectAction();
+                }
+                if (!statusEl) return;
+                if (!data.lastSync) {
+                    statusEl.textContent = bridgeReady
+                        ? "Android bridge ready for Health Connect import."
+                        : "Health Connect imports from Android are not set up on this device.";
+                    return;
+                }
+                const parts = ["Health Connect ready"];
+                const last = new Date(data.lastSync);
+                if (!isNaN(last)) parts.push("synced " + relativeTime(last));
+                if (data.lastSyncSummary) parts.push(data.lastSyncSummary);
+                statusEl.textContent = parts.join(" | ");
+            }
+            window.applyHealthConnectSync = applyHealthConnectSync;
+            window.receiveHealthConnectSync = applyHealthConnectSync;
+            window.healthConnectSyncResult = applyHealthConnectSync;
             // =========================================================
             // FITBIT INTEGRATION - OAuth2 PKCE
             // Review note: Fitbit sync only writes Fitbit-owned rows or
@@ -39033,19 +39404,27 @@ ${parts.join("\n")}
                     localStorage.setItem(FLAG, "done");
                 } catch { /* purge is best-effort */ }
             })();
+            (function purgeFitbitV2398Keys() {
+                try {
+                    const FLAG = "tp_migration_v2_39_8_fitbit_retire";
+                    if (localStorage.getItem(FLAG) === "done") return;
+                    const retired = [
+                        "tp_fitbit",
+                        "tp_fitbit_pkce",
+                    ];
+                    retired.forEach((k) => {
+                        try { localStorage.removeItem(k); } catch {}
+                    });
+                    localStorage.setItem(FLAG, "done");
+                } catch {}
+            })();
             initMojibakeRepair();
             scheduleMojibakeRepair(80);
             scheduleMojibakeRepair(1200);
             render(); // calls renderShoppingList, renderInjectionTracker, renderSuppChecklist, renderMeasurements internally
             scheduleViewportReset();
             restoreBackupHandle(); // restore connected auto-backup file from IndexedDB if present
-            renderFitbitStatus();
-            (async function initFitbitIntegration() {
-                try {
-                    const handledRedirect = await fitbitHandleRedirect();
-                    if (!handledRedirect) await fitbitAutoSyncIfNeeded();
-                } catch {}
-            })();
+            renderHealthConnectStatus();
             checkScheduledReview(); // fire Sunday auto-review if due
             checkInjectionReminder(); // fire injection-day notification if due
             checkWaterReminder(); // fire hydration reminder if due
@@ -39058,7 +39437,6 @@ ${parts.join("\n")}
                 refreshDailyDateBoundary(false);
                 checkAppVersionFreshness({ silent: true });
                 scheduleViewportReset();
-                fitbitAutoSyncIfNeeded().catch(() => {});
             });
             window.addEventListener("load", () => {
                 scheduleMojibakeRepair(0);
@@ -39068,7 +39446,6 @@ ${parts.join("\n")}
                 if (!document.hidden) {
                     refreshDailyDateBoundary(false);
                     scheduleViewportReset();
-                    fitbitAutoSyncIfNeeded().catch(() => {});
                 }
             });
             // v2.5.0: kick off cross-device sync if the user has already connected a gist

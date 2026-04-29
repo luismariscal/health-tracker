@@ -2,6 +2,12 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.39.8 - 2026-04-29
+
+- Replaced the visible Fitbit workflow and Recovery actions with Health Connect so the wearable path aligns with Android/mobile instead of the failing browser-first Fitbit flow.
+- Added a Health Connect import panel with Android setup guidance, sync hooks, import logging, and provider-owned updates for weight, sleep, steps, and resting HR.
+- Retired saved Fitbit connection state on startup so the old Fitbit auth/sync path stops driving the app after the Health Connect switch.
+
 ## v2.39.7 - 2026-04-28
 
 - Added an optional Fitbit Bridge URL setting in the Fitbit modal so Activity and Sleep can sync through a serverless proxy when direct browser fetches keep failing.
