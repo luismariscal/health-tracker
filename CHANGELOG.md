@@ -2,6 +2,14 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.39.7 - 2026-04-28
+
+- Added an optional Fitbit Bridge URL setting in the Fitbit modal so Activity and Sleep can sync through a serverless proxy when direct browser fetches keep failing.
+- Wired Fitbit sync and diagnostics to use the bridge when configured, while keeping the direct browser path as the fallback.
+- Added a small Netlify-ready `fitbit-proxy` function scaffold plus bridge setup notes in `fitbit-bridge/README.md`.
+- Fitbit now marks partial endpoint failures as a partial sync instead of stamping the whole wearable import as fully fresh.
+- Bumped the mobile layout defaults key so newer phone-first open/collapse defaults can apply on devices that already visited older mobile builds.
+
 ## v2.39.6 - 2026-04-28
 
 - Added a dedicated Fitbit action button to the top critical-workflow block so wearable sync is visible without hunting through the workflow chips.
