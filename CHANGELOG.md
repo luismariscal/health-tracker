@@ -2,6 +2,14 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.39.9 - 2026-04-29
+
+- Removed the inactive Fitbit OAuth, sync, diagnose, and bridge code so the live source now matches the Health Connect direction.
+- Deleted the leftover Fitbit-only modal sections and kept the wearable modal focused on Health Connect setup/import.
+- Kept only the legacy Fitbit key purge and secret filtering needed to retire old local state safely.
+
+
+
 ## v2.39.8 - 2026-04-29
 
 - Replaced the visible Fitbit workflow and Recovery actions with Health Connect so the wearable path aligns with Android/mobile instead of the failing browser-first Fitbit flow.
@@ -30,7 +38,7 @@ All notable changes to this project should be recorded here.
 
 ## v2.39.4 - 2026-04-25
 
-- Added a `🔬 Diagnose` button to the Fitbit settings modal. Clicking it hits each Fitbit endpoint we use (weight, activity, sleep, heart rate) independently and reports the HTTP status, response time, and error body for each — so you can tell at a glance whether failures are scope/auth (401/403), rate-limit (429), Fitbit server (5xx), or pure network/firewall blocking (`Failed to fetch`).
+- Added a `ðŸ”¬ Diagnose` button to the Fitbit settings modal. Clicking it hits each Fitbit endpoint we use (weight, activity, sleep, heart rate) independently and reports the HTTP status, response time, and error body for each â€” so you can tell at a glance whether failures are scope/auth (401/403), rate-limit (429), Fitbit server (5xx), or pure network/firewall blocking (`Failed to fetch`).
 - Diagnostic also enumerates the granted OAuth scopes from the saved token and flags any missing scopes with a hint to Disconnect + Connect to re-grant.
 - Output is appended to the existing `fitbitSyncLog` block, with a short legend explaining each status code.
 - Synced the in-app version badge and service worker version to v2.39.4.
@@ -38,15 +46,15 @@ All notable changes to this project should be recorded here.
 ## v2.39.3 - 2026-04-25
 
 - Wrapped `fitbitFetch` with one auto-retry on TypeError "Failed to fetch" (the bare network-level error from `fetch` itself). 600ms delay between attempts handles brief DNS hiccups, ad blockers waking up, or VPN reconnects without user intervention.
-- Translated common HTTP errors into actionable hints rather than raw response bodies: 401 → "token expired — open ⚙ to reconnect"; 429 → "rate limit reached — wait ~1h then retry"; 5xx → "server error — try again in a minute". Persistent network failures now say "network unreachable — check connection or VPN/extension blocker".
-- The one-click `⌚ Sync now` button now scans the per-endpoint log for any "error:" lines and surfaces the first one in a 4-second toast. Previously it only showed "Fitbit synced" even if Activity or Sleep silently failed.
+- Translated common HTTP errors into actionable hints rather than raw response bodies: 401 â†’ "token expired â€” open âš™ to reconnect"; 429 â†’ "rate limit reached â€” wait ~1h then retry"; 5xx â†’ "server error â€” try again in a minute". Persistent network failures now say "network unreachable â€” check connection or VPN/extension blocker".
+- The one-click `âŒš Sync now` button now scans the per-endpoint log for any "error:" lines and surfaces the first one in a 4-second toast. Previously it only showed "Fitbit synced" even if Activity or Sleep silently failed.
 - Synced the in-app version badge and service worker version to v2.39.3.
 
 ## v2.39.2 - 2026-04-25
 
-- One-click Fitbit sync. The `⌚ Fitbit` button in the Recovery & Activity card now runs `fitbitSyncToday()` directly when you're already connected, with a "Syncing…" loading state and the existing success toast. No more open-modal → click-sync two-step for the common case.
-- Added a small `⚙` button next to `⌚` that opens the full Fitbit settings modal (range sync, disconnect, manual reconnect). Hidden until you're connected so the not-yet-set-up state stays simple.
-- Button label now reflects state: `⌚ Connect Fitbit` → `⌚ Sync now` once connected → `⌚ Syncing…` during the in-flight call.
+- One-click Fitbit sync. The `âŒš Fitbit` button in the Recovery & Activity card now runs `fitbitSyncToday()` directly when you're already connected, with a "Syncingâ€¦" loading state and the existing success toast. No more open-modal â†’ click-sync two-step for the common case.
+- Added a small `âš™` button next to `âŒš` that opens the full Fitbit settings modal (range sync, disconnect, manual reconnect). Hidden until you're connected so the not-yet-set-up state stays simple.
+- Button label now reflects state: `âŒš Connect Fitbit` â†’ `âŒš Sync now` once connected â†’ `âŒš Syncingâ€¦` during the in-flight call.
 - Synced the in-app version badge and service worker version to v2.39.2.
 
 ## v2.39.1 - 2026-04-25
@@ -60,23 +68,23 @@ All notable changes to this project should be recorded here.
 - Folded `whatIfCard` into `projectionCard`. The slider, value, and results now sit at the bottom of the 4-Week Projection card under a divider, so future scenarios live next to the current forecast instead of in a separate card further down the scroll.
 - Updated the card-description map and the auto-collapse list in the workflow controller to reference the new ID (`chartsCard`) and drop the removed ones (`weightChartCard`, `lossChartCard`, `whatIfCard`).
 - Synced the in-app version badge and service worker version to v2.39.0.
-- Net change: **36 → 34 cards**, same information, less hunting.
+- Net change: **36 â†’ 34 cards**, same information, less hunting.
 
 ## v2.38.9 - 2026-04-25
 
-- Calmed down the injection recent log palette. Stopped applying the partial/full color class to individual chips — a logged dose isn't itself partial, only the day's overall status is, so chips now use the neutral muted style by default.
+- Calmed down the injection recent log palette. Stopped applying the partial/full color class to individual chips â€” a logged dose isn't itself partial, only the day's overall status is, so chips now use the neutral muted style by default.
 - Softened the partial date badge to muted/neutral. Only the green "All logged" badge stays colored, which keeps the at-a-glance schedule-hit signal without flooding the section with orange.
 - Synced the in-app version badge and service worker version to v2.38.9.
 
 ## v2.38.8 - 2026-04-25
 
 - Re-applied the AMOLED stealth theme as a clean inline CSS block in the head `<style>` (no PowerShell script). True-black backgrounds for OLED contrast plus subtle cyan neon glows on primary buttons, FAB, and the critical-flow card.
-- Reorganized the Injection Tracker recent log: chips are now grouped by date with Today/Yesterday/date headers and an "All logged" / "N doses" badge per day. Each chip shows compound · time · site without the date prefix, replacing the flat unlabeled chip soup.
+- Reorganized the Injection Tracker recent log: chips are now grouped by date with Today/Yesterday/date headers and an "All logged" / "N doses" badge per day. Each chip shows compound Â· time Â· site without the date prefix, replacing the flat unlabeled chip soup.
 - Synced the in-app version badge and service worker version to v2.38.8.
 
 ## v2.38.7 - 2026-04-25
 
-- **Recovery release.** Reverted `index.html`, `sw.js`, and `CHANGELOG.md` to the v2.38.2 state. The v2.38.3 AMOLED PowerShell script injected its CSS payload at every `</style>` match in the file (including inside JS template literals) and read the file with the wrong encoding, producing 1,503 mojibake sequences and broken card-content rendering. Attempts to repair in place (v2.38.4–v2.38.6) couldn't fully resolve the rendering breakage without browser diagnostics, so we rolled back to the last-known-good commit.
+- **Recovery release.** Reverted `index.html`, `sw.js`, and `CHANGELOG.md` to the v2.38.2 state. The v2.38.3 AMOLED PowerShell script injected its CSS payload at every `</style>` match in the file (including inside JS template literals) and read the file with the wrong encoding, producing 1,503 mojibake sequences and broken card-content rendering. Attempts to repair in place (v2.38.4â€“v2.38.6) couldn't fully resolve the rendering breakage without browser diagnostics, so we rolled back to the last-known-good commit.
 - **Lost in this revert (to be re-applied):** injection history grouped by date (was v2.38.4), deeper stack adherence breakdown, the CSS-class audit notes, and the AMOLED dark theme.
 - If you want the AMOLED dark theme back, we'll add it as a clean inline CSS block in the head `<style>` instead of running the broken PowerShell script.
 - Synced the in-app version badge and service worker version to v2.38.7.
@@ -97,7 +105,7 @@ All notable changes to this project should be recorded here.
 
 ## v2.38.0 - 2026-04-25
 
-- Added Stack Adherence Analytics in the AI coach feed: tracks expected-vs-logged injections per compound across the last 14 days using each entry's structured `scheduleDays`/`scheduleTimes` with a ±2hr tolerance, surfacing drift (<95%), warning (<80%), and protocol-gap (<50%) tiers.
+- Added Stack Adherence Analytics in the AI coach feed: tracks expected-vs-logged injections per compound across the last 14 days using each entry's structured `scheduleDays`/`scheduleTimes` with a Â±2hr tolerance, surfacing drift (<95%), warning (<80%), and protocol-gap (<50%) tiers.
 - Folded the standalone Plateau Insight Card into the primary `aiCoachCard` feed; the plateau coach item now inlines the `buildPlateauDiagnosis` culprits rather than rendering a separate card surface.
 - Fixed a latent bug in `_plateauInjectionAdherence` that hardcoded a Thu/Sun-only cadence and used a broken `date:compound` key-shape check that never matched real injection logs. It now delegates to `computeStackAdherence(14)` and respects each compound's own schedule.
 - Audited the Drive backup flow and confirmed the dynamic-inclusive backup pattern fully covers v2.36+ structured stack fields (`scheduleDays`, `scheduleTimes`, `route`, `category`) without any schema fix needed.
@@ -140,7 +148,7 @@ All notable changes to this project should be recorded here.
 
 - Repaired accumulated mojibake throughout index.html: 1,421 lines cleaned, restoring em/en-dashes, middle dots, arrows, math symbols, check/cross marks, and all emoji (injection, meal, lab, etc.) that had been corrupted through multiple save/encode cycles.
 - Restored the numeric-range regex to correctly match hyphen, "to", em-dash, and en-dash.
-- Removed ~1.5 MB of encoding garbage (file shrank 3.4 MB → 2.0 MB) with no change to line count or structure.
+- Removed ~1.5 MB of encoding garbage (file shrank 3.4 MB â†’ 2.0 MB) with no change to line count or structure.
 
 ## v2.36.7 - 2026-04-23
 
