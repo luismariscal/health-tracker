@@ -6934,6 +6934,15 @@
                                 Sync from Android
                             </button>
                             <button
+                                id="healthConnectManageBtn"
+                                class="btn btn-ghost"
+                                type="button"
+                                onclick="openHealthConnectManageData()"
+                                style="display: none"
+                            >
+                                Manage in Android
+                            </button>
+                            <button
                                 class="btn btn-ghost"
                                 type="button"
                                 onclick="healthConnectShowHelp()"
@@ -9803,8 +9812,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.39.9";
+            const VERSION = "2.40.0";
             const VERSION_CHANGES = [
+                {
+                    version: "2.40.0",
+                    date: "2026-04-29",
+                    summary: "Build the Android Health Connect shell for real",
+                    details: [
+                        "Restored and upgraded the android-shell companion app so the tracker can run inside a trusted Android WebView and import Health Connect data natively.",
+                        "Aligned the web Health Connect bridge with the shell so status checks, permission prompts, sync callbacks, and Android manage-data actions all flow through one payload contract.",
+                        "Added Android-side setup pieces for permission rationale, onboarding entry points, and a stricter trusted-origin WebView host around the existing tracker.",
+                    ],
+                },
                 {
                     version: "2.39.9",
                     date: "2026-04-29",
@@ -12725,18 +12744,19 @@
             function renderWorkflowHealthConnectAction() {
                 const btn = document.getElementById("workflowHealthConnectBtn");
                 if (!btn) return;
-                const data =
-                    typeof loadHealthConnect === "function"
-                        ? loadHealthConnect() || {}
-                        : {};
+                const data = typeof loadHealthConnect === "function" ? loadHealthConnect() || {} : {};
+                const bridgeInfo = data.bridgeStatus || {};
                 const bridgeReady =
                     typeof healthConnectBridgeAvailable === "function" &&
                     healthConnectBridgeAvailable();
-                btn.textContent = data.lastSync
-                    ? "Sync Health Connect"
-                    : bridgeReady
-                      ? "Import Health Connect"
-                      : "Health Connect";
+                btn.textContent =
+                    bridgeReady && bridgeInfo.permissionGranted === false
+                        ? "Grant Health Connect"
+                        : data.lastSync
+                          ? "Sync Health Connect"
+                          : bridgeReady
+                            ? "Import Health Connect"
+                            : "Health Connect";
                 btn.title = bridgeReady
                     ? "Import today's weight, sleep, steps, and resting HR from Android Health Connect"
                     : "Open Health Connect setup and Android sync details";
@@ -24506,11 +24526,69 @@ Style:
             function saveHealthConnect(obj) {
                 localStorage.setItem("tp_health_connect", JSON.stringify(obj));
             }
+            function _parseHealthConnectBridgeValue(value) {
+                if (!value) return null;
+                if (typeof value === "object") return value;
+                if (typeof value !== "string") return null;
+                try {
+                    return JSON.parse(value);
+                } catch {
+                    return null;
+                }
+            }
+            function _healthConnectBridgeStatePatch(payload) {
+                if (!payload || typeof payload !== "object") return null;
+                const patch = {};
+                if (typeof payload.available === "boolean") patch.available = payload.available;
+                if (typeof payload.permissionGranted === "boolean") {
+                    patch.permissionGranted = payload.permissionGranted;
+                }
+                if (payload.sdkStatus) patch.sdkStatus = String(payload.sdkStatus);
+                if (payload.bridgeVersion) patch.bridgeVersion = String(payload.bridgeVersion);
+                if (payload.shellVersion) patch.shellVersion = String(payload.shellVersion);
+                if (payload.webAppUrl) patch.webAppUrl = String(payload.webAppUrl);
+                if (payload.message) patch.message = String(payload.message);
+                if (!Object.keys(patch).length) return null;
+                patch.checkedAt = new Date().toISOString();
+                return patch;
+            }
+            function _saveHealthConnectBridgeState(patch) {
+                if (!patch || typeof patch !== "object") return loadHealthConnect();
+                const current = loadHealthConnect();
+                const next = {
+                    ...current,
+                    bridgeStatus: {
+                        ...(current.bridgeStatus || {}),
+                        ...patch,
+                    },
+                    source: current.source || "android_bridge",
+                };
+                saveHealthConnect(next);
+                return next;
+            }
+            function _healthConnectRecordsFromPayload(payload) {
+                if (Array.isArray(payload?.records)) return payload.records;
+                if (Array.isArray(payload?.days)) return payload.days;
+                if (
+                    payload &&
+                    typeof payload === "object" &&
+                    (payload.date ||
+                        payload.weightLb != null ||
+                        payload.steps != null ||
+                        payload.sleepHours != null ||
+                        payload.restingHr != null)
+                ) {
+                    return [payload];
+                }
+                return [];
+            }
             function healthConnectBridgeAvailable() {
                 return !!(
                     window.healthConnectBridge?.sync ||
                     window.AndroidHealthConnect?.sync ||
+                    window.AndroidHealthConnect?.getStatusJson ||
                     window.HealthTrackerAndroid?.requestHealthConnectSync ||
+                    window.HealthTrackerAndroid?.getHealthConnectStatusJson ||
                     window.webkit?.messageHandlers?.healthConnect
                 );
             }
@@ -24587,24 +24665,84 @@ Style:
                 }
                 return `${dateKey}: ${log.join(" | ") || "no imported data"}`;
             }
+            function applyHealthConnectBridgeStatus(payload) {
+                const patch = _healthConnectBridgeStatePatch(payload);
+                if (patch) _saveHealthConnectBridgeState(patch);
+                renderHealthConnectStatus();
+            }
             function applyHealthConnectSync(payload) {
-                const records = Array.isArray(payload?.records)
-                    ? payload.records
-                    : [payload || {}];
+                const records = _healthConnectRecordsFromPayload(payload);
                 const lines = records.map(_applyHealthConnectDay).filter(Boolean);
+                const bridgePatch = _healthConnectBridgeStatePatch(payload);
+                const current = loadHealthConnect();
                 saveHealthConnect({
-                    ...loadHealthConnect(),
+                    ...current,
                     connectedAt:
-                        loadHealthConnect().connectedAt || new Date().toISOString(),
-                    lastSync: new Date().toISOString(),
+                        current.connectedAt || new Date().toISOString(),
+                    lastSync: payload?.lastSync || new Date().toISOString(),
                     lastSyncSummary:
-                        lines[0] || "Imported Health Connect data",
+                        payload?.lastSyncSummary ||
+                        lines[0] ||
+                        "Imported Health Connect data",
                     source: "android_bridge",
+                    bridgeStatus: bridgePatch
+                        ? {
+                              ...(current.bridgeStatus || {}),
+                              ...bridgePatch,
+                          }
+                        : current.bridgeStatus,
                 });
                 _healthConnectSetLog(lines.length ? lines : "No Health Connect data received");
                 renderHealthConnectStatus();
                 render();
                 showToast("Health Connect imported", 3000);
+            }
+            function receiveHealthConnectBridgePayload(raw) {
+                const payload = _parseHealthConnectBridgeValue(raw);
+                if (!payload || typeof payload !== "object") return;
+                if (payload.type === "bridge-status") {
+                    applyHealthConnectBridgeStatus(payload);
+                    return;
+                }
+                if (payload.type === "sync-result" && payload.ok === false) {
+                    applyHealthConnectBridgeStatus(payload);
+                    _healthConnectSetLog([
+                        "Health Connect sync failed.",
+                        String(payload.message || "Unknown error"),
+                    ]);
+                    renderHealthConnectStatus();
+                    showToast("Health Connect sync failed", 4000);
+                    return;
+                }
+                if (
+                    payload.type === "sync-result" ||
+                    Array.isArray(payload.records) ||
+                    Array.isArray(payload.days) ||
+                    _healthConnectRecordsFromPayload(payload).length
+                ) {
+                    applyHealthConnectSync(payload);
+                }
+            }
+            let _healthConnectStatusRequestedAt = 0;
+            function refreshHealthConnectBridgeStatus(force = false) {
+                if (!healthConnectBridgeAvailable()) return;
+                const now = Date.now();
+                if (!force && now - _healthConnectStatusRequestedAt < 15000) return;
+                _healthConnectStatusRequestedAt = now;
+                try {
+                    if (window.HealthTrackerAndroid?.getHealthConnectStatusJson) {
+                        receiveHealthConnectBridgePayload(
+                            window.HealthTrackerAndroid.getHealthConnectStatusJson(),
+                        );
+                        return;
+                    }
+                    if (window.AndroidHealthConnect?.getStatusJson) {
+                        receiveHealthConnectBridgePayload(
+                            window.AndroidHealthConnect.getStatusJson(),
+                        );
+                        return;
+                    }
+                } catch {}
             }
             async function healthConnectRequestSync() {
                 const lines = ["Requesting Health Connect sync..."];
@@ -24612,17 +24750,17 @@ Style:
                 try {
                     if (window.HealthTrackerAndroid?.requestHealthConnectSync) {
                         const maybe = await window.HealthTrackerAndroid.requestHealthConnectSync();
-                        if (maybe && typeof maybe === "object") applyHealthConnectSync(maybe);
+                        receiveHealthConnectBridgePayload(maybe);
                         return;
                     }
                     if (window.AndroidHealthConnect?.sync) {
                         const maybe = await window.AndroidHealthConnect.sync();
-                        if (maybe && typeof maybe === "object") applyHealthConnectSync(maybe);
+                        receiveHealthConnectBridgePayload(maybe);
                         return;
                     }
                     if (window.healthConnectBridge?.sync) {
                         const maybe = await window.healthConnectBridge.sync();
-                        if (maybe && typeof maybe === "object") applyHealthConnectSync(maybe);
+                        receiveHealthConnectBridgePayload(maybe);
                         return;
                     }
                     if (window.webkit?.messageHandlers?.healthConnect) {
@@ -24656,6 +24794,19 @@ Style:
                     "The browser/PWA alone cannot read Health Connect directly.",
                 ]);
             }
+            function openHealthConnectManageData() {
+                try {
+                    if (window.HealthTrackerAndroid?.openHealthConnectManageData) {
+                        window.HealthTrackerAndroid.openHealthConnectManageData();
+                        return;
+                    }
+                    if (window.AndroidHealthConnect?.openManageData) {
+                        window.AndroidHealthConnect.openManageData();
+                        return;
+                    }
+                } catch {}
+                healthConnectShowHelp();
+            }
             function healthConnectPrimaryAction() {
                 if (healthConnectBridgeAvailable()) {
                     healthConnectRequestSync();
@@ -24669,17 +24820,32 @@ Style:
                 const summary = document.getElementById("healthConnectSummary");
                 const pre = document.getElementById("healthConnectLog");
                 const data = loadHealthConnect();
+                const bridgeInfo = data.bridgeStatus || {};
                 const bridgeReady = healthConnectBridgeAvailable();
                 const title = document.getElementById("healthConnectModalTitle");
+                const manageBtn = document.getElementById("healthConnectManageBtn");
                 if (title) title.textContent = "Health Connect";
                 if (panel) panel.style.display = "block";
+                if (manageBtn) manageBtn.style.display = bridgeReady ? "" : "none";
                 if (summary) {
                     const parts = [];
-                    parts.push(
-                        bridgeReady
-                            ? "Android bridge detected."
-                            : "No Android bridge detected in this browser session.",
-                    );
+                    if (bridgeReady) {
+                        if (bridgeInfo.available === false) {
+                            parts.push(
+                                bridgeInfo.sdkStatus === "provider_update_required"
+                                    ? "Android bridge detected, but Health Connect needs install or update."
+                                    : "Android bridge detected, but Health Connect is unavailable on this device.",
+                            );
+                        } else if (bridgeInfo.permissionGranted === false) {
+                            parts.push(
+                                "Android bridge detected. Health Connect permission still needs approval.",
+                            );
+                        } else {
+                            parts.push("Android bridge detected.");
+                        }
+                    } else {
+                        parts.push("No Android bridge detected in this browser session.");
+                    }
                     if (data.lastSync) {
                         const last = new Date(data.lastSync);
                         if (!isNaN(last)) parts.push(`Last import ${relativeTime(last)}.`);
@@ -24696,6 +24862,7 @@ Style:
                     pre.textContent = "";
                 }
                 if (overlay) overlay.style.display = "flex";
+                if (bridgeReady) refreshHealthConnectBridgeStatus(true);
             }
             function closeHealthConnectSettings() {
                 const overlay = document.getElementById("healthConnectSettingsOverlay");
@@ -24721,11 +24888,18 @@ Style:
                 const actionBtn = document.getElementById("healthConnectActionBtn");
                 const settingsBtn = document.getElementById("healthConnectSettingsBtn");
                 const data = loadHealthConnect();
+                const bridgeInfo = data.bridgeStatus || {};
                 const bridgeReady = healthConnectBridgeAvailable();
+                if (bridgeReady && !bridgeInfo.checkedAt) {
+                    refreshHealthConnectBridgeStatus();
+                }
                 if (actionBtn) {
-                    actionBtn.textContent = data.lastSync
-                        ? "Sync Health Connect"
-                        : "Health Connect";
+                    actionBtn.textContent =
+                        bridgeReady && bridgeInfo.permissionGranted === false
+                            ? "Grant Health Connect"
+                            : data.lastSync
+                              ? "Sync Health Connect"
+                              : "Health Connect";
                     actionBtn.title = bridgeReady
                         ? "Import today's weight, sleep, steps, and resting HR from Android"
                         : "Open Health Connect setup";
@@ -24736,20 +24910,35 @@ Style:
                 }
                 if (!statusEl) return;
                 if (!data.lastSync) {
-                    statusEl.textContent = bridgeReady
-                        ? "Android bridge ready for Health Connect import."
-                        : "Health Connect imports from Android are not set up on this device.";
+                    if (!bridgeReady) {
+                        statusEl.textContent =
+                            "Health Connect imports from Android are not set up on this device.";
+                        return;
+                    }
+                    if (bridgeInfo.available === false) {
+                        statusEl.textContent =
+                            bridgeInfo.sdkStatus === "provider_update_required"
+                                ? "Update or install Health Connect on Android, then return here."
+                                : "Health Connect is unavailable on this Android device.";
+                        return;
+                    }
+                    statusEl.textContent =
+                        bridgeInfo.permissionGranted === false
+                            ? "Android shell connected. Grant Health Connect permission to import data."
+                            : "Android shell ready for Health Connect import.";
                     return;
                 }
                 const parts = ["Health Connect ready"];
                 const last = new Date(data.lastSync);
                 if (!isNaN(last)) parts.push("synced " + relativeTime(last));
+                if (bridgeInfo.shellVersion) parts.push(`shell ${bridgeInfo.shellVersion}`);
                 if (data.lastSyncSummary) parts.push(data.lastSyncSummary);
                 statusEl.textContent = parts.join(" | ");
             }
             window.applyHealthConnectSync = applyHealthConnectSync;
-            window.receiveHealthConnectSync = applyHealthConnectSync;
-            window.healthConnectSyncResult = applyHealthConnectSync;
+            window.receiveHealthConnectSync = receiveHealthConnectBridgePayload;
+            window.healthConnectSyncResult = receiveHealthConnectBridgePayload;
+            window.__healthConnectBridgeReceive = receiveHealthConnectBridgePayload;
             function showToast(msg, duration = 2500) {
                 let t = document.getElementById("tpToast");
                 if (!t) {

@@ -2,6 +2,12 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.40.0 - 2026-04-29
+
+- Restored and upgraded the `android-shell` companion app so Health Connect can run through a real Android WebView host instead of stopping at the browser-session placeholder.
+- Wired the web dashboard and Android shell to the same Health Connect bridge contract for live status, permission prompts, native manage-data actions, and synced record callbacks.
+- Added Android-side onboarding and permission-rationale entry points, plus a trusted-origin WebView restriction so the native bridge only stays exposed to the hosted tracker.
+
 ## v2.39.9 - 2026-04-29
 
 - Removed the inactive Fitbit OAuth, sync, diagnose, and bridge code so the live source now matches the Health Connect direction.
