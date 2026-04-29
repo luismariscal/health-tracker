@@ -9812,8 +9812,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.40.0";
+            const VERSION = "2.40.1";
             const VERSION_CHANGES = [
+                {
+                    version: "2.40.1",
+                    date: "2026-04-29",
+                    summary: "Make Health Connect setup honest in browser sessions",
+                    details: [
+                        "Changed the Health Connect modal so browser-only sessions stop showing a fake-looking Sync button when no Android bridge exists.",
+                        "The primary action now adapts to shell state: Android shell required, Install Health Connect, Grant permission, or Sync from Android.",
+                        "Kept the Android manage-data action visible only when the native bridge is actually present.",
+                    ],
+                },
                 {
                     version: "2.40.0",
                     date: "2026-04-29",
@@ -24794,6 +24804,44 @@ Style:
                     "The browser/PWA alone cannot read Health Connect directly.",
                 ]);
             }
+            function renderHealthConnectModalActions() {
+                const syncBtn = document.getElementById("healthConnectSyncBtn");
+                const manageBtn = document.getElementById("healthConnectManageBtn");
+                if (!syncBtn) return;
+                const data = loadHealthConnect();
+                const bridgeInfo = data.bridgeStatus || {};
+                const bridgeReady = healthConnectBridgeAvailable();
+                if (manageBtn) manageBtn.style.display = bridgeReady ? "" : "none";
+                if (!bridgeReady) {
+                    syncBtn.textContent = "Android shell required";
+                    syncBtn.className = "btn btn-ghost";
+                    syncBtn.onclick = healthConnectShowHelp;
+                    syncBtn.title = "Health Connect only works inside the Android shell build.";
+                    return;
+                }
+                syncBtn.className = "btn btn-primary";
+                syncBtn.onclick = healthConnectRequestSync;
+                if (bridgeInfo.available === false) {
+                    syncBtn.textContent =
+                        bridgeInfo.sdkStatus === "provider_update_required"
+                            ? "Install Health Connect"
+                            : "Unsupported device";
+                    syncBtn.onclick = openHealthConnectManageData;
+                    syncBtn.title =
+                        bridgeInfo.sdkStatus === "provider_update_required"
+                            ? "Install or update Health Connect in Android, then come back here."
+                            : "This Android device cannot provide Health Connect to the tracker.";
+                    return;
+                }
+                syncBtn.textContent =
+                    bridgeInfo.permissionGranted === false
+                        ? "Grant permission"
+                        : "Sync from Android";
+                syncBtn.title =
+                    bridgeInfo.permissionGranted === false
+                        ? "Grant Health Connect access for weight, steps, sleep, and resting heart rate."
+                        : "Import today's weight, sleep, steps, and resting HR from Android.";
+            }
             function openHealthConnectManageData() {
                 try {
                     if (window.HealthTrackerAndroid?.openHealthConnectManageData) {
@@ -24823,10 +24871,9 @@ Style:
                 const bridgeInfo = data.bridgeStatus || {};
                 const bridgeReady = healthConnectBridgeAvailable();
                 const title = document.getElementById("healthConnectModalTitle");
-                const manageBtn = document.getElementById("healthConnectManageBtn");
                 if (title) title.textContent = "Health Connect";
                 if (panel) panel.style.display = "block";
-                if (manageBtn) manageBtn.style.display = bridgeReady ? "" : "none";
+                renderHealthConnectModalActions();
                 if (summary) {
                     const parts = [];
                     if (bridgeReady) {
@@ -24893,6 +24940,7 @@ Style:
                 if (bridgeReady && !bridgeInfo.checkedAt) {
                     refreshHealthConnectBridgeStatus();
                 }
+                renderHealthConnectModalActions();
                 if (actionBtn) {
                     actionBtn.textContent =
                         bridgeReady && bridgeInfo.permissionGranted === false

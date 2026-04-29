@@ -2,6 +2,12 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.40.1 - 2026-04-29
+
+- Made the Health Connect modal honest in browser-only sessions so it no longer presents a misleading live sync button when no Android bridge exists.
+- The primary Health Connect action now adapts to the real state: Android shell required, install/update Health Connect, grant permission, or sync from Android.
+- Kept the Android manage-data button hidden until the native shell bridge is actually present.
+
 ## v2.40.0 - 2026-04-29
 
 - Restored and upgraded the `android-shell` companion app so Health Connect can run through a real Android WebView host instead of stopping at the browser-session placeholder.
