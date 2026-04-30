@@ -416,6 +416,64 @@
                 display: grid;
                 gap: 14px;
             }
+            .workspace-hub-card {
+                padding: 18px;
+                margin-bottom: 18px;
+            }
+            .workspace-hub-top {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                gap: 12px;
+                margin-bottom: 12px;
+            }
+            .workspace-hub-title {
+                font-size: 26px;
+                font-weight: 800;
+                line-height: 1.1;
+            }
+            .workspace-hub-meta {
+                font-size: 11px;
+                color: var(--muted);
+                border: 1px solid var(--border);
+                border-radius: 999px;
+                padding: 7px 12px;
+                white-space: nowrap;
+            }
+            .workspace-hub-tabs {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-bottom: 10px;
+            }
+            .workspace-tab {
+                background: var(--surface2);
+                border: 1px solid var(--border);
+                color: var(--muted);
+                padding: 9px 14px;
+                border-radius: 999px;
+                font-size: 12px;
+                font-weight: 700;
+                cursor: pointer;
+            }
+            .workspace-tab.is-active {
+                color: #061018;
+                background: var(--accent);
+                border-color: rgba(0, 212, 255, 0.7);
+            }
+            .workspace-hub-summary {
+                font-size: 13px;
+                color: var(--muted);
+                line-height: 1.6;
+                margin-bottom: 14px;
+            }
+            .workspace-group-mount {
+                display: none;
+                gap: 14px;
+            }
+            .workspace-group-mount.is-active {
+                display: grid;
+            }
             .workflow-pill {
                 border: 1px solid var(--border);
                 background: rgba(13, 15, 20, 0.42);
@@ -441,6 +499,14 @@
                 gap: 10px;
                 width: 100%;
                 max-width: 100%;
+            }
+            @media (max-width: 720px) {
+                .workspace-hub-top {
+                    flex-direction: column;
+                }
+                .workspace-hub-title {
+                    font-size: 22px;
+                }
             }
             @media (min-width: 1180px) {
                 /* Review note: keep the top workflow on a stable four-column rail on
@@ -5808,6 +5874,55 @@
                 </button>
             </div>
 
+            <div class="card workspace-hub-card" id="workspaceHubCard">
+                <div class="workspace-hub-top">
+                    <div>
+                        <div class="workflow-kicker">Consolidated workspace</div>
+                        <div class="workspace-hub-title">Use one lane at a time.</div>
+                    </div>
+                    <div class="workspace-hub-meta" id="workspaceHubMeta">
+                        Focus view
+                    </div>
+                </div>
+                <div class="workspace-hub-tabs" id="workspaceHubTabs">
+                    <button
+                        class="workspace-tab is-active"
+                        id="workspaceTab-focus"
+                        onclick="setWorkspaceGroup('focus')"
+                    >
+                        Focus
+                    </button>
+                    <button
+                        class="workspace-tab"
+                        id="workspaceTab-review"
+                        onclick="setWorkspaceGroup('review')"
+                    >
+                        Review
+                    </button>
+                    <button
+                        class="workspace-tab"
+                        id="workspaceTab-protocol"
+                        onclick="setWorkspaceGroup('protocol')"
+                    >
+                        Protocol
+                    </button>
+                    <button
+                        class="workspace-tab"
+                        id="workspaceTab-tools"
+                        onclick="setWorkspaceGroup('tools')"
+                    >
+                        Tools
+                    </button>
+                </div>
+                <div class="workspace-hub-summary" id="workspaceHubSummary">
+                    Today's operational context, coach guidance, and recovery signals.
+                </div>
+                <div class="workspace-group-mount is-active" id="workspaceMount-focus"></div>
+                <div class="workspace-group-mount" id="workspaceMount-review"></div>
+                <div class="workspace-group-mount" id="workspaceMount-protocol"></div>
+                <div class="workspace-group-mount" id="workspaceMount-tools"></div>
+            </div>
+
             <!-- MORNING WEIGH-IN NUDGE (v2.11.0) -->
             <div id="morningNudge" style="display: none"></div>
 
@@ -9812,8 +9927,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.40.1";
+            const VERSION = "2.40.2";
             const VERSION_CHANGES = [
+                {
+                    version: "2.40.2",
+                    date: "2026-04-29",
+                    summary: "Consolidate lower dashboard into switchable workspaces",
+                    details: [
+                        "Turned the long lower dashboard into Focus, Review, Protocol, and Tools workspaces so only one lane stays open at a time.",
+                        "Kept the top critical workflow and daily input flow intact, then moved secondary cards under grouped mounts to reduce scroll fatigue.",
+                        "Saved the last workspace selection locally so the app reopens in the lane you were actually using.",
+                    ],
+                },
                 {
                     version: "2.40.1",
                     date: "2026-04-29",
@@ -12841,6 +12966,120 @@
                 zone.style.display = moved ? "" : "none";
             }
 
+            const WORKSPACE_GROUPS = {
+                focus: {
+                    label: "Focus",
+                    summary:
+                        "Today's operational context, coach guidance, and recovery signals.",
+                    cards: [
+                        "todaysPlanCard",
+                        "commandCenter",
+                        "weeklyReportCard",
+                        "recoveryCard",
+                        "aiCoachCard",
+                    ],
+                },
+                review: {
+                    label: "Review",
+                    summary:
+                        "Labs, trends, body signals, and historical context when you want to inspect patterns.",
+                    cards: [
+                        "labsCard",
+                        "projectionCard",
+                        "chartsCard",
+                        "coachModeCard",
+                        "measurementsCard",
+                        "symptomsCard",
+                        "correlationCard",
+                        "changeTimelineCard",
+                        "photosCard",
+                    ],
+                },
+                protocol: {
+                    label: "Protocol",
+                    summary:
+                        "Current stack, cycle structure, schedule logic, and site rotation in one place.",
+                    cards: [
+                        "protocolStackCard",
+                        "cycleControlCard",
+                        "generalTabsCard",
+                        "siteRotatorCard",
+                        "checkpointsCard",
+                    ],
+                },
+                tools: {
+                    label: "Tools",
+                    summary:
+                        "Calculators, notes, library, and lower-frequency utilities that should stay out of the main path.",
+                    cards: [
+                        "dtpCard",
+                        "macroCalcCard",
+                        "refeedCard",
+                        "journalCard",
+                        "powerToolsCard",
+                        "libraryCard",
+                        "shopCard",
+                        "streaksCard",
+                    ],
+                },
+            };
+            const WORKSPACE_GROUP_KEY = "tp_workspace_group";
+            let _activeWorkspaceGroup = "focus";
+            function _workspaceGroupSafeKey(key) {
+                return WORKSPACE_GROUPS[key] ? key : "focus";
+            }
+            function loadWorkspaceGroup() {
+                try {
+                    return _workspaceGroupSafeKey(
+                        localStorage.getItem(WORKSPACE_GROUP_KEY) || "focus",
+                    );
+                } catch {
+                    return "focus";
+                }
+            }
+            function saveWorkspaceGroup(key) {
+                try {
+                    localStorage.setItem(WORKSPACE_GROUP_KEY, _workspaceGroupSafeKey(key));
+                } catch {}
+            }
+            function mountWorkspaceGroups() {
+                Object.entries(WORKSPACE_GROUPS).forEach(([groupKey, config]) => {
+                    const mount = document.getElementById(`workspaceMount-${groupKey}`);
+                    if (!mount) return;
+                    config.cards.forEach((id) => {
+                        const el = document.getElementById(id);
+                        if (!el) return;
+                        mount.appendChild(el);
+                    });
+                });
+            }
+            function renderWorkspaceHub() {
+                const groupKey = _workspaceGroupSafeKey(_activeWorkspaceGroup);
+                const config = WORKSPACE_GROUPS[groupKey];
+                const meta = document.getElementById("workspaceHubMeta");
+                const summary = document.getElementById("workspaceHubSummary");
+                if (meta) {
+                    const visibleCount = config.cards
+                        .map((id) => document.getElementById(id))
+                        .filter(Boolean).length;
+                    meta.textContent = `${config.label} view · ${visibleCount} sections`;
+                }
+                if (summary) summary.textContent = config.summary;
+                Object.keys(WORKSPACE_GROUPS).forEach((key) => {
+                    const btn = document.getElementById(`workspaceTab-${key}`);
+                    const mount = document.getElementById(`workspaceMount-${key}`);
+                    if (btn) btn.classList.toggle("is-active", key === groupKey);
+                    if (mount) mount.classList.toggle("is-active", key === groupKey);
+                });
+            }
+            function setWorkspaceGroup(groupKey, persist = true) {
+                _activeWorkspaceGroup = _workspaceGroupSafeKey(groupKey);
+                if (persist) saveWorkspaceGroup(_activeWorkspaceGroup);
+                mountWorkspaceGroups();
+                renderWorkspaceHub();
+                refreshCollapsiblePreviews();
+            }
+
             let _workflowRefreshHandle = null;
             function scheduleWorkflowRefresh() {
                 if (typeof window === "undefined") return;
@@ -12857,6 +13096,8 @@
                             renderTodayCloseout(state.domains.entries || getEntries());
                         }
                         mountWorkflowInputZone();
+                        mountWorkspaceGroups();
+                        renderWorkspaceHub();
                     } catch {}
                 });
             }
@@ -12870,6 +13111,9 @@
                 window.openWorkflowInputActionFromButton =
                     openWorkflowInputActionFromButton;
                 window.mountWorkflowInputZone = mountWorkflowInputZone;
+                window.mountWorkspaceGroups = mountWorkspaceGroups;
+                window.renderWorkspaceHub = renderWorkspaceHub;
+                window.setWorkspaceGroup = setWorkspaceGroup;
                 window.scheduleWorkflowRefresh = scheduleWorkflowRefresh;
             }
 
@@ -13136,6 +13380,9 @@
                 renderPowerTools();
                 renderWaterCard();
                 mountWorkflowInputZone();
+                _activeWorkspaceGroup = loadWorkspaceGroup();
+                mountWorkspaceGroups();
+                renderWorkspaceHub();
                 initCollapsibleCards();
                 applyMobileReadableDefaults();
                 refreshCollapsiblePreviews();

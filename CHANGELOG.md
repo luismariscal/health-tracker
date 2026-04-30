@@ -2,6 +2,12 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.40.2 - 2026-04-29
+
+- Consolidated the lower dashboard into four switchable workspaces: Focus, Review, Protocol, and Tools.
+- Kept the top critical workflow plus daily input flow in place, then moved the rest of the cards into grouped mounts so the app stops reading like one endless scroll.
+- Saved the active workspace locally so the tracker reopens in the lane you were using instead of always dropping you back into a giant full-page stack.
+
 ## v2.40.1 - 2026-04-29
 
 - Made the Health Connect modal honest in browser-only sessions so it no longer presents a misleading live sync button when no Android bridge exists.
