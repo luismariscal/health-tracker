@@ -2,6 +2,12 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.40.4 - 2026-04-29
+
+- Hid the main app shell, topbar, and bottom nav during the initial mojibake repair pass so corrupted text stops flashing before cleanup finishes.
+- Removed the pending hide state as soon as the first repair pass completes, keeping the workaround limited to first paint instead of delaying the whole app longer than needed.
+- Kept this as a presentation-layer mitigation while the broader UTF-8/source recovery remains separate work.
+
 ## v2.40.3 - 2026-04-29
 
 - Applied a light mojibake cleanup to the AI coach briefing generator so active stack lines, weight/compliance headings, symptom notes, injection rows, lab notes, and the copy message render with readable ASCII separators again.

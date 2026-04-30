@@ -474,6 +474,11 @@
             .workspace-group-mount.is-active {
                 display: grid;
             }
+            body.mojibake-pending .main,
+            body.mojibake-pending #topbar,
+            body.mojibake-pending #bottomNav {
+                visibility: hidden;
+            }
             .workflow-pill {
                 border: 1px solid var(--border);
                 background: rgba(13, 15, 20, 0.42);
@@ -4709,7 +4714,7 @@
             }
         </style>
     </head>
-    <body>
+    <body class="mojibake-pending">
         <!-- APP LOCK OVERLAY (v2.9.0) - rendered above everything when locked -->
         <div
             id="lockOverlay"
@@ -9927,8 +9932,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.40.3";
+            const VERSION = "2.40.4";
             const VERSION_CHANGES = [
+                {
+                    version: "2.40.4",
+                    date: "2026-04-29",
+                    summary: "Hide first-paint mojibake before repair runs",
+                    details: [
+                        "Held the main app shell, topbar, and bottom nav invisible during the initial mojibake-repair pass so corrupted source text does not flash before cleanup.",
+                        "Removed the pending class as soon as the first runtime repair finishes, keeping the app readable without waiting for later observer passes.",
+                        "This masks the first-paint flash from the existing source corruption while the full UTF-8 recovery still remains separate work.",
+                    ],
+                },
                 {
                     version: "2.40.3",
                     date: "2026-04-29",
@@ -13242,6 +13257,7 @@
                 // strings, and the observer keeps dynamically rendered sections clean too.
                 _repairMojibakeNode(document.head);
                 _repairMojibakeNode(document.body);
+                if (document.body) document.body.classList.remove("mojibake-pending");
                 if (_mojibakeObserver) return;
                 let busy = false;
                 _mojibakeObserver = new MutationObserver((mutations) => {
