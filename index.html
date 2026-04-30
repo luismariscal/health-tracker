@@ -9927,8 +9927,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.40.2";
+            const VERSION = "2.40.3";
             const VERSION_CHANGES = [
+                {
+                    version: "2.40.3",
+                    date: "2026-04-29",
+                    summary: "Light mojibake cleanup for coach stack briefings",
+                    details: [
+                        "Cleaned the AI coach briefing generator so active stack rows, weight/compliance headings, symptoms, injections, and lab notes use readable ASCII separators again.",
+                        "Fixed the copy-toast message and the stack-briefing join logic that was producing the corrupted separators shown in coach previews.",
+                        "Kept this as a narrow, low-risk pass on the high-traffic coach briefing path; the broader source-file UTF-8 recovery is still separate work.",
+                    ],
+                },
                 {
                     version: "2.40.2",
                     date: "2026-04-29",
@@ -20707,6 +20717,8 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
 
             function buildCoachBundle(promptKey) {
                 const lines = [];
+                const coachSep = " | ";
+                const coachDash = " - ";
                 const today = todayKey();
                 const entries = loadEntries();
                 const sortedEntries = [...entries].sort((a, b) =>
@@ -20721,8 +20733,8 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                     .toISOString()
                     .slice(0, 10);
 
-                lines.push(`# Transformation Protocol ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Coach Briefing`);
-                lines.push(`Generated: ${today}  ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·  App v${VERSION}`);
+                lines.push(`# Transformation Protocol - Coach Briefing`);
+                lines.push(`Generated: ${today}${coachSep}App v${VERSION}`);
                 lines.push(``);
 
                 // PROFILE
@@ -20733,7 +20745,7 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                     );
                 lines.push(`- Current: ${cw} lb`);
                 lines.push(`- Target: ~230 lb (final shred)`);
-                lines.push(`- Wake: 05:00  ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·  Protein target: 230 g/day`);
+                lines.push(`- Wake: 05:00${coachSep}Protein target: 230 g/day`);
                 lines.push(``);
 
                 // ACTIVE STACK
@@ -20746,12 +20758,12 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                         if (s.dose) parts.push(s.dose);
                         if (s.schedule) parts.push(s.schedule);
                         if (s.start) parts.push(`started ${s.start}`);
-                        lines.push(`- ${parts.join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ")}`);
+                        lines.push(`- ${parts.join(coachSep)}`);
                     });
                 lines.push(``);
 
                 // WEIGHT ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â last 14 days
-                lines.push(`## Weight ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Last 14 Days`);
+                lines.push(`## Weight - Last 14 Days`);
                 const recent = sortedEntries.filter((e) => e.date >= cutoff14);
                 if (recent.length) {
                     recent.forEach((e) => {
@@ -20768,7 +20780,7 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                         const perWeek = days > 0 ? (delta / days) * 7 : 0;
                         lines.push(``);
                         lines.push(
-                            `Trend: ${delta > 0 ? "+" : ""}${delta.toFixed(1)} lb over ${days} days  ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·  ~${perWeek.toFixed(2)} lb/week`,
+                            `Trend: ${delta > 0 ? "+" : ""}${delta.toFixed(1)} lb over ${days} days${coachSep}~${perWeek.toFixed(2)} lb/week`,
                         );
                     }
                 } else {
@@ -20786,7 +20798,7 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                 const avgSleep = mean(hist7.map((h) => h.sleep_hours));
                 const avgSleepQ = mean(hist7.map((h) => h.sleep_quality));
                 const trainingDays = hist7.filter((h) => h.training).length;
-                lines.push(`## Compliance ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 7-Day Average`);
+                lines.push(`## Compliance - 7-Day Average`);
                 const avgHunger = mean(
                     hist7.map((h) =>
                         typeof h.hunger === "number" ? h.hunger : null,
@@ -20812,10 +20824,10 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                 );
                 lines.push(`- Training: ${trainingDays}/7 days`);
                 lines.push(
-                    `- Hunger (0ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ10): ${avgHunger !== null ? avgHunger.toFixed(1) : "not tracked"}${avgHunger !== null && avgHunger >= 6 ? " ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â  elevated" : ""}`,
+                    `- Hunger (0-10): ${avgHunger !== null ? avgHunger.toFixed(1) : "not tracked"}${avgHunger !== null && avgHunger >= 6 ? `${coachDash}elevated` : ""}`,
                 );
                 lines.push(
-                    `- GI issues (0ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ5): ${avgGI !== null ? avgGI.toFixed(1) : "not tracked"}${avgGI !== null && avgGI >= 3 ? " ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â  elevated" : ""}`,
+                    `- GI issues (0-5): ${avgGI !== null ? avgGI.toFixed(1) : "not tracked"}${avgGI !== null && avgGI >= 3 ? `${coachDash}elevated` : ""}`,
                 );
                 lines.push(``);
 
@@ -20844,8 +20856,8 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                             parts.push(`H${h.hunger}`);
                         if (typeof h.gi === "number" && h.gi > 0)
                             parts.push(`GI${h.gi}`);
-                        if (h.training) parts.push(`ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¹`);
-                        lines.push(`- ${h.date}: ${parts.join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ")}`);
+                        if (h.training) parts.push(`training`);
+                        lines.push(`- ${h.date}: ${parts.join(coachSep)}`);
                     });
                     lines.push(``);
                 }
@@ -20860,12 +20872,12 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                     );
                     training.forEach((s) => {
                         lines.push(
-                            `**${s.date}**${s.notes ? " ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â " + s.notes : ""}`,
+                            `**${s.date}**${s.notes ? `${coachDash}${s.notes}` : ""}`,
                         );
                         (s.lifts || []).forEach((l) => {
-                            const parts = [`${l.name}: ${l.weight}ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â${l.reps}`];
+                            const parts = [`${l.name}: ${l.weight}x${l.reps}`];
                             if (l.sets && l.sets > 1)
-                                parts[0] += ` ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${l.sets} sets`;
+                                parts[0] += ` x ${l.sets} sets`;
                             if (l.rpe) parts.push(`@ RPE${l.rpe}`);
                             const est = epley1RM(l.weight, l.reps);
                             if (est) parts.push(`(est 1RM ${est})`);
@@ -20880,11 +20892,11 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                     .filter((s) => s.ts && s.ts.slice(0, 10) >= cutoff14)
                     .sort((a, b) => b.ts.localeCompare(a.ts));
                 if (symptoms.length) {
-                    lines.push(`## Symptoms ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Last 14 Days`);
+                    lines.push(`## Symptoms - Last 14 Days`);
                     symptoms.forEach((s) => {
                         const date = s.ts.slice(0, 10);
                         const sev = s.severity ? ` (sev ${s.severity}/5)` : "";
-                        const note = s.note ? ` ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ${s.note}` : "";
+                        const note = s.note ? `${coachDash}${s.note}` : "";
                         lines.push(`- ${date}: ${s.tag}${sev}${note}`);
                     });
                     lines.push(``);
@@ -20896,7 +20908,7 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                     .filter(([d]) => d >= cutoff14)
                     .sort((a, b) => b[0].localeCompare(a[0]));
                 if (recentInj.length) {
-                    lines.push(`## Injection Log ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Last 14 Days`);
+                    lines.push(`## Injection Log - Last 14 Days`);
                     recentInj.forEach(([date, day]) => {
                         const items = Object.entries(day || {})
                             .filter(([, v]) => isInjLogged(v))
@@ -20972,10 +20984,10 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                                         b.date.localeCompare(a.date),
                                     )[0];
                                 const trend = prev
-                                    ? ` (prev ${prev.value} on ${prev.date}, ÃƒÆ’Ã…Â½ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â${(l.value - prev.value).toFixed(2)})`
+                                    ? ` (prev ${prev.value} on ${prev.date}, delta ${(l.value - prev.value).toFixed(2)})`
                                     : "";
                                 lines.push(
-                                    `- ${l.label}: ${l.value} ${l.unit || ""} (${l.date})${trend}${l.notes ? " ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â " + l.notes : ""}`,
+                                    `- ${l.label}: ${l.value} ${l.unit || ""} (${l.date})${trend}${l.notes ? `${coachDash}${l.notes}` : ""}`,
                                 );
                             });
                         const labOverview = loadLabOverview();
@@ -20999,7 +21011,7 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                                 .slice(0, 6)
                                 .forEach((f) => {
                                     lines.push(
-                                        `- ${f.severity || "info"}: ${f.label || "Finding"} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ${f.detail || ""}`,
+                                        `- ${f.severity || "info"}: ${f.label || "Finding"}${f.detail ? `${coachDash}${f.detail}` : ""}`,
                                     );
                                 });
                             (labOverview.overview.questionsForClinician || [])
@@ -21039,10 +21051,7 @@ Be direct. Don't hedge. If my compliance is bad, say so.`,
                     }
                 };
                 const done = () =>
-                    showToast(
-                    `ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ Coach briefing copied (${text.length.toLocaleString()} chars) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â paste into Claude, ChatGPT, or Gemini`,
-                        4000,
-                    );
+                    showToast(`Coach briefing copied (${text.length.toLocaleString()} chars) - paste into Claude, ChatGPT, or Gemini`, 4000);
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     navigator.clipboard.writeText(text).then(done, () => {
                         fallback();

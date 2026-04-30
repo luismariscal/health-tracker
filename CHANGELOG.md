@@ -2,6 +2,12 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.40.3 - 2026-04-29
+
+- Applied a light mojibake cleanup to the AI coach briefing generator so active stack lines, weight/compliance headings, symptom notes, injection rows, lab notes, and the copy message render with readable ASCII separators again.
+- Fixed the specific stack-briefing join path that was emitting the corrupted separators shown in coach previews and copy output.
+- Kept this as a narrow hot-path cleanup; the broader file-wide UTF-8/source recovery is still separate work.
+
 ## v2.40.2 - 2026-04-29
 
 - Consolidated the lower dashboard into four switchable workspaces: Focus, Review, Protocol, and Tools.
