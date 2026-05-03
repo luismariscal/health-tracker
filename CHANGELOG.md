@@ -2,6 +2,12 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.40.7 - 2026-05-03
+
+- Hardened the export-only text cleanup so short orphan mojibake fragments like bare `â€` markers get normalized before CSV cells are written.
+- Removed the leftover corrupted export-toast fallbacks so CSV export actions use only clean labels.
+- Kept this pass scoped to export output and export UI text, not the broader file-wide UTF-8 recovery.
+
 ## v2.40.6 - 2026-05-03
 
 - Cleaned mojibake out of the stack/protocol export path by decoding export strings before writing CSV rows or the focused stack-plus-protocol JSON payload.
