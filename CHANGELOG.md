@@ -2,8 +2,10 @@
 
 All notable changes to this project should be recorded here.
 
-## Unreleased
+## v2.40.5 - 2026-05-03
 
+- Added a combined `stack + protocol` JSON export so the live protocol can be handed off without exporting the entire backup.
+- Added `protocol.csv` beside the existing `stack.csv` export so the generated daily protocol can be reviewed in Excel or Google Sheets.
 - Improved the Android shell setup path with clearer README steps, a Windows launcher script to open the shell in Android Studio faster, and a helper script for finding or installing the latest debug APK after a build.
 
 ## v2.40.4 - 2026-04-29

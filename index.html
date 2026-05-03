@@ -5100,6 +5100,19 @@
                                 font-size: 12px;
                                 margin-bottom: 4px;
                             "
+                            onclick="exportStackProtocolJson()"
+                        >
+                            Export Stack + Protocol (JSON)
+                        </button>
+                        <button
+                            class="btn btn-ghost"
+                            style="
+                                width: 100%;
+                                justify-content: flex-start;
+                                text-align: left;
+                                font-size: 12px;
+                                margin-bottom: 4px;
+                            "
                             onclick="
                                 document.getElementById('importFile').click()
                             "
@@ -5584,6 +5597,17 @@
                         onclick="exportCsvStack()"
                     >
                         ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€¦Ã‚Â  stack.csv
+                    </button>
+                    <button
+                        class="btn btn-ghost"
+                        style="
+                            justify-content: flex-start;
+                            font-size: 12px;
+                            padding: 10px;
+                        "
+                        onclick="exportCsvProtocol()"
+                    >
+                        protocol.csv
                     </button>
                 </div>
                 <!-- STACK CSV IMPORT (v2.36.9) -->
@@ -9932,8 +9956,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.40.4";
+            const VERSION = "2.40.5";
             const VERSION_CHANGES = [
+                {
+                    version: "2.40.5",
+                    date: "2026-05-03",
+                    summary: "Add focused stack and protocol export tools",
+                    details: [
+                        "Added a combined stack-plus-protocol JSON export so the live protocol can be shared without exporting the entire app backup.",
+                        "Added protocol.csv export beside the existing stack.csv export so the generated daily protocol can be reviewed in Sheets or Excel.",
+                        "Kept the new exports sourced from the live Protocol OS state so Current Stack and Daily Protocol stay aligned in the downloaded files.",
+                    ],
+                },
                 {
                     version: "2.40.4",
                     date: "2026-04-29",
@@ -16798,6 +16832,52 @@
                 markExported(backup.ts);
                 const menu = document.getElementById("backupMenu");
                 if (menu) menu.style.display = "none";
+            }
+
+            function _stackProtocolExportPayload() {
+                const state = buildProtocolOsState();
+                const blocks = _protocolBlocksFromStack(state).map((block) => ({
+                    time: block.time,
+                    special: !!block.special,
+                    items: (block.items || []).slice(),
+                }));
+                const stack = (state.domains.stackItems || []).map((item) => ({
+                    name: item.name || "",
+                    dose: item.dose || "",
+                    timing: item.timing || "",
+                    status: item.status || "",
+                    start: item.start || "",
+                    note: item.note || "",
+                    category: item.category || "",
+                    route: item.route || "",
+                    scheduleDays: (item.scheduleDays || []).slice(),
+                    scheduleTimes: (item.scheduleTimes || []).slice(),
+                }));
+                return {
+                    version: VERSION,
+                    exportedAt: new Date().toISOString(),
+                    today: state.domains.today || todayKey(),
+                    summary: selectWorkflowSummary(state),
+                    currentStack: stack,
+                    dailyProtocol: blocks,
+                };
+            }
+
+            function exportStackProtocolJson() {
+                const payload = _stackProtocolExportPayload();
+                const stamp = String(payload.today || todayKey());
+                const blob = new Blob([JSON.stringify(payload, null, 2)], {
+                    type: "application/json",
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `stack-protocol-v${VERSION}-${stamp}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                const menu = document.getElementById("backupMenu");
+                if (menu) menu.style.display = "none";
+                showToast("stack-protocol.json downloaded", 2500);
             }
 
             function renderBackupStatus() {
@@ -32650,6 +32730,22 @@ ${parts.join("\n")}
                 );
                 _csvDownload("stack.csv", rows);
                 showToast("ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¦Ã‚Â  stack.csv downloaded", 2500);
+            }
+            function exportCsvProtocol() {
+                const state = buildProtocolOsState();
+                const rows = [["time", "special", "item_order", "item"]];
+                _protocolBlocksFromStack(state).forEach((block) => {
+                    (block.items || []).forEach((item, index) => {
+                        rows.push([
+                            block.time || "",
+                            block.special ? "yes" : "no",
+                            index + 1,
+                            item || "",
+                        ]);
+                    });
+                });
+                _csvDownload("protocol.csv", rows);
+                showToast("protocol.csv downloaded", 2500);
             }
             function downloadStackCsvTemplate() {
                 // One example row so users can see how split-dose weekly
