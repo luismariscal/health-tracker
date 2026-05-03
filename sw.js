@@ -1,10 +1,10 @@
 // =========================================================
-// Health Tracker â€” Service Worker
+// Health Tracker Ã¢â‚¬â€ Service Worker
 // Handles notification focus, periodic background sync for
 // hydration + injection reminders, and basic cache shell.
 // Served from GitHub Pages at /health-tracker/sw.js.
 // =========================================================
-const SW_VERSION = 'tp-sw-v2.40.7';
+const SW_VERSION = 'tp-sw-v2.40.8';
 const SCOPE = self.registration.scope;
 
 self.addEventListener('install', (e) => {
@@ -28,7 +28,7 @@ self.addEventListener('activate', (e) => {
   })());
 });
 
-// Network-first (default) â€” no caching yet; future-proofed hook.
+// Network-first (default) Ã¢â‚¬â€ no caching yet; future-proofed hook.
 self.addEventListener('fetch', () => {});
 
 // -------- Notification click: focus app or open it --------
@@ -48,7 +48,7 @@ self.addEventListener('notificationclick', (e) => {
 
 // -------- Periodic Background Sync --------
 // Chrome (desktop + Android) for installed PWAs only; others no-op.
-// Browser enforces its own minInterval (typically â‰¥12h). We still
+// Browser enforces its own minInterval (typically Ã¢â€°Â¥12h). We still
 // register the tag so if the spec later expands, hydration nudges
 // arrive even while the tab is closed.
 self.addEventListener('periodicsync', (e) => {
@@ -62,14 +62,14 @@ self.addEventListener('periodicsync', (e) => {
 async function fireWaterReminderFromSW() {
   const now = new Date();
   const h = now.getHours();
-  // Conservative waking window â€” page is the source of truth when open,
+  // Conservative waking window Ã¢â‚¬â€ page is the source of truth when open,
   // but the SW can't read localStorage, so we use a safe default here.
   if (h < 6 || h > 21) return;
   try {
-    await self.registration.showNotification('ðŸ’§ Time to hydrate', {
+    await self.registration.showNotification('Ã°Å¸â€™Â§ Time to hydrate', {
       body: 'Tap to log your water in the Health Tracker.',
-      icon: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="%230ea5e9"/><text x="50%" y="62%" text-anchor="middle" font-size="54" fill="white" font-family="Arial">ðŸ’§</text></svg>',
-      badge: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><text x="50%" y="65%" text-anchor="middle" font-size="36" fill="black">ðŸ’§</text></svg>',
+      icon: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="%230ea5e9"/><text x="50%" y="62%" text-anchor="middle" font-size="54" fill="white" font-family="Arial">Ã°Å¸â€™Â§</text></svg>',
+      badge: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><text x="50%" y="65%" text-anchor="middle" font-size="36" fill="black">Ã°Å¸â€™Â§</text></svg>',
       tag: 'tp-water-bg',
       renotify: false,
       requireInteraction: false,
@@ -82,9 +82,9 @@ async function fireInjectionReminderFromSW() {
   const day = now.getDay(); // 0 = Sunday, 4 = Thursday
   if (day !== 0 && day !== 4) return;
   try {
-    await self.registration.showNotification('ðŸ’‰ Injection Day', {
+    await self.registration.showNotification('Ã°Å¸â€™â€° Injection Day', {
       body: 'Retatrutide + supporting compounds due today. Tap to log.',
-      icon: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="%2300d4ff"/><text x="50%" y="62%" text-anchor="middle" font-size="54" fill="white" font-family="Arial">ðŸ’‰</text></svg>',
+      icon: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="%2300d4ff"/><text x="50%" y="62%" text-anchor="middle" font-size="54" fill="white" font-family="Arial">Ã°Å¸â€™â€°</text></svg>',
       tag: 'tp-injection-bg',
       requireInteraction: false,
     });
