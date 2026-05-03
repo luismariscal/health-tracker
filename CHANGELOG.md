@@ -2,6 +2,10 @@
 
 All notable changes to this project should be recorded here.
 
+## Unreleased
+
+- Improved the Android shell setup path with clearer README steps, a Windows launcher script to open the shell in Android Studio faster, and a helper script for finding or installing the latest debug APK after a build.
+
 ## v2.40.4 - 2026-04-29
 
 - Hid the main app shell, topbar, and bottom nav during the initial mojibake repair pass so corrupted text stops flashing before cleanup finishes.
