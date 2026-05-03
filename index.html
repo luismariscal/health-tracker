@@ -9956,8 +9956,18 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.40.5";
+            const VERSION = "2.40.6";
             const VERSION_CHANGES = [
+                {
+                    version: "2.40.6",
+                    date: "2026-05-03",
+                    summary: "Clean mojibake out of stack and protocol exports",
+                    details: [
+                        "Taught the CSV export path to decode mojibake-prone strings before writing them, so exported notes and labels come out readable.",
+                        "Cleaned the built-in stack-template.csv example row and simplified export toasts so export surfaces stop reintroducing corrupted text.",
+                        "Applied the same text cleanup to the focused stack-plus-protocol JSON export so handoff files read cleanly even when old stored strings need decoding.",
+                    ],
+                },
                 {
                     version: "2.40.5",
                     date: "2026-05-03",
@@ -16853,14 +16863,14 @@
                     scheduleDays: (item.scheduleDays || []).slice(),
                     scheduleTimes: (item.scheduleTimes || []).slice(),
                 }));
-                return {
+                return _exportCleanValue({
                     version: VERSION,
                     exportedAt: new Date().toISOString(),
                     today: state.domains.today || todayKey(),
                     summary: selectWorkflowSummary(state),
                     currentStack: stack,
                     dailyProtocol: blocks,
-                };
+                });
             }
 
             function exportStackProtocolJson() {
@@ -16877,7 +16887,7 @@
                 URL.revokeObjectURL(url);
                 const menu = document.getElementById("backupMenu");
                 if (menu) menu.style.display = "none";
-                showToast("stack-protocol.json downloaded", 2500);
+                showToast("Stack + protocol JSON downloaded", 2500);
             }
 
             function renderBackupStatus() {
@@ -32489,9 +32499,22 @@ ${parts.join("\n")}
             // quoting (double-quote values containing commas, quotes, or
             // newlines; escape " as ""). Empty values become blank cells.
             // =========================================================
+            function _exportCleanValue(value) {
+                if (typeof value === "string") return _decodeMojibakeText(value);
+                if (Array.isArray(value))
+                    return value.map((item) => _exportCleanValue(item));
+                if (value && typeof value === "object") {
+                    const out = {};
+                    Object.keys(value).forEach((key) => {
+                        out[key] = _exportCleanValue(value[key]);
+                    });
+                    return out;
+                }
+                return value;
+            }
             function _csvEsc(v) {
                 if (v == null) return "";
-                const s = String(v);
+                const s = String(_exportCleanValue(v));
                 if (/[",\n\r]/.test(s))
                     return '"' + s.replace(/"/g, '""') + '"';
                 return s;
@@ -32575,6 +32598,8 @@ ${parts.join("\n")}
                         rows.push([e.date, e.weight, e.note || ""]),
                     );
                 _csvDownload("weight.csv", rows);
+                showToast("weight.csv downloaded", 2500);
+                return;
                 showToast("ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¦Ã‚Â  weight.csv downloaded", 2500);
             }
             function exportCsvVitals() {
@@ -32590,6 +32615,8 @@ ${parts.join("\n")}
                         ]),
                     );
                 _csvDownload("vitals.csv", rows);
+                showToast("vitals.csv downloaded", 2500);
+                return;
                 showToast("ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¦Ã‚Â  vitals.csv downloaded", 2500);
             }
             function exportCsvInjections() {
@@ -32606,6 +32633,8 @@ ${parts.join("\n")}
                         rows.push([date, compound || "", site, "yes"]);
                     });
                 _csvDownload("injections.csv", rows);
+                showToast("injections.csv downloaded", 2500);
+                return;
                 showToast("ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¦Ã‚Â  injections.csv downloaded", 2500);
             }
             function exportCsvMeasurements() {
@@ -32630,6 +32659,8 @@ ${parts.join("\n")}
                         ]),
                     );
                 _csvDownload("measurements.csv", rows);
+                showToast("measurements.csv downloaded", 2500);
+                return;
                 showToast("ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¦Ã‚Â  measurements.csv downloaded", 2500);
             }
             function exportCsvSymptoms() {
@@ -32645,6 +32676,8 @@ ${parts.join("\n")}
                         ]),
                     );
                 _csvDownload("symptoms.csv", rows);
+                showToast("symptoms.csv downloaded", 2500);
+                return;
                 showToast("ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¦Ã‚Â  symptoms.csv downloaded", 2500);
             }
             function exportCsvWater() {
@@ -32672,6 +32705,8 @@ ${parts.join("\n")}
                         );
                     });
                 _csvDownload("water.csv", rows);
+                showToast("water.csv downloaded", 2500);
+                return;
                 showToast("ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¦Ã‚Â  water.csv downloaded", 2500);
             }
             function exportCsvJournal() {
@@ -32682,6 +32717,8 @@ ${parts.join("\n")}
                         rows.push([j.date, j.text || j.entry || ""]),
                     );
                 _csvDownload("journal.csv", rows);
+                showToast("journal.csv downloaded", 2500);
+                return;
                 showToast("ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¦Ã‚Â  journal.csv downloaded", 2500);
             }
             // Column order kept backward-compatible with older exports:
@@ -32729,6 +32766,8 @@ ${parts.join("\n")}
                     rows.push(_stackEntryToCsvRow(s)),
                 );
                 _csvDownload("stack.csv", rows);
+                showToast("stack.csv downloaded", 2500);
+                return;
                 showToast("ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¦Ã‚Â  stack.csv downloaded", 2500);
             }
             function exportCsvProtocol() {
@@ -32765,7 +32804,10 @@ ${parts.join("\n")}
                         "06:00",
                     ],
                 ];
+                rows[1][5] = "Example row - delete before importing your real stack.";
                 _csvDownload("stack-template.csv", rows);
+                showToast("stack-template.csv downloaded", 2500);
+                return;
                 showToast("ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ stack-template.csv downloaded", 2500);
             }
             function importStackCsv(event) {

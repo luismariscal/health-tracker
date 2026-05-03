@@ -2,6 +2,12 @@
 
 All notable changes to this project should be recorded here.
 
+## v2.40.6 - 2026-05-03
+
+- Cleaned mojibake out of the stack/protocol export path by decoding export strings before writing CSV rows or the focused stack-plus-protocol JSON payload.
+- Fixed the built-in `stack-template.csv` example note so the template itself no longer ships corrupted text.
+- Simplified CSV download toasts for the export actions so the UI stops surfacing corrupted labels during export.
+
 ## v2.40.5 - 2026-05-03
 
 - Added a combined `stack + protocol` JSON export so the live protocol can be handed off without exporting the entire backup.
