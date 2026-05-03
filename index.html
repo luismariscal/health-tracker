@@ -474,9 +474,7 @@
             .workspace-group-mount.is-active {
                 display: grid;
             }
-            body.mojibake-pending .main,
-            body.mojibake-pending #topbar,
-            body.mojibake-pending #bottomNav {
+            body.mojibake-pending > * {
                 visibility: hidden;
             }
             .workflow-pill {
@@ -9956,8 +9954,17 @@
             // =========================================================
             // DATA
             // =========================================================
-            const VERSION = "2.40.8";
+            const VERSION = "2.40.9";
             const VERSION_CHANGES = [
+                {
+                    version: "2.40.9",
+                    date: "2026-05-03",
+                    summary: "Stop mojibake from flashing during app refresh",
+                    details: [
+                        "Held the full app shell hidden during the startup repair pass instead of hiding only a few containers.",
+                        "Delayed reveal until after the first post-render mojibake repair so corrupted source text does not flash during refresh.",
+                    ],
+                },
                 {
                     version: "2.40.8",
                     date: "2026-05-03",
@@ -13313,14 +13320,15 @@
                 });
                 Array.from(node.childNodes || []).forEach(_repairMojibakeNode);
             }
-            function initMojibakeRepair() {
+            function initMojibakeRepair(reveal = true) {
                 // Review note: a previous Windows encoding pass mangled many icon glyphs
                 // and punctuation literals in the static HTML. Repairing suspicious UTF-8
                 // mojibake at runtime restores the UI without hand-editing hundreds of
                 // strings, and the observer keeps dynamically rendered sections clean too.
                 _repairMojibakeNode(document.head);
                 _repairMojibakeNode(document.body);
-                if (document.body) document.body.classList.remove("mojibake-pending");
+                if (reveal && document.body)
+                    document.body.classList.remove("mojibake-pending");
                 if (_mojibakeObserver) return;
                 let busy = false;
                 _mojibakeObserver = new MutationObserver((mutations) => {
@@ -38952,11 +38960,14 @@ ${parts.join("\n")}
                     localStorage.setItem(FLAG, "done");
                 } catch {}
             })();
-            initMojibakeRepair();
+            initMojibakeRepair(false);
             scheduleMojibakeRepair(80);
             scheduleMojibakeRepair(1200);
             render(); // calls renderShoppingList, renderInjectionTracker, renderSuppChecklist, renderMeasurements internally
-            scheduleViewportReset();
+            window.requestAnimationFrame(() => {
+                initMojibakeRepair();
+                scheduleViewportReset();
+            });
             restoreBackupHandle(); // restore connected auto-backup file from IndexedDB if present
             renderHealthConnectStatus();
             checkScheduledReview(); // fire Sunday auto-review if due
